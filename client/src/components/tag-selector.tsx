@@ -19,7 +19,11 @@ export function TagSelector({ tags, onSelect, className }: TagSelectorProps) {
           variant="outline"
           size="sm"
           className="text-sm"
-          onClick={() => onSelect(tag.label)}
+          type="button" // Explicitly set type to button to prevent form submission
+          onClick={(e) => {
+            e.preventDefault(); // Prevent form submission
+            onSelect(tag.label);
+          }}
         >
           {tag.emoji && <span className="mr-1">{tag.emoji}</span>}
           {tag.label}
