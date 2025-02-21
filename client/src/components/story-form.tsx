@@ -81,6 +81,15 @@ export function StoryForm() {
   });
 
   const onSubmit = async (data: StoryFormData) => {
+    if (!data.characteristics || !data.colors || !data.setting || !data.theme || !data.antagonist) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all the fields to generate your story.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await apiRequest("POST", "/api/stories/generate", data);
