@@ -7,6 +7,7 @@ interface StoryParams {
   protagonist: string;
   setting: string;
   theme: string;
+  antagonist: string;
 }
 
 interface StoryResponse {
@@ -30,6 +31,13 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
   - Protagonist: ${params.protagonist} (a Yorkshire terrier with unique personality traits)
   - Setting: ${params.setting}
   - Theme: ${params.theme}
+  - Antagonist: ${params.antagonist}
+
+  Story Context:
+  - Yorkshire terriers have a natural rivalry with squirrels and other rodents
+  - Squirrels are known for teasing and being mean to Yorkshire terriers
+  - If the setting is Uncle Mark's magical farm, include its special enchanted elements
+  - The story should showcase the Yorkshire terrier's bravery in facing the antagonist
 
   Requirements:
   - Story should be at least 10,000 words
@@ -37,6 +45,8 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
   - Use descriptive, engaging language suitable for a visual novel
   - Create a whimsical, adventurous tone
   - Focus on the Yorkshire terrier's unique characteristics: brave, energetic, and clever
+  - Include details about the antagonist's mischievous nature
+  - If set on Uncle Mark's farm, weave in magical elements unique to the setting
 
   Provide the response as a JSON object with:
   - title: story title
@@ -49,7 +59,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
       messages: [
         {
           role: "system",
-          content: "You are a creative children's book author specializing in Yorkshire terrier adventures. You understand their unique traits: intelligence, bravery, and loyalty. Your stories capture their distinctive personalities and small but mighty spirit."
+          content: "You are a creative children's book author specializing in Yorkshire terrier adventures. You understand their unique traits: intelligence, bravery, and loyalty. Your stories capture their distinctive personalities and small but mighty spirit. You also know that Yorkshire terriers have a special rivalry with squirrels and other rodents, who often tease them despite the Yorkies' brave nature."
         },
         {
           role: "user",

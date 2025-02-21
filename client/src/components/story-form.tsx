@@ -13,6 +13,7 @@ interface StoryFormData {
   colors: string;
   setting: string;
   theme: string;
+  antagonist: string;
 }
 
 const characteristics = [
@@ -38,6 +39,7 @@ const colors = [
 ];
 
 const settings = [
+  { label: "Uncle Mark's Magical Farm", emoji: "🏡" },
   { label: "Enchanted Garden", emoji: "🌸" },
   { label: "Cozy Home", emoji: "🏠" },
   { label: "City Park", emoji: "🌳" },
@@ -55,6 +57,14 @@ const themes = [
   { label: "Adventure", emoji: "🎯" }
 ];
 
+const antagonists = [
+  { label: "Mischievous Squirrel", emoji: "🐿️" },
+  { label: "Sneaky Mouse", emoji: "🐁" },
+  { label: "Crafty Rat", emoji: "🐀" },
+  { label: "Pesky Chipmunk", emoji: "🦫" },
+  { label: "Troublesome Gopher", emoji: "🦫" }
+];
+
 export function StoryForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -65,7 +75,8 @@ export function StoryForm() {
       characteristics: "",
       colors: "",
       setting: "",
-      theme: ""
+      theme: "",
+      antagonist: ""
     }
   });
 
@@ -144,7 +155,7 @@ export function StoryForm() {
             <FormItem>
               <FormLabel>Story Setting</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. Enchanted Garden" {...field} />
+                <Input placeholder="e.g. Uncle Mark's Magical Farm" {...field} />
               </FormControl>
               <FormDescription>
                 Choose a magical place for your Yorkie's adventure
@@ -152,6 +163,26 @@ export function StoryForm() {
               <TagSelector
                 tags={settings}
                 onSelect={(setting) => field.onChange(setting)}
+              />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="antagonist"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Story Antagonist</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. Mischievous Squirrel" {...field} />
+              </FormControl>
+              <FormDescription>
+                Select a troublesome rodent as your story's antagonist
+              </FormDescription>
+              <TagSelector
+                tags={antagonists}
+                onSelect={(antagonist) => field.onChange(antagonist)}
               />
             </FormItem>
           )}
