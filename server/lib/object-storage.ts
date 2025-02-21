@@ -7,23 +7,16 @@ import { log } from "./logger";
 
 export class ImageStorage {
   private client: Client | null;
-  private bucketName: string;
   private useMemoryFallback: boolean = true;
   private memoryStorage: Map<string, Buffer> = new Map();
 
   constructor() {
     log('Initializing ImageStorage');
-    this.bucketName = "yorkshire-terrier-stories";
-
     try {
-      if (process.env.REPLIT_OBJECT_STORE) {
-        this.client = new Client();
-        this.useMemoryFallback = false;
-        log('ImageStorage initialized with Replit Object Storage');
-      } else {
-        this.client = null;
-        log('REPLIT_OBJECT_STORE not found, using memory storage fallback');
-      }
+      // Object Storage should be available if enabled in the Repl
+      this.client = new Client();
+      this.useMemoryFallback = false;
+      log('ImageStorage initialized with Replit Object Storage');
     } catch (error) {
       this.client = null;
       log('Failed to initialize Replit Object Storage, using memory storage fallback', error);
