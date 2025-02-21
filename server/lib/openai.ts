@@ -4,7 +4,8 @@ import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface StoryParams {
-  protagonist: string;
+  characteristics: string;
+  colors: string;
   setting: string;
   theme: string;
   antagonist: string;
@@ -28,7 +29,7 @@ interface CharacterProfile {
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
   const prompt = `Create a charming Yorkshire terrier story with these parameters:
-  - Protagonist: ${params.protagonist} (a Yorkshire terrier with unique personality traits)
+  - Yorkshire Terrier: A ${params.colors} Yorkie with these traits: ${params.characteristics}
   - Setting: ${params.setting}
   - Theme: ${params.theme}
   - Antagonist: ${params.antagonist}
@@ -40,7 +41,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
   - The story should showcase the Yorkshire terrier's bravery in facing the antagonist
 
   Requirements:
-  - Story should be at least 10,000 words
+  - Story should be between 3,000-5,000 words
   - Include multiple chapters
   - Use descriptive, engaging language suitable for a visual novel
   - Create a whimsical, adventurous tone
@@ -67,7 +68,8 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
         }
       ],
       response_format: { type: "json_object" },
-      max_tokens: 4000
+      temperature: 0.8,
+      max_tokens: 8000
     });
 
     const content = response.choices[0].message.content;

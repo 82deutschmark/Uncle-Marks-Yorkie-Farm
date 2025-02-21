@@ -92,9 +92,11 @@ export async function registerRoutes(app: Express) {
   app.post("/api/stories/generate", async (req, res) => {
     try {
       const storyParams = {
-        protagonist: req.body.protagonist,
+        characteristics: req.body.characteristics,
+        colors: req.body.colors,
         setting: req.body.setting,
-        theme: req.body.theme
+        theme: req.body.theme,
+        antagonist: req.body.antagonist
       };
 
       const generated = await generateStory(storyParams);
