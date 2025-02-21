@@ -6,20 +6,27 @@ import { createHash } from "crypto";
 import { log } from "./logger";
 
 export class ImageStorage {
-  private client: Client;
-  private bucketId: string;
+  private client: Client | null;
+  private bucketName: string;
+  private useMemoryFallback: boolean = true;
+  private memoryStorage: Map<string, Buffer> = new Map();
 
   constructor() {
-    log('Initializing ImageStorage client');
+    log('Initializing ImageStorage');
+    this.bucketName = "yorkshire-terrier-stories";
+
     try {
-      this.bucketId = "yorkshire-terrier-stories";
-      this.client = new Client({
-        bucketId: this.bucketId
-      });
-      log('ImageStorage client initialized successfully');
+      if (process.env.REPLIT_OBJECT_STORE) {
+        this.client = new Client();
+        this.useMemoryFallback = false;
+        log('ImageStorage initialized with Replit Object Storage');
+      } else {
+        this.client = null;
+        log('REPLIT_OBJECT_STORE not found, using memory storage fallback');
+      }
     } catch (error) {
-      log('Failed to initialize ImageStorage client', error);
-      throw new Error('Failed to initialize storage client');
+      this.client = null;
+      log('Failed to initialize Replit Object Storage, using memory storage fallback', error);
     }
   }
 
@@ -44,43 +51,62 @@ export class ImageStorage {
       const extension = path.extname(originalName);
       const key = `${fileId}${extension}`;
 
-      log(`Uploading Yorkshire terrier story image with key: ${key}`);
-      await this.client.put(key, imageBuffer);
-
-      log(`Generating signed URL for key: ${key}`);
-      const objectUrl = await this.client.getSignedURL(key);
-
-      return {
-        fileId,
-        objectUrl
-      };
+      if (this.useMemoryFallback) {
+        // Store in memory
+        this.memoryStorage.set(key, imageBuffer);
+        const objectUrl = `/api/images/memory/${key}`;
+        log(`Stored image in memory with key: ${key}`);
+        return { fileId, objectUrl };
+      } else if (this.client) {
+        // Store in Replit Object Storage
+        log(`Uploading image to Replit Object Storage with key: ${key}`);
+        await this.client.putObject(key, imageBuffer);
+        const objectUrl = await this.client.getSignedUrl(key);
+        return { fileId, objectUrl };
+      } else {
+        throw new Error('No storage backend available');
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to upload Yorkshire terrier story image: ${message}`, error);
+      log(`Failed to upload image: ${message}`, error);
       throw new Error(`Failed to upload image: ${message}`);
     }
   }
 
   async deleteImage(fileId: string): Promise<void> {
     try {
-      log(`Deleting Yorkshire terrier story image with fileId: ${fileId}`);
-      await this.client.delete(fileId);
+      if (this.useMemoryFallback) {
+        this.memoryStorage.delete(fileId);
+        log(`Deleted image from memory: ${fileId}`);
+      } else if (this.client) {
+        await this.client.deleteObject(fileId);
+        log(`Deleted image from Replit Object Storage: ${fileId}`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to delete Yorkshire terrier story image: ${message}`, error);
+      log(`Failed to delete image: ${message}`, error);
       throw new Error(`Failed to delete image: ${message}`);
     }
   }
 
   async getImageUrl(fileId: string): Promise<string> {
     try {
-      log(`Getting signed URL for Yorkshire terrier story image: ${fileId}`);
-      return await this.client.getSignedURL(fileId);
+      if (this.useMemoryFallback) {
+        return `/api/images/memory/${fileId}`;
+      } else if (this.client) {
+        return await this.client.getSignedUrl(fileId);
+      }
+      throw new Error('No storage backend available');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to get Yorkshire terrier story image URL: ${message}`, error);
+      log(`Failed to get image URL: ${message}`, error);
       throw new Error(`Failed to get image URL: ${message}`);
     }
+  }
+
+  // Method to get image data from memory storage
+  getMemoryImage(key: string): Buffer | undefined {
+    return this.memoryStorage.get(key);
   }
 }
 

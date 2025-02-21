@@ -13,6 +13,16 @@ import path from "path";
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
+  // Add route to serve images from memory storage
+  app.get("/api/images/memory/:key", (req, res) => {
+    const imageData = imageStorage.getMemoryImage(req.params.key);
+    if (!imageData) {
+      return res.status(404).json({ message: "Image not found" });
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.send(imageData);
+  });
+
   // Configure multer for handling PNG and ZIP uploads
   const upload = multer({
     storage: multer.memoryStorage(),
