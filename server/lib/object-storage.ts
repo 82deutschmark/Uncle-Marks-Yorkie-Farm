@@ -12,10 +12,9 @@ export class ImageStorage {
   constructor() {
     log('Initializing ImageStorage client');
     try {
-      // Initialize with bucketId parameter (not bucket)
       this.bucketId = "yorkshire-terrier-stories";
       this.client = new Client({
-        bucketId: this.bucketId // Use bucketId instead of bucket
+        bucketId: this.bucketId // Using bucketId instead of bucket
       });
       log('ImageStorage client initialized successfully');
     } catch (error) {
