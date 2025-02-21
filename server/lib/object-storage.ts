@@ -13,8 +13,10 @@ export class ImageStorage {
   constructor() {
     log('Initializing ImageStorage');
     try {
-      // Object Storage should be available if enabled in the Repl
-      this.client = new Client();
+      // Initialize with the bucket ID
+      this.client = new Client({
+        bucket: "replit-objstore-765db3a9-41bc-454b-9e99-f55145d9ea3a"
+      });
       this.useMemoryFallback = false;
       log('ImageStorage initialized with Replit Object Storage');
     } catch (error) {
@@ -53,8 +55,8 @@ export class ImageStorage {
       } else if (this.client) {
         // Store in Replit Object Storage
         log(`Uploading image to Replit Object Storage with key: ${key}`);
-        await this.client.putObject(key, imageBuffer);
-        const objectUrl = await this.client.getSignedUrl(key);
+        await this.client.put(key, imageBuffer);
+        const objectUrl = await this.client.getUrl(key);
         return { fileId, objectUrl };
       } else {
         throw new Error('No storage backend available');
@@ -72,7 +74,7 @@ export class ImageStorage {
         this.memoryStorage.delete(fileId);
         log(`Deleted image from memory: ${fileId}`);
       } else if (this.client) {
-        await this.client.deleteObject(fileId);
+        await this.client.delete(fileId);
         log(`Deleted image from Replit Object Storage: ${fileId}`);
       }
     } catch (error) {
@@ -87,7 +89,7 @@ export class ImageStorage {
       if (this.useMemoryFallback) {
         return `/api/images/memory/${fileId}`;
       } else if (this.client) {
-        return await this.client.getSignedUrl(fileId);
+        return await this.client.getUrl(fileId);
       }
       throw new Error('No storage backend available');
     } catch (error) {
