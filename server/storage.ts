@@ -1,7 +1,6 @@
 import { stories, images, type Story, type InsertStory, type Image, type InsertImage } from "@shared/schema";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
-import { Client } from "pg";
+import { db } from "./db";
 import { imageStorage } from "./lib/object-storage";
 
 export interface IStorage {
@@ -18,18 +17,10 @@ export interface IStorage {
 }
 
 export class PostgresStorage implements IStorage {
-  private db: ReturnType<typeof drizzle>;
-
-  constructor() {
-    const client = new Client(process.env.DATABASE_URL);
-    client.connect();
-    this.db = drizzle(client);
-  }
-
   // Story operations
   async createStory(insertStory: InsertStory): Promise<Story> {
     try {
-      const [story] = await this.db.insert(stories)
+      const [story] = await db.insert(stories)
         .values(insertStory)
         .returning();
       return story;
@@ -40,7 +31,7 @@ export class PostgresStorage implements IStorage {
 
   async getStory(id: number): Promise<Story | undefined> {
     try {
-      const [story] = await this.db.select()
+      const [story] = await db.select()
         .from(stories)
         .where(eq(stories.id, id))
         .limit(1);
@@ -52,7 +43,7 @@ export class PostgresStorage implements IStorage {
 
   async listStories(): Promise<Story[]> {
     try {
-      return await this.db.select().from(stories);
+      return await db.select().from(stories);
     } catch (error) {
       throw new Error(`Failed to list stories: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -61,7 +52,7 @@ export class PostgresStorage implements IStorage {
   // Image operations
   async createImage(insertImage: InsertImage): Promise<Image> {
     try {
-      const [image] = await this.db.insert(images)
+      const [image] = await db.insert(images)
         .values(insertImage)
         .returning();
       return image;
@@ -72,7 +63,7 @@ export class PostgresStorage implements IStorage {
 
   async getImage(id: number): Promise<Image | undefined> {
     try {
-      const [image] = await this.db.select()
+      const [image] = await db.select()
         .from(images)
         .where(eq(images.id, id))
         .limit(1);
@@ -84,7 +75,7 @@ export class PostgresStorage implements IStorage {
 
   async listImages(options?: { processed?: boolean }): Promise<Image[]> {
     try {
-      let query = this.db.select().from(images);
+      let query = db.select().from(images);
       if (options?.processed !== undefined) {
         query = query.where(eq(images.isProcessed, options.processed));
       }
@@ -96,7 +87,7 @@ export class PostgresStorage implements IStorage {
 
   async updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image> {
     try {
-      const [image] = await this.db.update(images)
+      const [image] = await db.update(images)
         .set(metadata)
         .where(eq(images.id, id))
         .returning();
