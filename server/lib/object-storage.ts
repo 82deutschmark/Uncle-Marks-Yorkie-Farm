@@ -1,38 +1,26 @@
 import { Client } from "@replit/object-storage";
-import { Image, InsertImage, type images } from "@shared/schema";
+import { Image, InsertImage } from "@shared/schema";
 import sharp from "sharp";
 import path from "path";
 import { createHash } from "crypto";
-import { log } from "./vite";
-
-interface ObjectStorageClient extends Client {
-  putObject(bucket: string, key: string, data: Buffer): Promise<void>;
-  getSignedUrl(bucket: string, key: string): Promise<string>;
-  deleteObject(bucket: string, key: string): Promise<void>;
-}
+import { log } from "./logger";
 
 export class ImageStorage {
-  private client: ObjectStorageClient;
-  private bucketName = "story-images";
+  private client: Client;
+  private bucketId: string;
 
   constructor() {
     log('Initializing ImageStorage client');
-    this.client = new Client({}) as ObjectStorageClient;
-    this.initializeBucket().catch(error => {
-      log(`Error initializing bucket: ${error instanceof Error ? error.message : String(error)}`);
-    });
-  }
-
-  private async initializeBucket(): Promise<void> {
     try {
-      const buckets = await this.client.listBuckets();
-      if (!buckets.includes(this.bucketName)) {
-        await this.client.createBucket(this.bucketName);
-      }
+      // Initialize with bucketId parameter (not bucket)
+      this.bucketId = "story-images";
+      this.client = new Client({
+        bucketId: this.bucketId // Use bucketId instead of bucket
+      });
+      log('ImageStorage client initialized successfully');
     } catch (error) {
-      log('Failed to initialize bucket:', error);
-      // Don't throw here as it might be a transient error
-      // The bucket operations will fail later if there's a real problem
+      log('Failed to initialize ImageStorage client', error);
+      throw new Error('Failed to initialize storage client');
     }
   }
 
@@ -57,13 +45,11 @@ export class ImageStorage {
       const extension = path.extname(originalName);
       const key = `${fileId}${extension}`;
 
-      // Upload using putObject
       log(`Uploading image with key: ${key}`);
-      await this.client.putObject(this.bucketName, key, imageBuffer);
+      await this.client.putObject(key, imageBuffer);
 
-      // Get a signed URL that expires in 7 days
       log(`Generating signed URL for key: ${key}`);
-      const objectUrl = await this.client.getSignedUrl(this.bucketName, key);
+      const objectUrl = await this.client.getSignedUrl(key);
 
       return {
         fileId,
@@ -71,7 +57,7 @@ export class ImageStorage {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to upload image: ${message}`);
+      log(`Failed to upload image: ${message}`, error);
       throw new Error(`Failed to upload image: ${message}`);
     }
   }
@@ -79,10 +65,10 @@ export class ImageStorage {
   async deleteImage(fileId: string): Promise<void> {
     try {
       log(`Deleting image with fileId: ${fileId}`);
-      await this.client.deleteObject(this.bucketName, fileId);
+      await this.client.deleteObject(fileId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to delete image: ${message}`);
+      log(`Failed to delete image: ${message}`, error);
       throw new Error(`Failed to delete image: ${message}`);
     }
   }
@@ -90,10 +76,10 @@ export class ImageStorage {
   async getImageUrl(fileId: string): Promise<string> {
     try {
       log(`Getting signed URL for fileId: ${fileId}`);
-      return await this.client.getSignedUrl(this.bucketName, fileId);
+      return await this.client.getSignedUrl(fileId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to get image URL: ${message}`);
+      log(`Failed to get image URL: ${message}`, error);
       throw new Error(`Failed to get image URL: ${message}`);
     }
   }
