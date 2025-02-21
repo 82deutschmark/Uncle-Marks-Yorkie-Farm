@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Link } from "wouter";
-import { Upload, BookOpen, Wand2 } from "lucide-react";
+import { Wand2, BookOpen, ImageIcon, Upload } from "lucide-react";
 
 export default function Home() {
   return (
@@ -10,7 +10,7 @@ export default function Home() {
         <CardHeader>
           <CardTitle className="text-center text-3xl">Yorkshire Terrier Story Generator</CardTitle>
           <CardDescription className="text-center text-lg mt-2">
-            Create magical stories featuring your favorite Yorkshire Terriers
+            Create magical stories featuring adorable Yorkshire Terriers
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
@@ -19,10 +19,10 @@ export default function Home() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
-                  <Upload className="mx-auto h-12 w-12 text-primary" />
-                  <h3 className="font-semibold">1. Upload Characters</h3>
+                  <BookOpen className="mx-auto h-12 w-12 text-primary" />
+                  <h3 className="font-semibold">1. Describe Your Story</h3>
                   <p className="text-sm text-muted-foreground">
-                    Start by uploading your Yorkshire Terrier images. You can upload individual PNGs or a ZIP file containing multiple images.
+                    Tell us about the Yorkshire Terrier characteristics, setting, and theme you'd like in your story.
                   </p>
                 </div>
               </CardContent>
@@ -31,10 +31,10 @@ export default function Home() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
-                  <BookOpen className="mx-auto h-12 w-12 text-primary" />
-                  <h3 className="font-semibold">2. Choose Story Elements</h3>
+                  <ImageIcon className="mx-auto h-12 w-12 text-primary" />
+                  <h3 className="font-semibold">2. Choose Characters</h3>
                   <p className="text-sm text-muted-foreground">
-                    Select your Yorkie's characteristics, the story setting, and theme to create a unique adventure.
+                    Select from our curated collection of Yorkshire Terrier images that match your story's needs.
                   </p>
                 </div>
               </CardContent>
@@ -46,7 +46,7 @@ export default function Home() {
                   <Wand2 className="mx-auto h-12 w-12 text-primary" />
                   <h3 className="font-semibold">3. Generate Story</h3>
                   <p className="text-sm text-muted-foreground">
-                    Our AI will weave a magical tale featuring your Yorkshire Terrier characters in their chosen adventure.
+                    Our AI will create a delightful tale featuring your chosen Yorkshire Terrier characters.
                   </p>
                 </div>
               </CardContent>
@@ -54,15 +54,23 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col items-center gap-4">
-            <Link href="/upload">
+            <Link href="/create">
               <Button size="lg" className="w-full md:w-auto">
-                <Upload className="mr-2 h-4 w-4" />
-                Start by Uploading Characters
+                <BookOpen className="mr-2 h-4 w-4" />
+                Start Creating Your Story
               </Button>
             </Link>
-            <p className="text-sm text-muted-foreground text-center max-w-md">
-              Begin your journey by uploading Yorkshire Terrier images. You can upload individual PNG files or a ZIP file containing multiple images.
-            </p>
+
+            {/* Advanced feature - less prominent */}
+            <div className="text-center mt-8 border-t pt-6">
+              <p className="text-sm text-muted-foreground mb-2">For Contributors</p>
+              <Link href="/upload">
+                <Button variant="outline" size="sm">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Yorkshire Terrier Images
+                </Button>
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>
