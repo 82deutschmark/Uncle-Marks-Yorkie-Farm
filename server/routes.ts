@@ -17,11 +17,19 @@ export async function registerRoutes(app: Express) {
   const upload = multer({
     storage: multer.memoryStorage(),
     fileFilter: (_req, file, cb) => {
-      if (file.mimetype === 'image/png' || file.mimetype === 'application/zip') {
+      // Check for PNG files
+      if (file.mimetype === 'image/png') {
         cb(null, true);
         return;
       }
-      cb(new Error('Only PNG and ZIP files are allowed'));
+      // Check for ZIP files - common MIME types for ZIP
+      if (file.mimetype === 'application/zip' || 
+          file.mimetype === 'application/x-zip-compressed' ||
+          file.mimetype === 'application/octet-stream') {
+        cb(null, true);
+        return;
+      }
+      cb(new Error('Only PNG images and ZIP files are allowed'));
     },
     limits: {
       fileSize: 50 * 1024 * 1024 // 50MB limit for zip files
