@@ -13,7 +13,7 @@ export class ImageStorage {
     log('Initializing ImageStorage client');
     try {
       // Initialize with bucketId parameter (not bucket)
-      this.bucketId = "story-images";
+      this.bucketId = "yorkshire-terrier-stories";
       this.client = new Client({
         bucketId: this.bucketId // Use bucketId instead of bucket
       });
@@ -38,14 +38,14 @@ export class ImageStorage {
       const metadata = await image.metadata();
 
       if (metadata.format !== 'png') {
-        throw new Error('Only PNG images are supported');
+        throw new Error('Only PNG images are supported for Yorkshire terrier story illustrations');
       }
 
       const fileId = this.generateFileId(imageBuffer);
       const extension = path.extname(originalName);
       const key = `${fileId}${extension}`;
 
-      log(`Uploading image with key: ${key}`);
+      log(`Uploading Yorkshire terrier story image with key: ${key}`);
       await this.client.putObject(key, imageBuffer);
 
       log(`Generating signed URL for key: ${key}`);
@@ -57,29 +57,29 @@ export class ImageStorage {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to upload image: ${message}`, error);
+      log(`Failed to upload Yorkshire terrier story image: ${message}`, error);
       throw new Error(`Failed to upload image: ${message}`);
     }
   }
 
   async deleteImage(fileId: string): Promise<void> {
     try {
-      log(`Deleting image with fileId: ${fileId}`);
+      log(`Deleting Yorkshire terrier story image with fileId: ${fileId}`);
       await this.client.deleteObject(fileId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to delete image: ${message}`, error);
+      log(`Failed to delete Yorkshire terrier story image: ${message}`, error);
       throw new Error(`Failed to delete image: ${message}`);
     }
   }
 
   async getImageUrl(fileId: string): Promise<string> {
     try {
-      log(`Getting signed URL for fileId: ${fileId}`);
+      log(`Getting signed URL for Yorkshire terrier story image: ${fileId}`);
       return await this.client.getSignedUrl(fileId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to get image URL: ${message}`, error);
+      log(`Failed to get Yorkshire terrier story image URL: ${message}`, error);
       throw new Error(`Failed to get image URL: ${message}`);
     }
   }
