@@ -16,13 +16,15 @@ export async function registerRoutes(app: Express) {
   // Configure multer for handling PNG and ZIP uploads
   const upload = multer({
     storage: multer.memoryStorage(),
-    fileFilter: (_req: any, file: any, cb: any) => {
-      // Check for PNG files
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50MB limit
+    },
+    fileFilter: (_req, file, cb) => {
       if (file.mimetype === 'image/png') {
         cb(null, true);
         return;
       }
-      // Check for ZIP files - common MIME types for ZIP
+      // Check for ZIP files
       if (file.mimetype === 'application/zip' || 
           file.mimetype === 'application/x-zip-compressed' ||
           file.mimetype === 'application/octet-stream') {
@@ -35,29 +37,37 @@ export async function registerRoutes(app: Express) {
 
   async function processZipFile(buffer: Buffer): Promise<Array<{buffer: Buffer, filename: string}>> {
     const extractedImages: Array<{buffer: Buffer, filename: string}> = [];
-    const zipStream = new Readable();
-    zipStream.push(buffer);
-    zipStream.push(null);
 
-    const directory = await unzipper.Open.buffer(buffer);
+    try {
+      const directory = await unzipper.Open.buffer(buffer);
 
-    for (const entry of directory.files) {
-      if (entry.type !== 'File') continue;
+      for (const entry of directory.files) {
+        // Skip directories and non-PNG files
+        if (entry.type !== 'File') continue;
 
-      const ext = path.extname(entry.path).toLowerCase();
-      if (ext !== '.png') continue;
+        const ext = path.extname(entry.path).toLowerCase();
+        if (ext !== '.png') continue;
 
-      const content = await entry.buffer();
-      extractedImages.push({
-        buffer: content,
-        filename: entry.path
-      });
+        try {
+          const content = await entry.buffer();
+          extractedImages.push({
+            buffer: content,
+            filename: path.basename(entry.path)
+          });
+        } catch (error) {
+          console.error(`Failed to extract ${entry.path}:`, error);
+          // Continue with other files even if one fails
+          continue;
+        }
+      }
+
+      return extractedImages;
+    } catch (error) {
+      throw new Error(`Failed to process ZIP file: ${error instanceof Error ? error.message : String(error)}`);
     }
-
-    return extractedImages;
   }
 
-  app.post("/api/images/upload", upload.single('file'), async (req: any, res) => {
+  app.post("/api/images/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file provided" });
@@ -69,9 +79,15 @@ export async function registerRoutes(app: Express) {
       if (req.file.mimetype === 'application/zip' || 
           req.file.mimetype === 'application/x-zip-compressed' ||
           req.file.mimetype === 'application/octet-stream') {
-        imagesToProcess = await processZipFile(req.file.buffer);
-        if (imagesToProcess.length === 0) {
-          return res.status(400).json({ message: "No PNG images found in zip file" });
+        try {
+          imagesToProcess = await processZipFile(req.file.buffer);
+          if (imagesToProcess.length === 0) {
+            return res.status(400).json({ message: "No PNG images found in ZIP file" });
+          }
+        } catch (error) {
+          return res.status(400).json({ 
+            message: error instanceof Error ? error.message : "Failed to process ZIP file" 
+          });
         }
       } else {
         // Single PNG file
@@ -82,27 +98,44 @@ export async function registerRoutes(app: Express) {
       }
 
       const uploadedImages = [];
+      const errors = [];
 
       for (const image of imagesToProcess) {
-        const { fileId, objectUrl } = await imageStorage.uploadImage(
-          image.buffer,
-          image.filename
-        );
+        try {
+          const { fileId, objectUrl } = await imageStorage.uploadImage(
+            image.buffer,
+            image.filename
+          );
 
-        const dbImage = await storage.createImage({
-          fileId,
-          objectUrl,
-          isProcessed: false,
-          tags: [],
-        });
+          const dbImage = await storage.createImage({
+            fileId,
+            objectUrl,
+            isProcessed: false,
+            tags: [],
+          });
 
-        uploadedImages.push(dbImage);
+          uploadedImages.push(dbImage);
+        } catch (error) {
+          errors.push({
+            filename: image.filename,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
       }
 
-      res.json({
-        message: `Successfully uploaded ${uploadedImages.length} images`,
-        images: uploadedImages
-      });
+      // Return partial success if some images were uploaded
+      if (uploadedImages.length > 0) {
+        res.status(errors.length > 0 ? 207 : 200).json({
+          message: `Successfully uploaded ${uploadedImages.length} images${errors.length > 0 ? ` (${errors.length} failed)` : ''}`,
+          images: uploadedImages,
+          errors: errors.length > 0 ? errors : undefined
+        });
+      } else {
+        res.status(500).json({
+          message: "Failed to upload any images",
+          errors
+        });
+      }
     } catch (error) {
       console.error('Upload error:', error);
       const message = error instanceof Error ? error.message : 'Error uploading images';
