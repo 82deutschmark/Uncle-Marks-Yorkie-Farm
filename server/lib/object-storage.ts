@@ -6,22 +6,18 @@ import { createHash } from "crypto";
 import { log } from "./logger";
 
 export class ImageStorage {
-  private client: Client | null;
-  private useMemoryFallback: boolean = true;
-  private memoryStorage: Map<string, Buffer> = new Map();
+  private client: Client;
 
   constructor() {
     log('Initializing ImageStorage');
     try {
-      // Initialize with the bucket ID
       this.client = new Client({
-        bucket: "replit-objstore-765db3a9-41bc-454b-9e99-f55145d9ea3a"
+        bucketId: "replit-objstore-765db3a9-41bc-454b-9e99-f55145d9ea3a"
       });
-      this.useMemoryFallback = false;
       log('ImageStorage initialized with Replit Object Storage');
     } catch (error) {
-      this.client = null;
-      log('Failed to initialize Replit Object Storage, using memory storage fallback', error);
+      log('Failed to initialize Replit Object Storage', error);
+      throw new Error('Failed to initialize storage client');
     }
   }
 
@@ -46,21 +42,13 @@ export class ImageStorage {
       const extension = path.extname(originalName);
       const key = `${fileId}${extension}`;
 
-      if (this.useMemoryFallback) {
-        // Store in memory
-        this.memoryStorage.set(key, imageBuffer);
-        const objectUrl = `/api/images/memory/${key}`;
-        log(`Stored image in memory with key: ${key}`);
-        return { fileId, objectUrl };
-      } else if (this.client) {
-        // Store in Replit Object Storage
-        log(`Uploading image to Replit Object Storage with key: ${key}`);
-        await this.client.put(key, imageBuffer);
-        const objectUrl = await this.client.getUrl(key);
-        return { fileId, objectUrl };
-      } else {
-        throw new Error('No storage backend available');
-      }
+      // Upload to Replit Object Storage
+      log(`Uploading image to Replit Object Storage with key: ${key}`);
+      await this.client.upload(key, imageBuffer);
+
+      // Get the signed URL that will be valid for 7 days
+      const objectUrl = await this.client.getSignedUrl(key, Date.now() + 7 * 24 * 60 * 60 * 1000);
+      return { fileId, objectUrl };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`Failed to upload image: ${message}`, error);
@@ -70,13 +58,8 @@ export class ImageStorage {
 
   async deleteImage(fileId: string): Promise<void> {
     try {
-      if (this.useMemoryFallback) {
-        this.memoryStorage.delete(fileId);
-        log(`Deleted image from memory: ${fileId}`);
-      } else if (this.client) {
-        await this.client.delete(fileId);
-        log(`Deleted image from Replit Object Storage: ${fileId}`);
-      }
+      await this.client.delete(fileId);
+      log(`Deleted image from Replit Object Storage: ${fileId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`Failed to delete image: ${message}`, error);
@@ -86,22 +69,12 @@ export class ImageStorage {
 
   async getImageUrl(fileId: string): Promise<string> {
     try {
-      if (this.useMemoryFallback) {
-        return `/api/images/memory/${fileId}`;
-      } else if (this.client) {
-        return await this.client.getUrl(fileId);
-      }
-      throw new Error('No storage backend available');
+      return await this.client.getSignedUrl(fileId, Date.now() + 7 * 24 * 60 * 60 * 1000);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`Failed to get image URL: ${message}`, error);
       throw new Error(`Failed to get image URL: ${message}`);
     }
-  }
-
-  // Method to get image data from memory storage
-  getMemoryImage(key: string): Buffer | undefined {
-    return this.memoryStorage.get(key);
   }
 }
 
