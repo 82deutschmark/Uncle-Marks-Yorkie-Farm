@@ -26,8 +26,8 @@ interface CharacterProfile {
 }
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
-  const prompt = `Create a whimsical children's story with these parameters:
-  - Protagonist: ${params.protagonist} (an animal character)
+  const prompt = `Create a charming Yorkshire terrier story with these parameters:
+  - Protagonist: ${params.protagonist} (a Yorkshire terrier with unique personality traits)
   - Setting: ${params.setting}
   - Theme: ${params.theme}
 
@@ -36,6 +36,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
   - Include multiple chapters
   - Use descriptive, engaging language suitable for a visual novel
   - Create a whimsical, adventurous tone
+  - Focus on the Yorkshire terrier's unique characteristics: brave, energetic, and clever
 
   Provide the response as a JSON object with:
   - title: story title
@@ -48,7 +49,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
       messages: [
         {
           role: "system",
-          content: "You are a creative children's book author specializing in animal adventures."
+          content: "You are a creative children's book author specializing in Yorkshire terrier adventures. You understand their unique traits: intelligence, bravery, and loyalty. Your stories capture their distinctive personalities and small but mighty spirit."
         },
         {
           role: "user",
@@ -67,9 +68,9 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
     return JSON.parse(content) as StoryResponse;
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Failed to generate story: ${error.message}`);
+      throw new Error(`Failed to generate Yorkshire terrier story: ${error.message}`);
     }
-    throw new Error('Failed to generate story: Unknown error occurred');
+    throw new Error('Failed to generate Yorkshire terrier story: Unknown error occurred');
   }
 }
 
@@ -80,14 +81,14 @@ export async function analyzeImage(base64Image: string): Promise<CharacterProfil
       messages: [
         {
           role: "system",
-          content: "You are a creative character designer specializing in creating whimsical animal characters for children's stories."
+          content: "You are a Yorkshire terrier expert and creative character designer. You specialize in bringing out the unique personalities of Yorkies, highlighting their brave, intelligent, and affectionate nature while acknowledging their small size but big personalities."
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Create a detailed character profile for the Yorkshire Terrier in this image. Include a unique name, personality traits, and a vivid description. Format the response as JSON with name, personality, and description fields."
+              text: "Create a detailed character profile for the Yorkshire terrier in this image. Include a unique name that suits their appearance, specific personality traits that reflect true Yorkie characteristics, and a vivid description emphasizing their distinctive features (size, coat, expression, etc). Format the response as JSON with name, personality, and description fields."
             },
             {
               type: "image_url",
@@ -110,8 +111,8 @@ export async function analyzeImage(base64Image: string): Promise<CharacterProfil
     return JSON.parse(content) as CharacterProfile;
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Failed to analyze image: ${error.message}`);
+      throw new Error(`Failed to analyze Yorkshire terrier image: ${error.message}`);
     }
-    throw new Error('Failed to analyze image: Unknown error occurred');
+    throw new Error('Failed to analyze Yorkshire terrier image: Unknown error occurred');
   }
 }
