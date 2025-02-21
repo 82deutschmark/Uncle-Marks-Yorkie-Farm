@@ -5,12 +5,14 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import StoryViewer from "@/pages/story-viewer";
+import UploadPage from "@/pages/upload";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/story/:id" component={StoryViewer} />
+      <Route path="/upload" component={UploadPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -6,55 +6,112 @@ import { insertStorySchema } from "@shared/schema";
 import multer from "multer";
 import { imageStorage } from "./lib/object-storage";
 import fs from "fs/promises";
+import * as unzipper from "unzipper";
+import { Readable } from "stream";
+import path from "path";
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
-  // Configure multer for handling PNG uploads
+  // Configure multer for handling PNG and ZIP uploads
   const upload = multer({
     storage: multer.memoryStorage(),
     fileFilter: (_req, file, cb) => {
-      if (file.mimetype !== 'image/png') {
-        cb(new Error('Only PNG files are allowed'));
+      if (file.mimetype === 'image/png' || file.mimetype === 'application/zip') {
+        cb(null, true);
         return;
       }
-      cb(null, true);
+      cb(new Error('Only PNG and ZIP files are allowed'));
     },
     limits: {
-      fileSize: 5 * 1024 * 1024 // 5MB limit
+      fileSize: 50 * 1024 * 1024 // 50MB limit for zip files
     }
   });
 
-  app.post("/api/images/upload", upload.single('image'), async (req, res) => {
+  async function processZipFile(buffer: Buffer): Promise<Array<{buffer: Buffer, filename: string}>> {
+    const extractedImages: Array<{buffer: Buffer, filename: string}> = [];
+    const zipStream = new Readable();
+    zipStream.push(buffer);
+    zipStream.push(null);
+
+    const directory = await unzipper.Open.buffer(buffer);
+
+    for (const entry of directory.files) {
+      if (!entry.type === 'File') continue;
+
+      const ext = path.extname(entry.path).toLowerCase();
+      if (ext !== '.png') continue;
+
+      const content = await entry.buffer();
+      extractedImages.push({
+        buffer: content,
+        filename: entry.path
+      });
+    }
+
+    return extractedImages;
+  }
+
+  app.post("/api/images/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ message: "No image file provided" });
+        return res.status(400).json({ message: "No file provided" });
       }
 
-      const { fileId, objectUrl } = await imageStorage.uploadImage(
-        req.file.buffer,
-        req.file.originalname
-      );
+      let imagesToProcess: Array<{buffer: Buffer, filename: string}> = [];
 
-      const image = await storage.createImage({
-        fileId,
-        objectUrl,
-        isProcessed: false,
-        tags: [],
+      // Handle zip files
+      if (req.file.mimetype === 'application/zip') {
+        imagesToProcess = await processZipFile(req.file.buffer);
+        if (imagesToProcess.length === 0) {
+          return res.status(400).json({ message: "No PNG images found in zip file" });
+        }
+      } else {
+        // Single PNG file
+        imagesToProcess = [{
+          buffer: req.file.buffer,
+          filename: req.file.originalname
+        }];
+      }
+
+      const uploadedImages = [];
+
+      for (const image of imagesToProcess) {
+        const { fileId, objectUrl } = await imageStorage.uploadImage(
+          image.buffer,
+          image.filename
+        );
+
+        const dbImage = await storage.createImage({
+          fileId,
+          objectUrl,
+          isProcessed: false,
+          tags: [],
+        });
+
+        uploadedImages.push(dbImage);
+      }
+
+      res.json({
+        message: `Successfully uploaded ${uploadedImages.length} images`,
+        images: uploadedImages
       });
-
-      res.json(image);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error uploading image';
+      const message = error instanceof Error ? error.message : 'Error uploading images';
       res.status(500).json({ message });
     }
   });
 
+  // Only analyze image when requested
   app.post("/api/images/:id/analyze", async (req, res) => {
     try {
       const image = await storage.getImage(Number(req.params.id));
       if (!image) {
         return res.status(404).json({ message: "Image not found" });
+      }
+
+      if (image.isProcessed && image.characterProfile) {
+        return res.json(image);
       }
 
       // Get the image data from object storage
