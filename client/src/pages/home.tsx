@@ -8,9 +8,9 @@ export default function Home() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-3xl">
         <CardHeader>
-          <CardTitle className="text-center text-3xl">Yorkshire Terrier Story Generator</CardTitle>
+          <CardTitle className="text-center text-3xl">Uncle Mark's Yorkie Farm</CardTitle>
           <CardDescription className="text-center text-lg mt-2">
-            Create magical stories featuring adorable Yorkshire Terriers
+            Create magical stories featuring adorable Yorkshire Terriers from Uncle Mark's Farm
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
