@@ -32,7 +32,7 @@ export async function registerRoutes(app: Express) {
       cb(new Error('Only PNG images and ZIP files are allowed'));
     },
     limits: {
-      fileSize: 50 * 1024 * 1024 // 50MB limit for zip files
+      fileSize: 200 * 1024 * 1024 // 200MB limit for zip files
     }
   });
 

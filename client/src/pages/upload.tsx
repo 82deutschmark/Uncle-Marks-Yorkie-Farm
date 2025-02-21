@@ -11,7 +11,7 @@ export default function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB in bytes
+  const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB in bytes
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -21,7 +21,7 @@ export default function UploadPage() {
     if (file.size > MAX_FILE_SIZE) {
       setMessage({
         type: 'error',
-        text: `File is too large. Maximum size is 50MB. Your file is ${(file.size / (1024 * 1024)).toFixed(1)}MB`
+        text: `File is too large. Maximum size is 200MB. Your file is ${(file.size / (1024 * 1024)).toFixed(1)}MB`
       });
       return;
     }
@@ -84,7 +84,7 @@ export default function UploadPage() {
         <CardContent>
           <p className="text-muted-foreground text-sm text-center mb-6">
             Upload PNG images or ZIP files containing PNG images of Yorkshire terriers.
-            Maximum file size: 50MB
+            Maximum file size: 200MB
           </p>
 
           <div className="space-y-4">
