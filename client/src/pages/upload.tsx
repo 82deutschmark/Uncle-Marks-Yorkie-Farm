@@ -15,6 +15,15 @@ export default function UploadPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Check file size (50MB limit)
+    if (file.size > 50 * 1024 * 1024) {
+      setMessage({
+        type: 'error',
+        text: 'File size exceeds 50MB limit'
+      });
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress(0);
     setMessage(null);
@@ -35,18 +44,31 @@ export default function UploadPage() {
 
       // Set up completion handling
       xhr.onload = () => {
-        if (xhr.status === 200) {
-          const result = JSON.parse(xhr.responseText);
-          setMessage({
-            type: 'success',
-            text: result.message
-          });
+        if (xhr.status === 200 || xhr.status === 207) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            setMessage({
+              type: response.errors ? 'error' : 'success',
+              text: response.message
+            });
+          } catch {
+            setMessage({
+              type: 'error',
+              text: 'Failed to parse server response'
+            });
+          }
         } else {
           try {
-            const error = JSON.parse(xhr.responseText);
-            throw new Error(error.message || 'Upload failed');
+            const response = JSON.parse(xhr.responseText);
+            setMessage({
+              type: 'error',
+              text: response.message || 'Upload failed'
+            });
           } catch {
-            throw new Error('Upload failed');
+            setMessage({
+              type: 'error',
+              text: 'Upload failed'
+            });
           }
         }
         setIsUploading(false);
@@ -86,6 +108,7 @@ export default function UploadPage() {
         <CardContent>
           <p className="text-muted-foreground text-sm text-center mb-6">
             Upload PNG images or ZIP files containing PNG images of Yorkshire terriers.
+            Maximum file size: 50MB
           </p>
 
           <div className="space-y-6">
