@@ -1,0 +1,59 @@
+# Replit Project Technical Specification: Yorkshire Terrier Story Book Web App
+
+## 1. Project Setup
+- Create a full-stack Replit project.
+- Use Replit Object Storage to host approximately 20,000 PNG images.
+- Configure an online database (Replit DB or PostgreSQL) to index images.
+  - Each image record must include a unique file identifier.
+  - Fields for metadata (e.g., tags, descriptions) will be added progressively via API calls.
+
+## 2. Image Upload & Processing
+- Input: ZIP files containing PNG images.
+  - Process: Extract PNG files from each ZIP; do not store the ZIP files.
+- Upload: Store each extracted PNG individually in Replit Object Storage.
+- Database Integration:
+  - After each PNG is successfully uploaded, create a corresponding record in the database.
+  - Note: Initially, metadata (e.g., relevant keyword tags) may be missing; metadata will be generated and updated over time via API processing.
+
+## 3. Kid-Friendly Story Book Application
+- **User Adventure Prompt:**
+  - Present a prompt for the child to select an adventure type from pre-defined themes (and allow custom input).
+- **Image Selection Process:**
+  - Query the image database based on the user’s input:
+    - For image slot 1 and image slot 2: 
+      - If available, strictly match images with tags/metadata corresponding to the user’s keywords; 
+      - Otherwise, select images randomly.
+    - For image slot 3: Always select a random image.
+  - For each image slot:
+    - Display 2–3 image options.
+    - Provide two actions for each option:
+      - **"Describe"**: Send the selected image to the OpenAI API with instructions to generate a detailed description and a creative character profile (including personality and name). Display the generated character description below the image.
+      - **"Reroll"**: Allow the user to request either a new image (if the current image is unsuitable) or a new description for the current image.
+- **Approval Process:**
+  - Once the child approves and “describes” one image per slot (total of three images), display a "Start Creating Story" button.
+
+## 4. Story Generation
+- **User Input for Story:**
+  - Prompt the user for additional details:
+    - Option A: Use a default story template (e.g., a Yorkshire terrier visiting Uncle Mark’s magical farm).
+    - Option B: Allow the user to enter a name (e.g., the child’s name) for personalized story generation.
+- **API Integration:**
+  - Combine the approved images’ generated character profiles with the additional user input.
+  - Send the combined data to ChatGPT via the OpenAI API to generate a complete, engaging adventure story.
+- **Output:**
+  - Display the generated story as a digital storybook.
+
+## 5. Deployment & Scalability
+- Deploy the app using Replit Deployments to:
+  - Obtain a permanent URL.
+  - Ensure robust performance and scalability.
+- Continuously monitor and optimize the image search and database functionalities as metadata is progressively generated.
+
+## 6. Additional Considerations
+- Metadata Generation:
+  - Not all images will have metadata upon initial upload; implement routines to process images over time to generate and update tags/descriptions.
+- Fallback Logic:
+  - Ensure that if metadata is missing for image slots 1 or 2, the system falls back to random image selection.
+- All configurations (Object Storage, database, deployment) should be managed within Replit’s ecosystem.
+
+# End of Specification
