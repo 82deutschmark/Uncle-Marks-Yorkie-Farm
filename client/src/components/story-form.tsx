@@ -84,7 +84,7 @@ export function StoryForm() {
     if (!data.characteristics || !data.colors || !data.setting || !data.theme || !data.antagonist) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all the fields to generate your story.",
+        description: "Please fill in all the fields to find matching Yorkie characters.",
         variant: "destructive"
       });
       return;
@@ -92,13 +92,19 @@ export function StoryForm() {
 
     setIsLoading(true);
     try {
-      const response = await apiRequest("POST", "/api/stories/generate", data);
-      const story = await response.json();
-      setLocation(`/story/${story.id}`);
+      const response = await apiRequest("GET", "/api/images", {
+        params: {
+          processed: true,
+          characteristics: data.characteristics,
+          colors: data.colors
+        }
+      });
+      const images = await response.json();
+      setLocation(`/character-selection?${new URLSearchParams(data as any).toString()}`);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to generate story. Please try again.",
+        description: "Failed to find matching Yorkie characters. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -119,7 +125,7 @@ export function StoryForm() {
                 <Input placeholder="e.g. Brave, Playful, Loyal" {...field} />
               </FormControl>
               <FormDescription>
-                Select the characteristics for your Yorkie protagonist
+                Select the characteristics to match with our Yorkie characters
               </FormDescription>
               <TagSelector
                 tags={characteristics}
@@ -143,7 +149,7 @@ export function StoryForm() {
                 <Input placeholder="e.g. Black and Tan" {...field} />
               </FormControl>
               <FormDescription>
-                Choose your preferred Yorkie coat colors
+                Choose coat colors to match with our Yorkie characters
               </FormDescription>
               <TagSelector
                 tags={colors}
@@ -222,7 +228,7 @@ export function StoryForm() {
         />
 
         <Button type="submit" disabled={isLoading} className="w-full">
-          {isLoading ? "Generating Story..." : "Generate Story"}
+          {isLoading ? "Finding Characters..." : "Find Yorkie Characters for My Story"}
         </Button>
       </form>
     </Form>
