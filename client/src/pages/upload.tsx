@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Upload } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
 
 export default function UploadPage() {
   const [isUploading, setIsUploading] = useState(false);

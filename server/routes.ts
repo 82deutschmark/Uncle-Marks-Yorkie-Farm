@@ -16,7 +16,7 @@ export async function registerRoutes(app: Express) {
   // Configure multer for handling PNG and ZIP uploads
   const upload = multer({
     storage: multer.memoryStorage(),
-    fileFilter: (_req, file, cb) => {
+    fileFilter: (_req: any, file: any, cb: any) => {
       // Check for PNG files
       if (file.mimetype === 'image/png') {
         cb(null, true);
@@ -30,9 +30,6 @@ export async function registerRoutes(app: Express) {
         return;
       }
       cb(new Error('Only PNG images and ZIP files are allowed'));
-    },
-    limits: {
-      fileSize: 200 * 1024 * 1024 // 200MB limit for zip files
     }
   });
 
@@ -45,7 +42,7 @@ export async function registerRoutes(app: Express) {
     const directory = await unzipper.Open.buffer(buffer);
 
     for (const entry of directory.files) {
-      if (!entry.type === 'File') continue;
+      if (entry.type !== 'File') continue;
 
       const ext = path.extname(entry.path).toLowerCase();
       if (ext !== '.png') continue;
@@ -60,7 +57,7 @@ export async function registerRoutes(app: Express) {
     return extractedImages;
   }
 
-  app.post("/api/images/upload", upload.single('file'), async (req, res) => {
+  app.post("/api/images/upload", upload.single('file'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file provided" });
@@ -69,7 +66,9 @@ export async function registerRoutes(app: Express) {
       let imagesToProcess: Array<{buffer: Buffer, filename: string}> = [];
 
       // Handle zip files
-      if (req.file.mimetype === 'application/zip') {
+      if (req.file.mimetype === 'application/zip' || 
+          req.file.mimetype === 'application/x-zip-compressed' ||
+          req.file.mimetype === 'application/octet-stream') {
         imagesToProcess = await processZipFile(req.file.buffer);
         if (imagesToProcess.length === 0) {
           return res.status(400).json({ message: "No PNG images found in zip file" });
@@ -105,6 +104,7 @@ export async function registerRoutes(app: Express) {
         images: uploadedImages
       });
     } catch (error) {
+      console.error('Upload error:', error);
       const message = error instanceof Error ? error.message : 'Error uploading images';
       res.status(500).json({ message });
     }
