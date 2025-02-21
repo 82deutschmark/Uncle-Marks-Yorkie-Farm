@@ -14,7 +14,7 @@ export class ImageStorage {
     try {
       this.bucketId = "yorkshire-terrier-stories";
       this.client = new Client({
-        bucketId: this.bucketId // Using bucketId instead of bucket
+        bucketId: this.bucketId
       });
       log('ImageStorage client initialized successfully');
     } catch (error) {
@@ -45,10 +45,10 @@ export class ImageStorage {
       const key = `${fileId}${extension}`;
 
       log(`Uploading Yorkshire terrier story image with key: ${key}`);
-      await this.client.putObject(key, imageBuffer);
+      await this.client.put(key, imageBuffer);
 
       log(`Generating signed URL for key: ${key}`);
-      const objectUrl = await this.client.getSignedUrl(key);
+      const objectUrl = await this.client.getSignedURL(key);
 
       return {
         fileId,
@@ -64,7 +64,7 @@ export class ImageStorage {
   async deleteImage(fileId: string): Promise<void> {
     try {
       log(`Deleting Yorkshire terrier story image with fileId: ${fileId}`);
-      await this.client.deleteObject(fileId);
+      await this.client.delete(fileId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`Failed to delete Yorkshire terrier story image: ${message}`, error);
@@ -75,7 +75,7 @@ export class ImageStorage {
   async getImageUrl(fileId: string): Promise<string> {
     try {
       log(`Getting signed URL for Yorkshire terrier story image: ${fileId}`);
-      return await this.client.getSignedUrl(fileId);
+      return await this.client.getSignedURL(fileId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`Failed to get Yorkshire terrier story image URL: ${message}`, error);
