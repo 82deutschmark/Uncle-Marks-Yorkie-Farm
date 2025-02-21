@@ -6,7 +6,7 @@ export default function Home() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle className="text-center">Animal Story Generator</CardTitle>
+          <CardTitle className="text-center">Yorkshire Terrier Story Generator</CardTitle>
         </CardHeader>
         <CardContent>
           <StoryForm />

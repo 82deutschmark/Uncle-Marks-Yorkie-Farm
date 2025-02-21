@@ -51,9 +51,9 @@ export function StoryForm() {
           name="protagonist"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Animal Protagonist</FormLabel>
+              <FormLabel>Yorkshire Terrier Name</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. A brave little fox" {...field} />
+                <Input placeholder="e.g. Daisy, the adventurous Yorkie" {...field} />
               </FormControl>
             </FormItem>
           )}
