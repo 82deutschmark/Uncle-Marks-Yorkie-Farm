@@ -1,4 +1,4 @@
-import { Client } from "@replit/object-storage";
+import * as storage from "@replit/object-storage";
 import { Image } from "@shared/schema";
 import sharp from "sharp";
 import path from "path";
@@ -6,13 +6,13 @@ import { createHash } from "crypto";
 import { log } from "./logger";
 
 export class ImageStorage {
-  private client: Client;
+  private client;
 
   constructor() {
     log('Initializing ImageStorage');
     try {
       // Initialize with the bucket from .replit config
-      this.client = new Client({
+      this.client = new storage.Client({
         bucketId: process.env.REPLIT_BUCKET_ID || "replit-objstore-765db3a9-41bc-454b-9e99-f55145d9ea3a"
       });
       log('ImageStorage initialized with Replit Object Storage');
@@ -45,13 +45,16 @@ export class ImageStorage {
 
       // Upload to Replit Object Storage
       log(`Uploading image to Replit Object Storage with key: ${key}`);
-      await this.client.put(key, imageBuffer, {
-        contentType: 'image/png'
-      });
+      await this.client.putObject(
+        key,
+        imageBuffer,
+        { access: 'public-read', contentType: 'image/png' }
+      );
 
       // Get the URL for the uploaded object
-      const objectUrl = await this.client.get(key);
+      const objectUrl = await this.client.getPublicUrl(key);
 
+      log(`Successfully uploaded image, URL: ${objectUrl}`);
       return { fileId, objectUrl };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -62,7 +65,7 @@ export class ImageStorage {
 
   async deleteImage(fileId: string): Promise<void> {
     try {
-      await this.client.delete(fileId);
+      await this.client.deleteObject(fileId);
       log(`Deleted image from Replit Object Storage: ${fileId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -73,7 +76,7 @@ export class ImageStorage {
 
   async getImageUrl(fileId: string): Promise<string> {
     try {
-      return await this.client.get(fileId);
+      return await this.client.getPublicUrl(fileId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`Failed to get image URL: ${message}`, error);
