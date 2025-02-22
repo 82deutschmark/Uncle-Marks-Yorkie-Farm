@@ -22,21 +22,27 @@ export async function registerRoutes(app: Express) {
   app.post("/api/upload", uploadPng.single('file'), async (req, res) => {
     try {
       if (!req.file) {
+        log('No file provided in request');
         return res.status(400).json({ message: "No file provided" });
       }
 
-      log('Attempting to upload file:', req.file.originalname);
+      log('Starting file upload process...');
+      log('File details:', {
+        filename: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
 
       // Upload file to object storage
       const key = await storageClient.uploadFile(
         req.file.buffer,
         req.file.originalname
       );
+      log('File uploaded to storage, key:', key);
 
       // Get the signed URL for the uploaded file
       const url = await storageClient.getFileUrl(key);
-
-      log('File uploaded successfully:', key);
+      log('Generated signed URL:', url);
 
       res.json({
         message: "File uploaded successfully",

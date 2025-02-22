@@ -1,5 +1,4 @@
 import { Client } from '@replit/object-storage';
-import path from "path";
 import { log } from "./logger";
 
 class StorageClient {
@@ -11,11 +10,13 @@ class StorageClient {
 
   async uploadFile(file: Buffer, filename: string): Promise<string> {
     try {
-      // Create a unique filename with timestamp
-      const key = `uploads/${Date.now()}-${path.basename(filename)}`;
+      const key = `uploads/${Date.now()}-${filename}`;
 
-      // Upload the file
-      await this.client.uploadFile(key, file);
+      // Use the raw put method
+      await this.client.put({
+        key,
+        value: file,
+      });
 
       log('Successfully uploaded file:', key);
       return key;
@@ -27,7 +28,11 @@ class StorageClient {
 
   async getFileUrl(key: string): Promise<string> {
     try {
-      const url = await this.client.getSignedUrl(key, 3600); // 1 hour expiry
+      // Use the raw get method to verify file exists
+      await this.client.get(key);
+
+      // Generate a temporary URL
+      const url = await this.client.getPresignedUrl(key, 3600); // 1 hour expiry
       return url;
     } catch (error) {
       log('Failed to get file URL:', error);
