@@ -50,6 +50,8 @@ interface StoryParams {
   setting: string;
   theme: string;
   antagonist: string;
+  yorkieName?: string;
+  yorkieGender?: 'male' | 'female';
 }
 
 interface StoryResponse {
@@ -59,6 +61,11 @@ interface StoryResponse {
     wordCount: number;
     chapters: number;
     tone: string;
+    protagonist: {
+      name: string;
+      gender: string;
+      personality: string;
+    };
   };
 }
 
@@ -71,37 +78,53 @@ interface CharacterProfile {
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
   const setting = params.setting || "Uncle Mark's magical Yorkie farm";
   const tone = "Gen Z";
+  const yorkieName = params.yorkieName || (params.yorkieGender === 'male' ? 'Pawel' : 'Pawleen');
+  const defaultPersonality = params.yorkieGender === 'male' ? 
+    'brave and impulsive, often acting without thinking' : 
+    'intelligent and sweet, always thinking before acting';
 
-  const prompt = `Create a charming Yorkshire terrier story with these parameters:
-  - Yorkshire Terrier: A ${params.colors} Yorkie with these traits: ${params.characteristics}
+  const prompt = `Create a Yorkshire terrier story with these parameters:
+  - Protagonist: A ${params.colors} Yorkie named ${yorkieName} with these traits: ${params.characteristics || defaultPersonality}
   - Setting: ${setting}
   - Theme: ${params.theme}
   - Tone: ${tone}
-  - Antagonist: ${params.antagonist}
 
   Story Context:
-  - The story takes place at Uncle Mark's magical Yorkie farm, where Yorkies develop special abilities
-  - Use Gen Z slang and references to make the story relatable and fun
-  - Yorkshire terriers have a natural rivalry with squirrels and other rodents
-  - Highlight the Yorkie's brave and spunky personality despite their small size
+  - The story takes place at Uncle Mark's Farm, where Yorkshire terriers have a special role:
+    * They protect chickens and turkeys from various threats
+    * The farm has numerous chickens and a few turkeys
+
+  Antagonists:
+  - Primary: A sorcerer living in the woods who tries to steal chickens and eggs
+    * Has evil squirrels as henchmen
+  - Secondary: Mice and moles that try to steal food and damage crops
+
+  Key Characters:
+  - Uncle Mark: The owner of the farm
+  - Yorkshire Terriers:
+    * If protagonist is male (like Pawel): Brave and impulsive, often acts without thinking
+    * If protagonist is female (like Pawleen): Intelligent and sweet, thinks before acting
 
   Requirements:
   - Story should be between 3,000-5,000 words
   - Include multiple chapters
+  - Emphasize the farm's animal environment and the protective role of the terriers
   - Use descriptive, engaging language suitable for a visual novel
+  - Use Gen Z slang and references to make the story relatable and fun
 
   Provide the response as a JSON object with:
   - title: story title
   - content: full story text with chapter breaks
-  - metadata: containing wordCount, number of chapters, and overall tone`;
+  - metadata: containing wordCount, number of chapters, overall tone, and protagonist details
+    * protagonist should include name, gender, and personality traits`;
 
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+      model: "gpt-4o", 
       messages: [
         {
           role: "system",
-          content: "You are a creative children's book author specializing in Yorkshire terrier adventures with a Gen Z twist. You understand their unique traits: intelligence, bravery, and loyalty. Your stories capture their distinctive personalities and small but mighty spirit."
+          content: "You are a creative children's book author specializing in Yorkshire terrier adventures with a Gen Z twist. You excel at creating stories about brave Yorkies protecting farm animals and dealing with magical threats."
         },
         {
           role: "user",
@@ -125,7 +148,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+      model: "gpt-4o", 
       messages: [
         {
           role: "system",

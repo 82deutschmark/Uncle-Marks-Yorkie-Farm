@@ -11,9 +11,8 @@ import { TagSelector } from "./tag-selector";
 interface StoryFormData {
   characteristics: string;
   colors: string;
-  setting: string;
   theme: string;
-  antagonist: string;
+  yorkieGender: 'male' | 'female';
 }
 
 const characteristics = [
@@ -38,32 +37,15 @@ const colors = [
   { label: "Parti", emoji: "🎨" }
 ];
 
-const settings = [
-  { label: "Uncle Mark's Magical Farm", emoji: "🏡" },
-  { label: "Enchanted Garden", emoji: "🌸" },
-  { label: "Cozy Home", emoji: "🏠" },
-  { label: "City Park", emoji: "🌳" },
-  { label: "Beach", emoji: "🏖️" },
-  { label: "Forest Trail", emoji: "🌲" },
-  { label: "Dog Park", emoji: "🐕" }
-];
-
 const themes = [
+  { label: "Protecting the Farm", emoji: "🏡" },
   { label: "Friendship", emoji: "🤝" },
   { label: "Courage", emoji: "💪" },
   { label: "Discovery", emoji: "🔍" },
-  { label: "Family", emoji: "👨‍👩‍👧‍👦" },
-  { label: "Helping Others", emoji: "🌟" },
-  { label: "Adventure", emoji: "🎯" }
+  { label: "Teamwork", emoji: "👥" },
+  { label: "Helping Others", emoji: "🌟" }
 ];
 
-const antagonists = [
-  { label: "Mischievous Squirrel", emoji: "🐿️" },
-  { label: "Sneaky Mouse", emoji: "🐁" },
-  { label: "Crafty Rat", emoji: "🐀" },
-  { label: "Pesky Chipmunk", emoji: "🦫" },
-  { label: "Troublesome Gopher", emoji: "🦫" }
-];
 
 export function StoryForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -84,9 +66,8 @@ export function StoryForm() {
     defaultValues: {
       characteristics: selectedYorkie?.analysis?.characterProfile?.personality || "",
       colors: "",
-      setting: "",
       theme: "",
-      antagonist: ""
+      yorkieGender: 'male'
     }
   });
 
@@ -101,7 +82,7 @@ export function StoryForm() {
       return;
     }
 
-    if (!data.characteristics || !data.colors || !data.setting || !data.theme || !data.antagonist) {
+    if (!data.characteristics || !data.colors || !data.theme) {
       toast({
         title: "Missing Information",
         description: "Please fill in all the fields to create your story.",
@@ -117,9 +98,10 @@ export function StoryForm() {
         body: JSON.stringify({
           characteristics: data.characteristics,
           colors: data.colors,
-          setting: data.setting,
+          setting: "Uncle Mark's Farm",
           theme: data.theme,
-          antagonist: data.antagonist,
+          antagonist: "Evil Sorcerer",
+          yorkieGender: data.yorkieGender,
           yorkieId: selectedYorkie.id
         })
       });
@@ -142,6 +124,41 @@ export function StoryForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
+          name="yorkieGender"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Yorkie Character</FormLabel>
+              <FormControl>
+                <div className="flex gap-4">
+                  <Button
+                    type="button"
+                    variant={field.value === 'male' ? 'default' : 'outline'}
+                    onClick={() => field.onChange('male')}
+                    className="flex-1"
+                  >
+                    Pawel (Male)
+                    <span className="ml-2">👦</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={field.value === 'female' ? 'default' : 'outline'}
+                    onClick={() => field.onChange('female')}
+                    className="flex-1"
+                  >
+                    Pawleen (Female)
+                    <span className="ml-2">👧</span>
+                  </Button>
+                </div>
+              </FormControl>
+              <FormDescription>
+                Choose your Yorkie's character - each has unique traits!
+              </FormDescription>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="characteristics"
           render={({ field }) => (
             <FormItem>
@@ -150,7 +167,7 @@ export function StoryForm() {
                 <Input placeholder="e.g. Brave, Playful, Loyal" {...field} />
               </FormControl>
               <FormDescription>
-                Select the characteristics for your Yorkie character
+                Select traits for your Yorkie character
               </FormDescription>
               <TagSelector
                 tags={characteristics}
@@ -169,12 +186,12 @@ export function StoryForm() {
           name="colors"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Favorite Colors</FormLabel>
+              <FormLabel>Coat Colors</FormLabel>
               <FormControl>
                 <Input placeholder="e.g. Black and Tan" {...field} />
               </FormControl>
               <FormDescription>
-                Choose coat colors to match with our Yorkie characters
+                Choose your Yorkie's coat colors
               </FormDescription>
               <TagSelector
                 tags={colors}
@@ -188,45 +205,6 @@ export function StoryForm() {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="setting"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Story Setting</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Uncle Mark's Magical Farm" {...field} />
-              </FormControl>
-              <FormDescription>
-                Choose a magical place for your Yorkie's adventure
-              </FormDescription>
-              <TagSelector
-                tags={settings}
-                onSelect={(setting) => field.onChange(setting)}
-              />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="antagonist"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Story Antagonist</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Mischievous Squirrel" {...field} />
-              </FormControl>
-              <FormDescription>
-                Select a troublesome rodent as your story's antagonist
-              </FormDescription>
-              <TagSelector
-                tags={antagonists}
-                onSelect={(antagonist) => field.onChange(antagonist)}
-              />
-            </FormItem>
-          )}
-        />
 
         <FormField
           control={form.control}
@@ -235,18 +213,14 @@ export function StoryForm() {
             <FormItem>
               <FormLabel>Story Theme</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. Friendship and Courage" {...field} />
+                <Input placeholder="e.g. Protecting the Farm" {...field} />
               </FormControl>
               <FormDescription>
-                Pick themes that will shape your Yorkie's journey
+                Choose the main theme for your story
               </FormDescription>
               <TagSelector
                 tags={themes}
-                onSelect={(theme) => {
-                  const currentValue = field.value.trim();
-                  const separator = currentValue ? " and " : "";
-                  field.onChange(currentValue + separator + theme.toLowerCase());
-                }}
+                onSelect={(theme) => field.onChange(theme)}
               />
             </FormItem>
           )}
