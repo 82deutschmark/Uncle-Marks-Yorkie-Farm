@@ -34,9 +34,9 @@ export async function registerRoutes(app: Express) {
         bookId
       });
 
-      // Process the ZIP file and store images
-      const images = await storage.saveUploadedZip(req.file.buffer, bookId);
-      log(`Successfully processed ${images.length} images from ZIP`);
+      // Process the file (either ZIP or single image)
+      const images = await storage.saveUploadedFile(req.file.buffer, req.file.originalname, bookId);
+      log(`Successfully processed ${images.length} image(s)`);
 
       // Return success with image data
       res.json({ 

@@ -6,12 +6,11 @@ import * as path from 'path';
 import * as unzipper from 'unzipper';
 
 export interface IStorage {
-  // Image operations
   createImage(image: InsertImage): Promise<Image>;
   getImage(id: number): Promise<Image | undefined>;
   listImages(options?: { analyzed?: boolean; selected?: boolean }): Promise<Image[]>;
   updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image>;
-  saveUploadedZip(zipBuffer: Buffer, bookId: number): Promise<Image[]>;
+  saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -73,50 +72,81 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async saveUploadedZip(zipBuffer: Buffer, bookId: number): Promise<Image[]> {
+  private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
+    const filePath = path.join(`book-${bookId}`, filename);
+    const fullPath = path.join(this.uploadsDir, filePath);
+
+    // Ensure the book directory exists
+    await fs.mkdir(path.dirname(fullPath), { recursive: true });
+
+    // Save the file
+    await fs.writeFile(fullPath, file);
+
+    // Create database record
+    const image = await this.createImage({
+      bookId,
+      path: filePath,
+      order: 0,
+      selected: false,
+      analyzed: false,
+      analysis: null
+    });
+
+    return [image];
+  }
+
+  private async processZipFile(zipBuffer: Buffer, bookId: number): Promise<Image[]> {
+    const directory = await unzipper.Open.buffer(zipBuffer);
+    const imageFiles = directory.files.filter(file => 
+      !file.path.startsWith('__MACOSX') && 
+      /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(file.path)
+    );
+
+    const savedImages: Image[] = [];
+
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
+      const fileName = path.basename(file.path);
+      const filePath = path.join(`book-${bookId}`, fileName);
+      const fullPath = path.join(this.uploadsDir, filePath);
+
+      // Ensure the book directory exists
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+
+      // Extract and save the file
+      const content = await file.buffer();
+      await fs.writeFile(fullPath, content);
+
+      // Create database record
+      const image = await this.createImage({
+        bookId,
+        path: filePath,
+        order: i,
+        selected: false,
+        analyzed: false,
+        analysis: null
+      });
+
+      savedImages.push(image);
+    }
+
+    return savedImages;
+  }
+
+  async saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     try {
-      // Create a unique directory for this book's images
-      const bookDir = path.join(this.uploadsDir, `book-${bookId}`);
-      await fs.mkdir(bookDir, { recursive: true });
+      // Check if file is a ZIP by looking at magic numbers
+      const isZip = file[0] === 0x50 && file[1] === 0x4B && file[2] === 0x03 && file[3] === 0x04;
 
-      // Extract ZIP contents
-      const directory = await unzipper.Open.buffer(zipBuffer);
-      const imageFiles = directory.files.filter(file => 
-        !file.path.startsWith('__MACOSX') && 
-        /\.(jpg|jpeg|png)$/i.test(file.path)
-      );
-
-      const savedImages: Image[] = [];
-
-      // Process each image
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        const fileName = path.basename(file.path);
-        const filePath = path.join(`book-${bookId}`, fileName);
-
-        // Extract and save the file
-        const content = await file.buffer();
-        await fs.writeFile(path.join(this.uploadsDir, filePath), content);
-
-        // Create database record
-        const image = await this.createImage({
-          bookId,
-          path: filePath,
-          order: i,
-          selected: false,
-          analyzed: false,
-          analysis: null
-        });
-
-        savedImages.push(image);
+      if (isZip) {
+        return await this.processZipFile(file, bookId);
+      } else {
+        return await this.saveSingleImage(file, filename, bookId);
       }
-
-      return savedImages;
     } catch (error) {
-      throw new Error(`Failed to process ZIP file: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to process uploaded file: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
 
-// Export DatabaseStorage instance
 export const storage = new DatabaseStorage();
