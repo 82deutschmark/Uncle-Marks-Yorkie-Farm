@@ -88,7 +88,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+      model: "gpt-4-vision-preview",
       messages: [
         {
           role: "system",
@@ -101,7 +101,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
       ],
       response_format: { type: "json_object" },
       temperature: 0.8,
-      max_tokens: 8000
+      max_tokens: 4096
     });
 
     const content = response.choices[0].message.content;
@@ -116,7 +116,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+      model: "gpt-4-vision-preview",
       messages: [
         {
           role: "system",
@@ -153,7 +153,7 @@ Remember to highlight their brave and spunky nature despite their small size!`
             {
               type: "image_url",
               image_url: {
-                url: `data:image/png;base64,${base64Image}`
+                url: `data:image/jpeg;base64,${base64Image}`
               }
             }
           ],
