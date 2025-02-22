@@ -62,7 +62,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4",
       messages: [
         {
           role: "system",
@@ -95,7 +95,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-vision-preview",
       messages: [
         {
           role: "system",
