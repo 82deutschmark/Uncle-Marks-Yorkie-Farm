@@ -44,10 +44,10 @@ export class ImageStorage {
 
       // Upload to Replit Object Storage
       log(`Uploading image to Replit Object Storage with key: ${key}`);
-      await this.client.upload(key, imageBuffer);
+      await this.client.put(key, imageBuffer);
 
-      // Get the signed URL that will be valid for 7 days
-      const objectUrl = await this.client.getSignedUrl(key, Date.now() + 7 * 24 * 60 * 60 * 1000);
+      // Get the URL for the uploaded object
+      const objectUrl = await this.client.get(key);
       return { fileId, objectUrl };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -69,7 +69,7 @@ export class ImageStorage {
 
   async getImageUrl(fileId: string): Promise<string> {
     try {
-      return await this.client.getSignedUrl(fileId, Date.now() + 7 * 24 * 60 * 60 * 1000);
+      return await this.client.get(fileId);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`Failed to get image URL: ${message}`, error);

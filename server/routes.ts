@@ -11,7 +11,7 @@ import path from "path";
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
-  // Configure multer for handling PNG and ZIP uploads with no size limit
+  // Configure multer for handling PNG and ZIP uploads with no size limits
   const upload = multer({
     storage: multer.memoryStorage(),
     fileFilter: (_req, file, cb) => {
