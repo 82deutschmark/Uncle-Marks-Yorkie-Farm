@@ -192,5 +192,19 @@ The story should be engaging for children, incorporating the Yorkie's characteri
     }
   });
 
+  // Add GET endpoint for listing images
+  app.get("/api/images", async (req, res) => {
+    try {
+      const images = await storage.getAllImages();
+      res.json(images);
+    } catch (error) {
+      log('Error fetching images:', error);
+      res.status(500).json({
+        error: 'Failed to fetch images',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   return httpServer;
 }
