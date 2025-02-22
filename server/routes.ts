@@ -5,14 +5,10 @@ import path from "path";
 import express from "express";
 import { storage } from "./storage";
 import { log } from "./lib/logger";
-import OpenAI from "openai";
+import { generateStory, analyzeImage } from "./lib/openai";
 import { insertStorySchema } from "@shared/schema";
-import { analyzeImage } from "./lib/openai";
+import { OpenAIError } from "./lib/errors";
 import * as fs from 'fs/promises';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
@@ -33,41 +29,20 @@ export async function registerRoutes(app: Express) {
     try {
       const { characteristics, colors, setting, theme, antagonist } = req.body;
 
-      // Generate story using OpenAI
-      const prompt = `Create a short children's story about a Yorkshire Terrier with the following details:
-- Characteristics: ${characteristics}
-- Colors: ${colors}
-- Setting: ${setting}
-- Theme: ${theme}
-- Antagonist: ${antagonist}
-
-The story should be engaging for children, incorporating the Yorkie's characteristics and the antagonist in a fun way.`;
-
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "You are a children's story writer specializing in tales about Yorkshire Terriers living on Uncle Mark's magical farm."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 1000
+      const storyResponse = await generateStory({
+        characteristics,
+        colors,
+        setting,
+        theme,
+        antagonist
       });
 
-      const generatedStory = completion.choices[0].message.content;
-
-      // Create story in database
       const story = {
-        title: `${characteristics} Yorkie's Adventure`,
+        title: storyResponse.title,
         protagonist: `${colors} Yorkshire Terrier`,
         setting,
         theme,
-        content: generatedStory || "Once upon a time...",
+        content: storyResponse.content,
         selectedImages: {
           slot1: 1,
           slot2: 2,
@@ -76,22 +51,29 @@ The story should be engaging for children, incorporating the Yorkie's characteri
         metadata: {
           characteristics,
           colors,
-          antagonist
+          antagonist,
+          ...storyResponse.metadata
         }
       };
 
-      // Validate story data
       const parsedStory = insertStorySchema.parse(story);
-
-      // Save to database
       const savedStory = await storage.createStory(parsedStory);
-
       res.json(savedStory);
     } catch (error) {
       log('Story generation error:', error);
+
+      if (error instanceof OpenAIError) {
+        return res.status(error.statusCode).json({
+          error: 'AI Generation Error',
+          message: error.message,
+          retry: error.statusCode === 429 // Indicate if the client should retry
+        });
+      }
+
       res.status(500).json({
         error: 'Failed to generate story',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        retry: false
       });
     }
   });
@@ -163,18 +145,18 @@ The story should be engaging for children, incorporating the Yorkie's characteri
       const image = await storage.getImage(imageId);
 
       if (!image) {
-        return res.status(404).json({ error: 'Image not found' });
+        return res.status(404).json({ 
+          error: 'Not Found',
+          message: 'Image not found'
+        });
       }
 
-      // Read the image file
       const imagePath = path.join(process.cwd(), 'uploads', image.path);
       const imageBuffer = await fs.readFile(imagePath);
       const base64Image = imageBuffer.toString('base64');
 
-      // Generate analysis using OpenAI
       const analysis = await analyzeImage(base64Image);
 
-      // Update image with analysis
       const updatedImage = await storage.updateImageMetadata(imageId, {
         analyzed: true,
         analysis: {
@@ -185,9 +167,19 @@ The story should be engaging for children, incorporating the Yorkie's characteri
       res.json(updatedImage);
     } catch (error) {
       log('Image analysis error:', error);
+
+      if (error instanceof OpenAIError) {
+        return res.status(error.statusCode).json({
+          error: 'AI Analysis Error',
+          message: error.message,
+          retry: error.statusCode === 429
+        });
+      }
+
       res.status(500).json({
         error: 'Failed to analyze image',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        retry: false
       });
     }
   });
