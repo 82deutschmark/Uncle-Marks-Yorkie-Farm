@@ -6,16 +6,11 @@ import { log } from "./logger";
 
 export class ImageStorage {
   private client: Client;
-  private bucketId: string;
 
   constructor() {
     log('Initializing ImageStorage');
     try {
-      // Use the bucket ID from .replit config
-      this.bucketId = 'replit-objstore-765db3a9-41bc-454b-9e99-f55145d9ea3a';
-      this.client = new Client({
-        bucketId: this.bucketId
-      });
+      this.client = new Client();
       log('ImageStorage initialized with Replit Object Storage');
     } catch (error) {
       log('Failed to initialize Replit Object Storage', error);
@@ -41,15 +36,18 @@ export class ImageStorage {
       const fileId = this.generateFileId(fileBuffer);
       const key = `${fileId}${extension}`;
 
-      // Upload to Replit Object Storage using the correct method
-      log(`Uploading file to Replit Object Storage with key: ${key}`);
-      await this.client.put(key, fileBuffer, {
-        access: 'public', // Make the file publicly accessible
+      // Create a new object in the bucket
+      const obj = await this.client.createObject({
+        key,
+        data: fileBuffer,
         contentType: 'application/zip'
       });
 
-      // Get the URL for the uploaded object using the correct method
-      const objectUrl = await this.client.getUrl(key);
+      // Get a signed URL for the uploaded object
+      const objectUrl = await this.client.getSignedUrl({
+        key,
+        expiresIn: 3600 * 24 * 7 // URL valid for 7 days
+      });
 
       log(`Successfully uploaded file, URL: ${objectUrl}`);
       return { fileId, objectUrl };
@@ -62,7 +60,7 @@ export class ImageStorage {
 
   async deleteImage(fileId: string): Promise<void> {
     try {
-      await this.client.delete(fileId);
+      await this.client.deleteObject({ key: fileId });
       log(`Deleted file from Replit Object Storage: ${fileId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -73,7 +71,10 @@ export class ImageStorage {
 
   async getImageUrl(fileId: string): Promise<string> {
     try {
-      return await this.client.getUrl(fileId);
+      return await this.client.getSignedUrl({
+        key: fileId,
+        expiresIn: 3600 * 24 // URL valid for 24 hours
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`Failed to get file URL: ${message}`, error);
