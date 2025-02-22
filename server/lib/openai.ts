@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface StoryParams {
@@ -28,26 +27,33 @@ interface CharacterProfile {
 }
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
+  // Use default Gen Z tone and setting if not provided
+  const setting = params.setting || "Uncle Mark's magical Yorkie farm";
+  const tone = "Gen Z";
+
   const prompt = `Create a charming Yorkshire terrier story with these parameters:
   - Yorkshire Terrier: A ${params.colors} Yorkie with these traits: ${params.characteristics}
-  - Setting: ${params.setting}
+  - Setting: ${setting}
   - Theme: ${params.theme}
+  - Tone: ${tone}
   - Antagonist: ${params.antagonist}
 
   Story Context:
+  - The story takes place at Uncle Mark's magical Yorkie farm, where he lives with his two beloved Yorkies, Pawel and Pawleen
+  - Pawel and Pawleen are the friendly guides who help new Yorkies adjust to life on the farm
+  - The farm has magical properties that enhance the Yorkies' natural talents
+  - Use Gen Z slang and references to make the story relatable and fun
   - Yorkshire terriers have a natural rivalry with squirrels and other rodents
   - Squirrels are known for teasing and being mean to Yorkshire terriers
-  - If the setting is Uncle Mark's magical farm, include its special enchanted elements
-  - The story should showcase the Yorkshire terrier's bravery in facing the antagonist
 
   Requirements:
   - Story should be between 3,000-5,000 words
   - Include multiple chapters
   - Use descriptive, engaging language suitable for a visual novel
-  - Create a whimsical, adventurous tone
+  - Create a whimsical, adventurous tone with Gen Z flair
   - Focus on the Yorkshire terrier's unique characteristics: brave, energetic, and clever
   - Include details about the antagonist's mischievous nature
-  - If set on Uncle Mark's farm, weave in magical elements unique to the setting
+  - Weave in magical elements unique to Uncle Mark's farm
 
   Provide the response as a JSON object with:
   - title: story title
@@ -60,7 +66,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
       messages: [
         {
           role: "system",
-          content: "You are a creative children's book author specializing in Yorkshire terrier adventures. You understand their unique traits: intelligence, bravery, and loyalty. Your stories capture their distinctive personalities and small but mighty spirit. You also know that Yorkshire terriers have a special rivalry with squirrels and other rodents, who often tease them despite the Yorkies' brave nature."
+          content: "You are a creative children's book author specializing in Yorkshire terrier adventures with a Gen Z twist. You understand their unique traits: intelligence, bravery, and loyalty. Your stories capture their distinctive personalities and small but mighty spirit, while incorporating modern Gen Z humor and references."
         },
         {
           role: "user",
@@ -93,14 +99,14 @@ export async function analyzeImage(base64Image: string): Promise<CharacterProfil
       messages: [
         {
           role: "system",
-          content: "You are a Yorkshire terrier expert and creative character designer. You specialize in bringing out the unique personalities of Yorkies, highlighting their brave, intelligent, and affectionate nature while acknowledging their small size but big personalities."
+          content: "You are a Yorkshire terrier expert and creative character designer with a Gen Z flair. You specialize in bringing out the unique personalities of Yorkies, highlighting their brave, intelligent, and affectionate nature while acknowledging their small size but big personalities."
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Create a detailed character profile for the Yorkshire terrier in this image. Include a unique name that suits their appearance, specific personality traits that reflect true Yorkie characteristics, and a vivid description emphasizing their distinctive features (size, coat, expression, etc). Format the response as JSON with name, personality, and description fields."
+              text: "Create a detailed character profile for the Yorkshire terrier in this image. Include a unique Gen Z style name that suits their appearance, specific personality traits that reflect true Yorkie characteristics, and a vivid description emphasizing their distinctive features (size, coat, expression, etc). Format the response as JSON with name, personality, and description fields."
             },
             {
               type: "image_url",

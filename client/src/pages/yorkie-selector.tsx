@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Image } from "@shared/schema";
 import { Loader2, Dog, RefreshCcw } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -11,7 +10,6 @@ import { useState } from "react";
 
 interface YorkieSlot {
   id: number;
-  position: 1 | 2 | 3;
   description?: string;
   characterProfile?: {
     name?: string;
@@ -29,22 +27,12 @@ export default function YorkieSelector() {
     retry: false
   });
 
-  const [selectedYorkies, setSelectedYorkies] = useState<YorkieSlot[]>([]);
-  const [activeSlot, setActiveSlot] = useState<1 | 2 | 3>(1);
+  const [selectedYorkie, setSelectedYorkie] = useState<YorkieSlot | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
-  // Get filtered images for the current slot
-  const getSlotImages = (slotNumber: number) => {
+  // Get random images for selection
+  const getDisplayImages = () => {
     if (!images) return [];
-
-    // For first two slots, prefer images with matching metadata if available
-    if (slotNumber <= 2) {
-      const analyzed = images.filter(img => img.analyzed && img.analysis?.characterProfile);
-      if (analyzed.length >= 3) {
-        return analyzed.slice(0, 3);
-      }
-    }
-
-    // Otherwise or for third slot, return random images
     return images
       .sort(() => Math.random() - 0.5)
       .slice(0, 3);
@@ -56,18 +44,14 @@ export default function YorkieSelector() {
         method: 'POST'
       });
 
-      setSelectedYorkies(prev => [
-        ...prev.filter(y => y.position !== activeSlot),
-        { 
-          id: image.id, 
-          position: activeSlot,
-          description: response.analysis?.description,
-          characterProfile: response.analysis?.characterProfile
-        }
-      ]);
+      setSelectedYorkie({ 
+        id: image.id,
+        description: response.analysis?.description,
+        characterProfile: response.analysis?.characterProfile
+      });
 
       toast({
-        title: "Character Described!",
+        title: "Character Selected!",
         description: "Your Yorkie's personality has been revealed."
       });
     } catch (error) {
@@ -79,12 +63,14 @@ export default function YorkieSelector() {
     }
   };
 
-  const handleReroll = (slotNumber: number) => {
-    setSelectedYorkies(prev => prev.filter(y => y.position !== slotNumber));
+  const handleReroll = () => {
+    setSelectedYorkie(null);
   };
 
-  const canProceed = selectedYorkies.length === 3 && 
-    selectedYorkies.every(yorkie => yorkie.description && yorkie.characterProfile);
+  const handleProceed = () => {
+    localStorage.setItem('selectedYorkie', JSON.stringify(selectedYorkie));
+    setLocation('/create');
+  };
 
   if (isLoading) {
     return (
@@ -94,100 +80,91 @@ export default function YorkieSelector() {
     );
   }
 
-  const handleProceed = () => {
-    localStorage.setItem('selectedYorkies', JSON.stringify(selectedYorkies));
-    setLocation('/create');
-  };
-
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-2xl font-serif">Choose Your Yorkies</CardTitle>
+            <CardTitle className="text-center text-2xl font-serif">Choose Your Yorkie Friend</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeSlot.toString()} onValueChange={(v) => setActiveSlot(Number(v) as 1 | 2 | 3)}>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="1">
-                  Yorkie One {selectedYorkies.find(y => y.position === 1) && '✓'}
-                </TabsTrigger>
-                <TabsTrigger value="2">
-                  Yorkie Two {selectedYorkies.find(y => y.position === 2) && '✓'}
-                </TabsTrigger>
-                <TabsTrigger value="3">
-                  Yorkie Three {selectedYorkies.find(y => y.position === 3) && '✓'}
-                </TabsTrigger>
-              </TabsList>
-
-              {[1, 2, 3].map((slot) => (
-                <TabsContent key={slot} value={slot.toString()}>
-                  <div className="grid gap-6 md:grid-cols-3">
-                    {getSlotImages(slot).map((image) => (
-                      <Card 
-                        key={image.id}
-                        className={`relative ${
-                          selectedYorkies.find(y => y.position === slot)?.id === image.id
-                            ? 'border-primary'
-                            : ''
-                        }`}
-                      >
-                        <CardContent className="p-4">
-                          <div className="aspect-square mb-4 relative overflow-hidden rounded-lg">
-                            <img 
-                              src={`/uploads/${image.path}`}
-                              alt="Yorkshire Terrier"
-                              className="object-cover w-full h-full"
-                            />
-                          </div>
-                          {image.analysis?.characterProfile && (
-                            <div className="space-y-2">
-                              <h3 className="font-semibold">
-                                {image.analysis.characterProfile.name || 'Friendly Yorkie'}
-                              </h3>
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {image.analysis.characterProfile.personality || 'A lovable Yorkshire Terrier ready for adventures!'}
-                              </p>
-                            </div>
-                          )}
-                        </CardContent>
-                        <CardFooter className="flex gap-2">
-                          <Button
-                            onClick={() => handleDescribe(image)}
-                            disabled={selectedYorkies.find(y => y.position === slot)?.id === image.id}
-                            className="flex-1"
-                          >
-                            Describe
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    ))}
-                  </div>
-                  <div className="mt-4 flex justify-end">
+            <div className="grid gap-6 md:grid-cols-3">
+              {getDisplayImages().map((image) => (
+                <Card 
+                  key={image.id}
+                  className={`relative ${
+                    selectedYorkie?.id === image.id ? 'border-primary' : ''
+                  }`}
+                >
+                  <CardContent className="p-4">
+                    <div className="aspect-square mb-4 relative overflow-hidden rounded-lg">
+                      <img 
+                        src={`/uploads/${image.path}`}
+                        alt="Yorkshire Terrier"
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                    {selectedYorkie?.id === image.id && image.analysis?.characterProfile && (
+                      <div className="space-y-2">
+                        <h3 className="font-semibold">
+                          {image.analysis.characterProfile.name || 'Friendly Yorkie'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {image.analysis.characterProfile.personality || 'A lovable Yorkshire Terrier ready for adventures!'}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                  <CardFooter className="flex gap-2">
                     <Button
-                      variant="outline"
-                      onClick={() => handleReroll(slot)}
-                      className="flex items-center gap-2"
+                      onClick={() => handleDescribe(image)}
+                      disabled={selectedYorkie?.id === image.id}
+                      className="flex-1"
                     >
-                      <RefreshCcw className="h-4 w-4" />
-                      Reroll Options
+                      Select This Yorkie
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+
+            {selectedYorkie && (
+              <div className="mt-8 space-y-4">
+                {!showDetails && (
+                  <div className="flex justify-center">
+                    <Button
+                      size="lg"
+                      onClick={handleProceed}
+                      className="text-xl py-6 px-12 transform hover:scale-105 transition-transform"
+                    >
+                      <Dog className="mr-3 h-6 w-6" />
+                      Generate Story Now
                     </Button>
                   </div>
-                </TabsContent>
-              ))}
-            </Tabs>
+                )}
+
+                <div className="flex justify-center gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleReroll}
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCcw className="h-4 w-4" />
+                    Choose Different Yorkie
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDetails(!showDetails)}
+                    size="sm"
+                  >
+                    {showDetails ? "Hide Details" : "Add More Details"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
-          <CardFooter className="flex justify-center">
-            <Button
-              size="lg"
-              disabled={!canProceed}
-              onClick={handleProceed}
-              className="mt-4"
-            >
-              <Dog className="mr-2 h-4 w-4" />
-              Start Creating Story
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     </div>
