@@ -71,46 +71,45 @@ interface CharacterProfile {
 }
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
-  const prompt = `Create a story about a Yorkshire terrier at Uncle Mark's Farm with these parameters:
+  const prompt = `Create a vibrant and unique story set at Uncle Mark's Farm:
 
-## Story World
-• Setting: Uncle Mark's Farm  
-• Environment: Numerous chickens and a few turkeys that need protection
-• Key Characters:
-  - Uncle Mark: The farm owner
-  - Existing Farm Yorkies:
-    * Pawel: A brave and impulsive male Yorkie who acts without thinking
-    * Pawleen: An intelligent and sweet female Yorkie who thinks before acting
-  - Protagonist: A ${params.colors} Yorkshire Terrier with these traits: ${params.characteristics}
-  - Antagonists:
-    * Main: A sorcerer living in the woods who tries to steal chickens and eggs
-    * Minions: Evil squirrels who serve the sorcerer
-    * Minor Threats: Mice and moles that try to steal food and damage crops
+## World & Setting
+• Uncle Mark's Farm is a special place where Yorkshire terriers play a vital role in protecting the farm's animals
+• The farm is home to chickens and turkeys that need protection
+• Hidden in the nearby woods lives a mysterious sorcerer who covets the farm's magical eggs
+• The farm faces various challenges from woodland creatures under the sorcerer's influence
 
-## Story Parameters
+## Your Protagonist
+Create a unique Yorkshire terrier character with:
+• Physical traits: ${params.colors}
+• Key characteristics: ${params.characteristics}
+• Choose a creative, memorable name that reflects their personality
+• They join two established farm defenders: Pawel and Pawleen
+
+## Story Elements
 • Theme: ${params.theme || 'Protecting the Farm'}
-• Writing Style: Use Gen Z language and references
+• Style: Contemporary, with modern language that resonates with young readers
 • Length: 3,000-5,000 words
-• Format: Multiple chapters with clear breaks
+• Structure: Multiple chapters that flow naturally
 
-## Required Elements
-• The protagonist must interact with both Pawel and Pawleen, who serve as mentors
-• Include scenes showing the farm's animal environment
-• Feature both the sorcerer and his squirrel henchmen as antagonists
-• Show the Yorkshire terriers protecting the farm animals
-• Reference the ongoing issues with mice and moles
+## Creative Guidelines
+• Give your protagonist a distinct voice and personality
+• Create memorable scenes showing the farm's daily life and magical elements
+• Include both action sequences and character development moments
+• Show how the new Yorkie learns from and works with the existing farm protectors
+• Feel free to add creative subplots that enrich the main story
 
 Provide your response in this exact JSON format:
 {
-  "title": "The story title",
+  "title": "Your creative story title",
   "content": "The complete story as a single string with chapters separated by \\n\\n### Chapter N: Title\\n\\n",
   "metadata": {
     "wordCount": number,
     "chapters": number,
-    "tone": "The overall tone of the story",
+    "tone": "The story's overall tone",
     "protagonist": {
-      "name": "The protagonist's name",
-      "personality": "Key personality traits"
+      "name": "Your unique character name",
+      "personality": "Key personality traits that make them special"
     }
   }
 }`;
@@ -121,7 +120,7 @@ Provide your response in this exact JSON format:
       messages: [
         {
           role: "system",
-          content: "You are a creative children's book author specializing in Yorkshire terrier adventures set at Uncle Mark's Farm. You excel at creating stories about brave Yorkies protecting farm animals from magical threats, with Pawel and Pawleen as supporting characters who help guide new Yorkies in their adventures."
+          content: "You are a imaginative children's book author with a talent for creating unique and memorable characters. You specialize in stories that blend magic, adventure, and heart, set in the special world of Uncle Mark's Farm. While the farm setting and its magical nature are fixed elements, you have complete creative freedom in developing distinct personalities, creative names, and engaging subplots that make each story feel fresh and unique."
         },
         {
           role: "user",
@@ -129,7 +128,7 @@ Provide your response in this exact JSON format:
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.8,
+      temperature: 0.9,
       max_tokens: 8000
     });
 
@@ -149,36 +148,22 @@ export async function analyzeImage(base64Image: string): Promise<CharacterProfil
       messages: [
         {
           role: "system",
-          content: `You are a Yorkshire terrier expert and creative character designer. 
-You excel at:
-- Understanding Yorkie breed characteristics: tiny but brave, intelligent, energetic, and affectionate
-- Creating unique personalities that match their appearance
--creative interactive, storytelling 
-
-- Generating Gen Z style names that match their personality
-
-Always consider these Yorkie traits:
-- Small size but confident demeanor
-- Silky coat that can be black and tan, blue and tan, or parti-colored
-- Alert expression with bright eyes and perked ears
-- Spirited and feisty personality despite their tiny size`
+          content: `You are a creative character designer with expertise in Yorkshire terriers. Create unique, memorable characters that feel fresh and original while staying true to Yorkie traits like their tiny size, intelligence, and spirited nature. Think beyond standard names and personalities - each character should feel special and distinct.`
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Analyze this Yorkshire terrier and create a character profile with:
-1. A creative, Gen Z style name that matches their appearance
-2. Key personality traits focusing on their unique Yorkie characteristics
-3. A vivid physical description highlighting their distinctive features
+              text: `Study this Yorkshire terrier's image and create a vibrant character profile with:
+1. A memorable, creative name that captures their unique essence
+2. A distinctive personality that makes them stand out
+3. A vivid physical description highlighting what makes them special
 
-Format your response as JSON with these fields:
-- name: A playful, modern name 
-- personality: 2-3 sentences about their character traits
-- description: 2-3 sentences about their physical appearance
-
-Remember to be creative `
+Format your response as JSON with:
+- name: Their unique name
+- personality: Their special character traits
+- description: Their distinctive physical features`
             },
             {
               type: "image_url",
