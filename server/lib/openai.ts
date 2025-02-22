@@ -2,18 +2,18 @@ import OpenAI from "openai";
 import { OpenAIError } from "./errors";
 import { log } from "./logger";
 
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY = 1000; // 1 second
+const INITIAL_RETRY_DELAY = 2000; // 2 seconds
 const MAX_RETRY_DELAY = 10000; // 10 seconds
 
 // Exponential backoff with jitter
 function calculateBackoff(attempt: number, initialDelay: number): number {
   const exponentialDelay = initialDelay * Math.pow(2, attempt);
   const maxDelay = Math.min(exponentialDelay, MAX_RETRY_DELAY);
-  // Add jitter to prevent thundering herd
-  return maxDelay * (0.75 + Math.random() * 0.5);
+  return maxDelay * (0.75 + Math.random() * 0.5); // Add jitter
 }
 
 async function withRetry<T>(
@@ -24,23 +24,23 @@ async function withRetry<T>(
   try {
     return await operation();
   } catch (error) {
-    const openAIError = OpenAIError.fromError(error);
+    log('OpenAI API Error:', error);
 
-    // Don't retry if the error is not retryable
-    if (!openAIError.retryable) {
-      throw openAIError;
+    if (error instanceof Error) {
+      // Check if it's a timeout or connection error
+      if (error.message.includes('timeout') || error.message.includes('connect')) {
+        if (retries > 0) {
+          const backoffDelay = calculateBackoff(MAX_RETRIES - retries, delay);
+          log(`Retrying OpenAI request after ${backoffDelay}ms. Attempts remaining: ${retries}`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          return withRetry(operation, retries - 1, delay);
+        }
+      }
+
+      throw new OpenAIError(error.message, error);
     }
 
-    // Only retry if we have attempts left
-    if (retries > 0) {
-      const backoffDelay = calculateBackoff(MAX_RETRIES - retries, delay);
-      log(`Retrying OpenAI request after ${backoffDelay}ms. Attempts remaining: ${retries}`);
-
-      await new Promise(resolve => setTimeout(resolve, backoffDelay));
-      return withRetry(operation, retries - 1, delay);
-    }
-
-    throw openAIError;
+    throw new OpenAIError('Unknown error occurred', error);
   }
 }
 
@@ -115,8 +115,9 @@ Provide your response in this exact JSON format:
 }`;
 
   return withRetry(async () => {
+    log('Initiating story generation request to OpenAI');
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", 
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -137,18 +138,20 @@ Provide your response in this exact JSON format:
       throw new OpenAIError("No content received from OpenAI");
     }
 
+    log('Successfully received story from OpenAI');
     return JSON.parse(content) as StoryResponse;
   });
 }
 
 export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
   return withRetry(async () => {
+    log('Initiating image analysis request to OpenAI');
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", 
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `You are a creative character designer with expertise in Yorkshire terriers. Create unique, memorable characters that feel fresh and original while staying true to Yorkie traits like their tiny size, intelligence, and spirited nature. Think beyond standard names and personalities - each character should feel special and distinct.`
+          content: "You are a creative character designer with expertise in Yorkshire terriers. Create unique, memorable characters that feel fresh and original while staying true to Yorkie traits like their tiny size, intelligence, and spirited nature. Think beyond standard names and personalities - each character should feel special and distinct."
         },
         {
           role: "user",
@@ -183,6 +186,7 @@ Format your response as JSON with:
       throw new OpenAIError("No content received from OpenAI");
     }
 
+    log('Successfully received character profile from OpenAI');
     return JSON.parse(content) as CharacterProfile;
   });
 }
