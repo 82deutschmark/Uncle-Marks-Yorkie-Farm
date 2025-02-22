@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Image } from "@shared/schema";
-import { Loader2, Dog, RefreshCcw, AlertTriangle } from "lucide-react";
+import { Loader2, Dog, RefreshCcw, Wand2, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -59,85 +59,25 @@ export default function YorkieSelector() {
     ]);
   };
 
-  const handleDescribe = async (image: Image) => {
-    setAnalyzingId(image.id);
-    toast({
-      title: "Analyzing Yorkie",
-      description: "Getting to know your new friend's personality...",
-    });
-
-    try {
-      const response = await apiRequest(`/api/images/${image.id}/analyze`, {
-        method: 'POST'
-      });
-
-      setSelectedYorkie({ 
-        id: image.id,
-        description: response.analysis?.description,
-        characterProfile: response.analysis?.characterProfile
-      });
-
-      toast({
-        title: "Yorkie Selected!",
-        description: response.analysis?.characterProfile?.name 
-          ? `Meet ${response.analysis.characterProfile.name}!` 
-          : "Your new friend's personality has been revealed."
-      });
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message;
-      const isRetryable = error.response?.data?.retry || false;
-
-      toast({
-        title: "Analysis Error",
-        description: errorMessage,
-        variant: "destructive",
-        action: isRetryable ? (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => handleDescribe(image)}
-          >
-            Retry
-          </Button>
-        ) : undefined
-      });
-
-      setSelectedYorkie(null);
-    } finally {
-      setAnalyzingId(null);
-    }
-  };
-
   const handleGenerateStory = async () => {
-    if (!selectedYorkie?.characterProfile) {
-      toast({
-        title: "Error",
-        description: "Please select a Yorkie first.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsGenerating(true);
     toast({
       title: "Creating Your Story",
-      description: "Crafting a magical adventure..."
+      description: "Our AI is crafting a magical tale about your Yorkie..."
     });
 
     try {
       const response = await apiRequest("/api/stories/generate", {
         method: "POST",
         body: JSON.stringify({
-          characteristics: selectedYorkie.characterProfile.personality || "friendly",
+          characteristics: "friendly and adventurous",
           colors: "brown and black",
           setting: "Uncle Mark's Magical Farm",
           theme: "Adventure",
-          antagonist: "Mischievous Squirrel",
-          yorkieId: selectedYorkie.id
+          antagonist: "Mischievous Squirrel"
         })
       });
 
-      localStorage.removeItem('selectedYorkie');
       setLocation(`/story/${response.id}`);
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message;
@@ -145,16 +85,7 @@ export default function YorkieSelector() {
 
       toast({
         title: "Story Generation Error",
-        description: (
-          <div className="flex flex-col gap-2">
-            <span>{errorMessage}</span>
-            {isRetryable && (
-              <span className="text-sm text-muted-foreground">
-                This is a temporary error. Please try again.
-              </span>
-            )}
-          </div>
-        ),
+        description: errorMessage,
         variant: "destructive",
         action: isRetryable ? (
           <Button 
@@ -172,10 +103,7 @@ export default function YorkieSelector() {
   };
 
   const handleAddDetails = () => {
-    if (selectedYorkie) {
-      localStorage.setItem('selectedYorkie', JSON.stringify(selectedYorkie));
-      setLocation('/details');
-    }
+    setLocation('/details');
   };
 
   if (isLoading) {
@@ -191,121 +119,111 @@ export default function YorkieSelector() {
       <div className="max-w-6xl mx-auto space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-center text-2xl font-serif">Choose Your Yorkie Friend</CardTitle>
+            <CardTitle className="text-center text-2xl font-serif">Begin Your Yorkie Adventure</CardTitle>
+            <CardDescription className="text-center text-lg">
+              Let our AI create a magical story about a Yorkshire Terrier at Uncle Mark's Farm
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-6 md:grid-cols-3">
-              {displayImages.map((slotImages, slotIndex) => (
-                <div key={slotIndex} className="space-y-4">
-                  {slotImages.map((image) => (
-                    <Card 
-                      key={image.id}
-                      className={`relative ${
-                        selectedYorkie?.id === image.id ? 'border-primary border-2' : ''
-                      }`}
-                    >
-                      <CardContent className="p-4">
-                        <div className="aspect-square mb-4 relative overflow-hidden rounded-lg">
-                          <img 
-                            src={`/uploads/${image.path}`}
-                            alt="Yorkshire Terrier"
-                            className="object-cover w-full h-full"
-                          />
-                          {analyzingId === image.id && (
-                            <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                              <div className="text-center space-y-2">
-                                <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                                <p className="text-sm">Analyzing personality...</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        {selectedYorkie?.id === image.id && selectedYorkie.characterProfile && (
-                          <div className="space-y-2">
-                            <h3 className="font-semibold text-lg">
-                              {selectedYorkie.characterProfile.name || 'Friendly Yorkie'}
-                            </h3>
-                            <p className="text-muted-foreground">
-                              {selectedYorkie.characterProfile.personality || 'A lovable Yorkshire Terrier ready for adventures!'}
-                            </p>
-                          </div>
-                        )}
-                      </CardContent>
-                      <CardFooter className="flex gap-2">
-                        <Button
-                          onClick={() => handleDescribe(image)}
-                          disabled={analyzingId !== null || selectedYorkie?.id === image.id}
-                          className="flex-1"
-                        >
-                          {analyzingId === image.id ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Analyzing...
-                            </>
-                          ) : (
-                            "Select This Yorkie"
-                          )}
-                        </Button>
-                        <Button 
-                          variant="outline"
-                          size="icon"
-                          onClick={() => rerollSlot(slotIndex)}
-                          disabled={analyzingId !== null}
-                        >
-                          <RefreshCcw className="h-4 w-4" />
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ))}
+            {/* Primary Action - Quick Story Generation */}
+            <div className="mb-8 text-center space-y-6">
+              <div className="space-y-3">
+                <Button
+                  size="lg"
+                  onClick={handleGenerateStory}
+                  disabled={isGenerating}
+                  className="text-xl py-8 px-16 transform hover:scale-105 transition-transform"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                      Creating Your Story...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="mr-3 h-6 w-6" />
+                      Generate Quick Story
+                    </>
+                  )}
+                </Button>
+                <p className="text-muted-foreground">
+                  AI will create a charming tale with custom illustrations
+                </p>
+              </div>
+
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={handleAddDetails}
+                  size="lg"
+                  disabled={isGenerating}
+                  className="text-lg"
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Customize Story Details
+                </Button>
+              </div>
             </div>
 
-            {selectedYorkie && (
-              <div className="mt-8 space-y-6 text-center">
-                <div className="flex flex-col items-center gap-4">
-                  <Button
-                    size="lg"
-                    onClick={handleGenerateStory}
-                    disabled={isGenerating || analyzingId !== null}
-                    className="text-xl py-6 px-12 transform hover:scale-105 transition-transform"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                        Creating Your Story...
-                      </>
-                    ) : (
-                      <>
-                        <Dog className="mr-3 h-6 w-6" />
-                        Generate Quick Story
-                      </>
-                    )}
-                  </Button>
+            {/* Optional - Character Gallery (Less Prominent) */}
+            <div className="mt-12 pt-6 border-t border-border opacity-70 hover:opacity-100 transition-opacity">
+              <div className="text-center mb-6">
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Optional: Browse Our Character Gallery
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  View some of our AI-generated Yorkshire Terriers
+                </p>
+              </div>
 
-                  <Button
-                    variant="outline"
-                    onClick={handleAddDetails}
-                    size="lg"
-                    disabled={isGenerating || analyzingId !== null}
-                    className="text-lg"
-                  >
-                    Customize Story Details
-                  </Button>
-                </div>
+              <div className="grid gap-6 md:grid-cols-3">
+                {displayImages.map((slotImages, slotIndex) => (
+                  <div key={slotIndex} className="space-y-4">
+                    {slotImages.map((image) => (
+                      <Card 
+                        key={image.id}
+                        className={`relative ${
+                          selectedYorkie?.id === image.id ? 'border-primary border-2' : ''
+                        }`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="aspect-square mb-4 relative overflow-hidden rounded-lg">
+                            <img 
+                              src={`/uploads/${image.path}`}
+                              alt="Yorkshire Terrier"
+                              className="object-cover w-full h-full"
+                            />
+                          </div>
+                          {selectedYorkie?.id === image.id && selectedYorkie.characterProfile && (
+                            <div className="space-y-2">
+                              <h3 className="font-semibold text-lg">
+                                {selectedYorkie.characterProfile.name || 'Friendly Yorkie'}
+                              </h3>
+                              <p className="text-muted-foreground text-sm">
+                                {selectedYorkie.characterProfile.personality || 'A lovable Yorkshire Terrier ready for adventures!'}
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ))}
+              </div>
 
+              <div className="mt-4 flex justify-center">
                 <Button
                   variant="ghost"
                   onClick={rerollAllSlots}
                   size="sm"
                   disabled={isGenerating || analyzingId !== null}
-                  className="flex items-center gap-2"
+                  className="text-muted-foreground"
                 >
-                  <RefreshCcw className="h-4 w-4" />
-                  Show Different Yorkies
+                  <RefreshCcw className="h-4 w-4 mr-2" />
+                  Show Different Characters
                 </Button>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       </div>
