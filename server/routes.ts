@@ -17,6 +17,20 @@ export async function registerRoutes(app: Express) {
     storage: multer.memoryStorage()
   });
 
+  // Get all images
+  app.get("/api/images", async (_req, res) => {
+    try {
+      const images = await storage.getAllImages();
+      res.json(images);
+    } catch (error) {
+      log('Error fetching images:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch images',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   app.post("/api/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
