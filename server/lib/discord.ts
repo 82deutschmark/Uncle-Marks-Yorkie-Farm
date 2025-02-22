@@ -1,11 +1,6 @@
 import { log } from "./logger";
 import { DiscordError } from "./errors";
-
-interface MidJourneyPrompt {
-  description: string;
-  characteristics?: string[];
-  setting?: string;
-}
+import type { MidJourneyPrompt } from "@shared/schema";
 
 export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<void> {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
@@ -13,12 +8,13 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
     throw new DiscordError('Discord webhook URL not configured', 500, false);
   }
 
-  // Format the prompt with the signature
+  // Format the prompt with all components and signature
   const characteristics = prompt.characteristics?.join(', ') || '';
   const setting = prompt.setting ? ` in ${prompt.setting}` : '';
+  const artStyle = prompt.artStyle ? ` --style ${prompt.artStyle.style}` : '';
   const basePrompt = prompt.description || 'A cute Yorkshire Terrier';
 
-  const formattedPrompt = `/imagine ${basePrompt}${characteristics ? `, ${characteristics}` : ''}${setting} --ar 1:1 --style raw --seed 1234 | Uncle Mark's Yorkie Farm`;
+  const formattedPrompt = `/imagine ${basePrompt}${characteristics ? `, ${characteristics}` : ''}${setting}${artStyle} --ar 1:1 --seed 1234 | Uncle Mark's Yorkie Farm`;
 
   try {
     const response = await fetch(webhookUrl, {
