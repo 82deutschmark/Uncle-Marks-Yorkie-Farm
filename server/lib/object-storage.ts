@@ -14,11 +14,8 @@ class StorageClient {
       const key = `uploads/${Date.now()}-${filename}`;
       log('Attempting to upload file with key:', key);
 
-      // Use the correct method: putObject
-      await this.client.putObject({
-        key,
-        data: file,
-      });
+      // Simple upload using the basic put method
+      await this.client.write(key, file);
       log('File upload successful');
 
       return key;
@@ -32,11 +29,8 @@ class StorageClient {
     try {
       log('Generating signed URL for key:', key);
 
-      // Use the correct method: getSignedUrl
-      const url = await this.client.getSignedUrl('get', {
-        key,
-        expiresIn: 3600, // 1 hour
-      });
+      // Get a signed URL that expires in 1 hour
+      const url = await this.client.createSignedUrl(key, 3600);
       log('URL generation successful');
 
       return url;
