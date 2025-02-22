@@ -47,9 +47,7 @@ async function withRetry<T>(
 interface StoryParams {
   characteristics: string;
   colors: string;
-  setting: string;
   theme: string;
-  antagonist: string;
   yorkieName?: string;
   yorkieGender?: 'male' | 'female';
 }
@@ -76,47 +74,52 @@ interface CharacterProfile {
 }
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
-  const setting = params.setting || "Uncle Mark's magical Yorkie farm";
-  const tone = "Gen Z";
   const yorkieName = params.yorkieName || (params.yorkieGender === 'male' ? 'Pawel' : 'Pawleen');
   const defaultPersonality = params.yorkieGender === 'male' ? 
     'brave and impulsive, often acting without thinking' : 
     'intelligent and sweet, always thinking before acting';
 
-  const prompt = `Create a Yorkshire terrier story with these parameters:
-  - Protagonist: A ${params.colors} Yorkie named ${yorkieName} with these traits: ${params.characteristics || defaultPersonality}
-  - Setting: ${setting}
-  - Theme: ${params.theme}
-  - Tone: ${tone}
+  const prompt = `## General Setting
+• Setting: Uncle Mark's Farm  
+• Environment:
+ – Numerous chickens  
+ – A few turkeys  
+• Role of Yorkshire terriers:
+ – Protect the chickens and turkeys from threats
 
-  Story Context:
-  - The story takes place at Uncle Mark's Farm, where Yorkshire terriers have a special role:
-    * They protect chickens and turkeys from various threats
-    * The farm has numerous chickens and a few turkeys
+## Plot Elements & Threats
+• Primary antagonist: A sorcerer living in the woods  
+ – Objective: Steal chickens and eggs  
+ – Henchmen: Evil squirrels  
+• Secondary nuisances:
+ – Mice and moles that try to steal food and damage crops
 
-  Antagonists:
-  - Primary: A sorcerer living in the woods who tries to steal chickens and eggs
-    * Has evil squirrels as henchmen
-  - Secondary: Mice and moles that try to steal food and damage crops
+## Key Characters
+• Uncle Mark – The owner of the farm  
+• Protagonist: A ${params.colors} Yorkshire Terrier named ${yorkieName}
+  – Personality: ${params.characteristics || defaultPersonality}
+  – Role: ${params.theme || 'Protecting the Farm'}
 
-  Key Characters:
-  - Uncle Mark: The owner of the farm
-  - Yorkshire Terriers:
-    * If protagonist is male (like Pawel): Brave and impulsive, often acts without thinking
-    * If protagonist is female (like Pawleen): Intelligent and sweet, thinks before acting
+## Additional Story Parameters
+• Theme: ${params.theme}
+• Writing Style: Use Gen Z language and references
+• Length: 3,000-5,000 words
+• Format: Multiple chapters with clear breaks
 
-  Requirements:
-  - Story should be between 3,000-5,000 words
-  - Include multiple chapters
-  - Emphasize the farm's animal environment and the protective role of the terriers
-  - Use descriptive, engaging language suitable for a visual novel
-  - Use Gen Z slang and references to make the story relatable and fun
+## Required Story Elements
+• Emphasize the farm's animal environment
+• Highlight the protective role of the terriers
+• Include both the sorcerer and his squirrel henchmen as main antagonists
+• Reference the threat from mice and moles
+• Match personality to gender archetype:
+  – Male (like Pawel): Brave and impulsive, acts without thinking
+  – Female (like Pawleen): Intelligent and sweet, thinks before acting
 
-  Provide the response as a JSON object with:
-  - title: story title
-  - content: full story text with chapter breaks
-  - metadata: containing wordCount, number of chapters, overall tone, and protagonist details
-    * protagonist should include name, gender, and personality traits`;
+Provide the response as a JSON object with:
+- title: story title
+- content: full story text with chapter breaks
+- metadata: containing wordCount, number of chapters, overall tone, and protagonist details
+  * protagonist should include name, gender, and personality traits`;
 
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
@@ -124,7 +127,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
       messages: [
         {
           role: "system",
-          content: "You are a creative children's book author specializing in Yorkshire terrier adventures with a Gen Z twist. You excel at creating stories about brave Yorkies protecting farm animals and dealing with magical threats."
+          content: "You are a creative children's book author specializing in Yorkshire terrier adventures set at Uncle Mark's Farm. You excel at creating stories about brave Yorkies protecting farm animals from magical threats while maintaining their distinct gender-based personality archetypes - males being brave and impulsive, females being intelligent and thoughtful."
         },
         {
           role: "user",
