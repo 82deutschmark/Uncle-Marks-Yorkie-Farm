@@ -25,22 +25,16 @@ async function withRetry<T>(
     return await operation();
   } catch (error) {
     log('OpenAI API Error:', error);
+    const openAIError = OpenAIError.fromError(error);
 
-    if (error instanceof Error) {
-      // Check if it's a timeout or connection error
-      if (error.message.includes('timeout') || error.message.includes('connect')) {
-        if (retries > 0) {
-          const backoffDelay = calculateBackoff(MAX_RETRIES - retries, delay);
-          log(`Retrying OpenAI request after ${backoffDelay}ms. Attempts remaining: ${retries}`);
-          await new Promise(resolve => setTimeout(resolve, backoffDelay));
-          return withRetry(operation, retries - 1, delay);
-        }
-      }
-
-      throw new OpenAIError(error.message, error);
+    if (openAIError.retryable && retries > 0) {
+      const backoffDelay = calculateBackoff(MAX_RETRIES - retries, delay);
+      log(`Retrying OpenAI request after ${backoffDelay}ms. Attempts remaining: ${retries}`);
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      return withRetry(operation, retries - 1, delay);
     }
 
-    throw new OpenAIError('Unknown error occurred', error);
+    throw openAIError;
   }
 }
 
@@ -72,7 +66,6 @@ interface CharacterProfile {
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
   const prompt = `Create a vibrant and unique story set at Uncle Mark's Farm:
-
 ## World & Setting
 • Uncle Mark's Farm is a special place where Yorkshire terriers play a vital role in protecting the farm's animals
 • The farm is home to chickens and turkeys that need protection

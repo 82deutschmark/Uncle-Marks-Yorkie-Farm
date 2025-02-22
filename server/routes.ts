@@ -169,13 +169,12 @@ export async function registerRoutes(app: Express) {
       log('Image analysis error:', error);
 
       if (error instanceof OpenAIError) {
-        // Always use a numeric status code
-        const statusCode = error.statusCode || 500;
-        return res.status(statusCode).json({
+        res.status(error.statusCode).json({
           error: 'AI Analysis Error',
           message: error.message,
-          retry: statusCode === 429
+          retry: error.retryable
         });
+        return;
       }
 
       res.status(500).json({
