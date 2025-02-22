@@ -105,6 +105,26 @@ The story should be engaging for children, incorporating the Yorkie's characteri
     }
   });
 
+  // Get story by ID
+  app.get("/api/stories/:id", async (req, res) => {
+    try {
+      const storyId = parseInt(req.params.id, 10);
+      const story = await storage.getStory(storyId);
+
+      if (!story) {
+        return res.status(404).json({ error: 'Story not found' });
+      }
+
+      res.json(story);
+    } catch (error) {
+      log('Error fetching story:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch story',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   app.post("/api/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
