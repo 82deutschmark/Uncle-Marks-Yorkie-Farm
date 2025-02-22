@@ -29,7 +29,7 @@ export default function UploadPage() {
 
       setMessage({
         type: 'success',
-        text: `File uploaded successfully. URL: ${result.url}`
+        text: `Successfully uploaded and processed ${result.images?.length || 0} images from the file.`
       });
     } catch (error) {
       setMessage({
@@ -47,7 +47,7 @@ export default function UploadPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle className="text-center">PNG Upload Test</CardTitle>
+          <CardTitle className="text-center">File Upload</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
@@ -59,13 +59,12 @@ export default function UploadPage() {
                 <div className="flex flex-col items-center gap-4 p-8 border-2 border-dashed rounded-lg hover:border-primary">
                   <Upload className="h-8 w-8 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">
-                    Click to select PNG file
+                    Click to select a file to upload
                   </span>
                 </div>
                 <Input
                   id="file-upload"
                   type="file"
-                  accept=".png"
                   className="hidden"
                   onChange={handleUpload}
                 />

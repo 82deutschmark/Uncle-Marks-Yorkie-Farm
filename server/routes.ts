@@ -12,19 +12,9 @@ export async function registerRoutes(app: Express) {
   // Serve static files from uploads directory
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
-  // Configure multer for handling ZIP uploads
+  // Configure multer without restrictions
   const upload = multer({
-    storage: multer.memoryStorage(),
-    fileFilter: (_req, file, cb) => {
-      if (file.mimetype === 'application/zip') {
-        cb(null, true);
-      } else {
-        cb(new Error('Only ZIP files are allowed'));
-      }
-    },
-    limits: {
-      fileSize: 50 * 1024 * 1024 // 50MB limit for ZIP files
-    }
+    storage: multer.memoryStorage()
   });
 
   app.post("/api/upload", upload.single('file'), async (req, res) => {
