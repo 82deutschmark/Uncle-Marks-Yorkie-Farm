@@ -23,7 +23,6 @@ export default function YorkieSelector() {
   const { toast } = useToast();
   const [displayImages, setDisplayImages] = useState<Image[][]>([[], [], []]);
   const [selectedYorkie, setSelectedYorkie] = useState<YorkieSlot | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
 
   const { data: images, isLoading } = useQuery<Image[]>({
     queryKey: ['/api/images'],
@@ -157,36 +156,24 @@ export default function YorkieSelector() {
 
             {selectedYorkie && (
               <div className="mt-8 space-y-6 text-center">
-                {!showDetails && (
-                  <Button
-                    size="lg"
-                    onClick={handleProceed}
-                    className="text-xl py-6 px-12 transform hover:scale-105 transition-transform"
-                  >
-                    <Dog className="mr-3 h-6 w-6" />
-                    Generate Story Now
-                  </Button>
-                )}
+                <Button
+                  size="lg"
+                  onClick={handleProceed}
+                  className="text-xl py-6 px-12 transform hover:scale-105 transition-transform"
+                >
+                  <Dog className="mr-3 h-6 w-6" />
+                  Generate Story Now
+                </Button>
 
-                <div className="flex justify-center gap-4">
-                  <Button
-                    variant="outline"
-                    onClick={rerollAllSlots}
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <RefreshCcw className="h-4 w-4" />
-                    Show Different Yorkies
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowDetails(!showDetails)}
-                    size="sm"
-                  >
-                    {showDetails ? "Hide Details" : "Add More Details"}
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  onClick={rerollAllSlots}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Show Different Yorkies
+                </Button>
               </div>
             )}
           </CardContent>
