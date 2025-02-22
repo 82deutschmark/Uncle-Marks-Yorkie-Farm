@@ -6,37 +6,37 @@ class StorageClient {
 
   constructor() {
     this.client = new Client();
+    log('Storage client initialized');
   }
 
   async uploadFile(file: Buffer, filename: string): Promise<string> {
     try {
       const key = `uploads/${Date.now()}-${filename}`;
+      log('Attempting to upload file with key:', key);
 
-      // Use the correct method signature
-      await this.client.createObject({
-        key,
-        data: file,
-      });
+      // Basic put operation using Replit's Object Storage
+      await this.client.put(key, file);
+      log('File upload successful');
 
-      log('Successfully uploaded file:', key);
       return key;
     } catch (error) {
       log('Upload failed:', error);
-      throw new Error('Failed to upload file');
+      throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   async getFileUrl(key: string): Promise<string> {
     try {
-      // Use the correct method signature
-      const url = await this.client.createPresignedUrl({
-        key,
-        expiresIn: 3600, // 1 hour
-      });
+      log('Generating signed URL for key:', key);
+
+      // Generate URL with 1 hour expiry
+      const url = await this.client.signedUrl(key, { expires: 3600 });
+      log('URL generation successful');
+
       return url;
     } catch (error) {
       log('Failed to get file URL:', error);
-      throw new Error('Failed to get file URL');
+      throw new Error(`Failed to get file URL: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

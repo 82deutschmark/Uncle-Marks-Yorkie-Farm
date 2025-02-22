@@ -7,52 +7,53 @@ import { log } from "./lib/logger";
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
-  // Configure multer for handling PNG uploads
-  const uploadPng = multer({
+  // Basic multer setup for PNG files
+  const upload = multer({
     storage: multer.memoryStorage(),
     fileFilter: (_req, file, cb) => {
       if (file.mimetype === 'image/png') {
         cb(null, true);
-        return;
+      } else {
+        cb(new Error('Only PNG files are allowed'));
       }
-      cb(new Error('Only PNG files are allowed'));
     },
     limits: {
       fileSize: 5 * 1024 * 1024 // 5MB limit
     }
   });
 
-  app.post("/api/upload", uploadPng.single('file'), async (req, res) => {
+  app.post("/api/upload", upload.single('file'), async (req, res) => {
     try {
+      // Validate file exists
       if (!req.file) {
-        log('No file provided in request');
-        return res.status(400).json({ message: "No file provided" });
+        log('Upload failed: No file provided');
+        return res.status(400).json({ error: 'No file provided' });
       }
 
-      log('Starting file upload process...');
-      log('File details:', {
+      // Log file details
+      log('Processing upload:', {
         filename: req.file.originalname,
         size: req.file.size,
-        mimetype: req.file.mimetype
+        type: req.file.mimetype
       });
 
-      const key = await storageClient.uploadFile(
-        req.file.buffer,
-        req.file.originalname
-      );
-      log('File uploaded to storage, key:', key);
+      // Upload to storage
+      const key = await storageClient.uploadFile(req.file.buffer, req.file.originalname);
+      log('File uploaded successfully with key:', key);
 
+      // Generate URL
       const url = await storageClient.getFileUrl(key);
-      log('Generated signed URL:', url);
+      log('Generated signed URL for file');
 
-      res.json({
-        message: "File uploaded successfully",
-        url
-      });
+      // Return success
+      res.json({ url });
+
     } catch (error) {
       log('Upload error:', error);
-      const message = error instanceof Error ? error.message : 'Failed to upload file';
-      res.status(500).json({ message });
+      res.status(500).json({ 
+        error: 'Upload failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
