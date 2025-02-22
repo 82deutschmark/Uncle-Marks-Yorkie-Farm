@@ -14,8 +14,11 @@ class StorageClient {
       const key = `uploads/${Date.now()}-${filename}`;
       log('Attempting to upload file with key:', key);
 
-      // Basic put operation using Replit's Object Storage
-      await this.client.put(key, file);
+      // Use the correct method: putObject
+      await this.client.putObject({
+        key,
+        data: file,
+      });
       log('File upload successful');
 
       return key;
@@ -29,8 +32,11 @@ class StorageClient {
     try {
       log('Generating signed URL for key:', key);
 
-      // Generate URL with 1 hour expiry
-      const url = await this.client.signedUrl(key, { expires: 3600 });
+      // Use the correct method: getSignedUrl
+      const url = await this.client.getSignedUrl('get', {
+        key,
+        expiresIn: 3600, // 1 hour
+      });
       log('URL generation successful');
 
       return url;
