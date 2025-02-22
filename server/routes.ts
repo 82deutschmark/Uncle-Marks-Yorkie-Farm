@@ -7,6 +7,8 @@ import { storage } from "./storage";
 import { log } from "./lib/logger";
 import OpenAI from "openai";
 import { insertStorySchema } from "@shared/schema";
+import { analyzeImage } from "./lib/openai";
+import * as fs from 'fs/promises';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -107,7 +109,7 @@ The story should be engaging for children, incorporating the Yorkie's characteri
       res.json(story);
     } catch (error) {
       log('Error fetching story:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: 'Failed to fetch story',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -136,7 +138,7 @@ The story should be engaging for children, incorporating the Yorkie's characteri
       log(`Successfully processed ${images.length} image(s)`);
 
       // Return success with image data
-      res.json({ 
+      res.json({
         message: 'Upload successful',
         images: images.map(img => ({
           id: img.id,
@@ -147,8 +149,44 @@ The story should be engaging for children, incorporating the Yorkie's characteri
 
     } catch (error) {
       log('Upload error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: 'Upload failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Add image analysis endpoint
+  app.post("/api/images/:id/analyze", async (req, res) => {
+    try {
+      const imageId = parseInt(req.params.id, 10);
+      const image = await storage.getImage(imageId);
+
+      if (!image) {
+        return res.status(404).json({ error: 'Image not found' });
+      }
+
+      // Read the image file
+      const imagePath = path.join(process.cwd(), 'uploads', image.path);
+      const imageBuffer = await fs.readFile(imagePath);
+      const base64Image = imageBuffer.toString('base64');
+
+      // Generate analysis using OpenAI
+      const analysis = await analyzeImage(base64Image);
+
+      // Update image with analysis
+      const updatedImage = await storage.updateImageMetadata(imageId, {
+        analyzed: true,
+        analysis: {
+          characterProfile: analysis
+        }
+      });
+
+      res.json(updatedImage);
+    } catch (error) {
+      log('Image analysis error:', error);
+      res.status(500).json({
+        error: 'Failed to analyze image',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
     }
