@@ -24,6 +24,7 @@ export default function YorkieSelector() {
   const [displayImages, setDisplayImages] = useState<Image[][]>([[], [], []]);
   const [selectedYorkie, setSelectedYorkie] = useState<YorkieSlot | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [analyzingId, setAnalyzingId] = useState<number | null>(null);
 
   const { data: images, isLoading } = useQuery<Image[]>({
     queryKey: ['/api/images'],
@@ -59,6 +60,12 @@ export default function YorkieSelector() {
   };
 
   const handleDescribe = async (image: Image) => {
+    setAnalyzingId(image.id);
+    toast({
+      title: "Analyzing Yorkie",
+      description: "Getting to know your new friend's personality...",
+    });
+
     try {
       const response = await apiRequest(`/api/images/${image.id}/analyze`, {
         method: 'POST'
@@ -72,7 +79,9 @@ export default function YorkieSelector() {
 
       toast({
         title: "Yorkie Selected!",
-        description: "Your new friend's personality has been revealed."
+        description: response.analysis?.characterProfile?.name 
+          ? `Meet ${response.analysis.characterProfile.name}!` 
+          : "Your new friend's personality has been revealed."
       });
     } catch (error) {
       toast({
@@ -80,6 +89,9 @@ export default function YorkieSelector() {
         description: "Failed to analyze the image. Please try again.",
         variant: "destructive"
       });
+      setSelectedYorkie(null);
+    } finally {
+      setAnalyzingId(null);
     }
   };
 
@@ -94,6 +106,11 @@ export default function YorkieSelector() {
     }
 
     setIsGenerating(true);
+    toast({
+      title: "Creating Your Story",
+      description: "Crafting a magical adventure..."
+    });
+
     try {
       const response = await apiRequest("/api/stories/generate", {
         method: "POST",
@@ -160,6 +177,14 @@ export default function YorkieSelector() {
                             alt="Yorkshire Terrier"
                             className="object-cover w-full h-full"
                           />
+                          {analyzingId === image.id && (
+                            <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                              <div className="text-center space-y-2">
+                                <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                                <p className="text-sm">Analyzing personality...</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         {selectedYorkie?.id === image.id && selectedYorkie.characterProfile && (
                           <div className="space-y-2">
@@ -175,15 +200,23 @@ export default function YorkieSelector() {
                       <CardFooter className="flex gap-2">
                         <Button
                           onClick={() => handleDescribe(image)}
-                          disabled={selectedYorkie?.id === image.id}
+                          disabled={analyzingId !== null || selectedYorkie?.id === image.id}
                           className="flex-1"
                         >
-                          Select This Yorkie
+                          {analyzingId === image.id ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            "Select This Yorkie"
+                          )}
                         </Button>
                         <Button 
                           variant="outline"
                           size="icon"
                           onClick={() => rerollSlot(slotIndex)}
+                          disabled={analyzingId !== null}
                         >
                           <RefreshCcw className="h-4 w-4" />
                         </Button>
@@ -200,17 +233,27 @@ export default function YorkieSelector() {
                   <Button
                     size="lg"
                     onClick={handleGenerateStory}
-                    disabled={isGenerating}
+                    disabled={isGenerating || analyzingId !== null}
                     className="text-xl py-6 px-12 transform hover:scale-105 transition-transform"
                   >
-                    <Dog className="mr-3 h-6 w-6" />
-                    {isGenerating ? "Generating Story..." : "Generate Quick Story"}
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                        Creating Your Story...
+                      </>
+                    ) : (
+                      <>
+                        <Dog className="mr-3 h-6 w-6" />
+                        Generate Quick Story
+                      </>
+                    )}
                   </Button>
 
                   <Button
                     variant="outline"
                     onClick={handleAddDetails}
                     size="lg"
+                    disabled={isGenerating || analyzingId !== null}
                     className="text-lg"
                   >
                     Customize Story Details
@@ -221,6 +264,7 @@ export default function YorkieSelector() {
                   variant="ghost"
                   onClick={rerollAllSlots}
                   size="sm"
+                  disabled={isGenerating || analyzingId !== null}
                   className="flex items-center gap-2"
                 >
                   <RefreshCcw className="h-4 w-4" />
