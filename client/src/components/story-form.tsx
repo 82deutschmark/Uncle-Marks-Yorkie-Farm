@@ -12,7 +12,6 @@ interface StoryFormData {
   characteristics: string;
   colors: string;
   theme: string;
-  yorkieGender: 'male' | 'female';
 }
 
 const characteristics = [
@@ -66,8 +65,7 @@ export function StoryForm() {
     defaultValues: {
       characteristics: selectedYorkie?.analysis?.characterProfile?.personality || "",
       colors: "",
-      theme: "",
-      yorkieGender: 'male'
+      theme: ""
     }
   });
 
@@ -101,7 +99,6 @@ export function StoryForm() {
           setting: "Uncle Mark's Farm",
           theme: data.theme,
           antagonist: "Evil Sorcerer",
-          yorkieGender: data.yorkieGender,
           yorkieId: selectedYorkie.id
         })
       });
@@ -122,41 +119,6 @@ export function StoryForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="yorkieGender"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Yorkie Character</FormLabel>
-              <FormControl>
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant={field.value === 'male' ? 'default' : 'outline'}
-                    onClick={() => field.onChange('male')}
-                    className="flex-1"
-                  >
-                    Pawel (Male)
-                    <span className="ml-2">👦</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={field.value === 'female' ? 'default' : 'outline'}
-                    onClick={() => field.onChange('female')}
-                    className="flex-1"
-                  >
-                    Pawleen (Female)
-                    <span className="ml-2">👧</span>
-                  </Button>
-                </div>
-              </FormControl>
-              <FormDescription>
-                Choose your Yorkie's character - each has unique traits!
-              </FormDescription>
-            </FormItem>
-          )}
-        />
-
         <FormField
           control={form.control}
           name="characteristics"
@@ -205,7 +167,6 @@ export function StoryForm() {
           )}
         />
 
-
         <FormField
           control={form.control}
           name="theme"
@@ -225,7 +186,6 @@ export function StoryForm() {
             </FormItem>
           )}
         />
-
 
         <Button type="submit" disabled={isLoading} className="w-full">
           {isLoading ? "Generating Your Story..." : "Generate Story"}

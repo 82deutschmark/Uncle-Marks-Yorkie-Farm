@@ -48,8 +48,6 @@ interface StoryParams {
   characteristics: string;
   colors: string;
   theme: string;
-  yorkieName?: string;
-  yorkieGender?: 'male' | 'female';
 }
 
 interface StoryResponse {
@@ -61,7 +59,6 @@ interface StoryResponse {
     tone: string;
     protagonist: {
       name: string;
-      gender: string;
       personality: string;
     };
   };
@@ -74,11 +71,6 @@ interface CharacterProfile {
 }
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
-  const yorkieName = params.yorkieName || (params.yorkieGender === 'male' ? 'Pawel' : 'Pawleen');
-  const defaultPersonality = params.yorkieGender === 'male' ? 
-    'brave and impulsive, often acting without thinking' : 
-    'intelligent and sweet, always thinking before acting';
-
   const prompt = `## General Setting
 • Setting: Uncle Mark's Farm  
 • Environment:
@@ -95,9 +87,11 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
  – Mice and moles that try to steal food and damage crops
 
 ## Key Characters
-• Uncle Mark – The owner of the farm  
-• Protagonist: A ${params.colors} Yorkshire Terrier named ${yorkieName}
-  – Personality: ${params.characteristics || defaultPersonality}
+• Uncle Mark – The owner of the farm
+• Existing Farm Yorkies:
+ – Pawel: A brave and impulsive male Yorkie who acts without thinking
+ – Pawleen: An intelligent and sweet female Yorkie who thinks before acting
+• Protagonist: A ${params.colors} Yorkshire Terrier with these traits: ${params.characteristics}
   – Role: ${params.theme || 'Protecting the Farm'}
 
 ## Additional Story Parameters
@@ -111,15 +105,13 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 • Highlight the protective role of the terriers
 • Include both the sorcerer and his squirrel henchmen as main antagonists
 • Reference the threat from mice and moles
-• Match personality to gender archetype:
-  – Male (like Pawel): Brave and impulsive, acts without thinking
-  – Female (like Pawleen): Intelligent and sweet, thinks before acting
+• Include interactions with Pawel and Pawleen as mentor figures or friends
 
 Provide the response as a JSON object with:
 - title: story title
 - content: full story text with chapter breaks
 - metadata: containing wordCount, number of chapters, overall tone, and protagonist details
-  * protagonist should include name, gender, and personality traits`;
+  * protagonist should include name and personality traits`;
 
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
@@ -127,7 +119,7 @@ Provide the response as a JSON object with:
       messages: [
         {
           role: "system",
-          content: "You are a creative children's book author specializing in Yorkshire terrier adventures set at Uncle Mark's Farm. You excel at creating stories about brave Yorkies protecting farm animals from magical threats while maintaining their distinct gender-based personality archetypes - males being brave and impulsive, females being intelligent and thoughtful."
+          content: "You are a creative children's book author specializing in Yorkshire terrier adventures set at Uncle Mark's Farm. You excel at creating stories about brave Yorkies protecting farm animals from magical threats, with Pawel and Pawleen as supporting characters who help guide new Yorkies in their adventures."
         },
         {
           role: "user",
@@ -159,11 +151,12 @@ export async function analyzeImage(base64Image: string): Promise<CharacterProfil
 You excel at:
 - Understanding Yorkie breed characteristics: tiny but brave, intelligent, energetic, and affectionate
 - Creating unique personalities that match their appearance
-- Spotting distinctive features like coat texture, facial expressions, and body language
+-creative interactive, storytelling 
+
 - Generating Gen Z style names that match their personality
 
 Always consider these Yorkie traits:
-- Small size (usually 4-7 pounds) but confident demeanor
+- Small size but confident demeanor
 - Silky coat that can be black and tan, blue and tan, or parti-colored
 - Alert expression with bright eyes and perked ears
 - Spirited and feisty personality despite their tiny size`
@@ -179,11 +172,11 @@ Always consider these Yorkie traits:
 3. A vivid physical description highlighting their distinctive features
 
 Format your response as JSON with these fields:
-- name: A playful, modern name (e.g., "Pixel", "Chai", "Glitch")
+- name: A playful, modern name 
 - personality: 2-3 sentences about their character traits
 - description: 2-3 sentences about their physical appearance
 
-Remember to highlight their brave and spunky nature despite their small size!`
+Remember to be creative `
             },
             {
               type: "image_url",
