@@ -88,7 +88,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4-vision-preview-next",
       messages: [
         {
           role: "system",
@@ -116,7 +116,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4-vision-preview-next",
       messages: [
         {
           role: "system",
