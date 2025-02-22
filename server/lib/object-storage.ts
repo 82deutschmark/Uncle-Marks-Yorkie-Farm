@@ -12,10 +12,10 @@ class StorageClient {
     try {
       const key = `uploads/${Date.now()}-${filename}`;
 
-      // Use the raw put method
-      await this.client.put({
+      // Use the correct method signature
+      await this.client.createObject({
         key,
-        value: file,
+        data: file,
       });
 
       log('Successfully uploaded file:', key);
@@ -28,11 +28,11 @@ class StorageClient {
 
   async getFileUrl(key: string): Promise<string> {
     try {
-      // Use the raw get method to verify file exists
-      await this.client.get(key);
-
-      // Generate a temporary URL
-      const url = await this.client.getPresignedUrl(key, 3600); // 1 hour expiry
+      // Use the correct method signature
+      const url = await this.client.createPresignedUrl({
+        key,
+        expiresIn: 3600, // 1 hour
+      });
       return url;
     } catch (error) {
       log('Failed to get file URL:', error);

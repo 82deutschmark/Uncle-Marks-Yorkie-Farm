@@ -16,6 +16,9 @@ export async function registerRoutes(app: Express) {
         return;
       }
       cb(new Error('Only PNG files are allowed'));
+    },
+    limits: {
+      fileSize: 5 * 1024 * 1024 // 5MB limit
     }
   });
 
@@ -33,14 +36,12 @@ export async function registerRoutes(app: Express) {
         mimetype: req.file.mimetype
       });
 
-      // Upload file to object storage
       const key = await storageClient.uploadFile(
         req.file.buffer,
         req.file.originalname
       );
       log('File uploaded to storage, key:', key);
 
-      // Get the signed URL for the uploaded file
       const url = await storageClient.getFileUrl(key);
       log('Generated signed URL:', url);
 
