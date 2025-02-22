@@ -6,6 +6,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Add request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -36,62 +37,75 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  const server = await registerRoutes(app);
+// Wrap server startup in async function with proper error handling
+async function startServer() {
+  try {
+    log('Starting server initialization...');
+    const server = await registerRoutes(app);
 
-  // Enhanced error handling middleware
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Enhanced error handling middleware
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    // Log the error for debugging
-    console.error('Error:', {
-      status,
-      message,
-      stack: err.stack
+      // Log the error for debugging
+      console.error('Error:', {
+        status,
+        message,
+        stack: err.stack
+      });
+
+      // Send error response to client
+      res.status(status).json({ message });
+
+      // Only exit for unrecoverable errors
+      if (status >= 500 && process.env.NODE_ENV === 'production') {
+        process.exit(1);
+      }
     });
 
-    // Send error response to client
-    res.status(status).json({ message });
-
-    // Only exit for unrecoverable errors
-    if (status >= 500 && process.env.NODE_ENV === 'production') {
-      process.exit(1);
+    // Setup vite in development or serve static files in production
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
     }
-  });
 
-  // Setup vite in development or serve static files in production
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
+    // Get port from environment variable with fallback
+    const PORT = process.env.PORT || 5000;
+    const MAX_RETRIES = 3;
+    let currentPort = Number(PORT);
+    let retries = 0;
 
-  // Get port from environment variable with fallback
-  const PORT = process.env.PORT || 5000;
-  const MAX_RETRIES = 3;
-  let currentPort = Number(PORT);
-  let retries = 0;
-
-  while (retries < MAX_RETRIES) {
-    try {
-      server.listen(currentPort, "0.0.0.0", () => {
-        log(`serving on port ${currentPort}`);
-      });
-      break;
-    } catch (error: any) {
-      if (error.code === 'EADDRINUSE') {
-        retries++;
-        currentPort++;
-        log(`Port ${currentPort - 1} in use, trying port ${currentPort}`);
-      } else {
-        throw error;
+    while (retries < MAX_RETRIES) {
+      try {
+        server.listen(currentPort, "0.0.0.0", () => {
+          log(`serving on port ${currentPort}`);
+        });
+        break;
+      } catch (error: any) {
+        if (error.code === 'EADDRINUSE') {
+          retries++;
+          currentPort++;
+          log(`Port ${currentPort - 1} in use, trying port ${currentPort}`);
+        } else {
+          throw error;
+        }
       }
     }
-  }
 
-  if (retries === MAX_RETRIES) {
-    log(`Failed to find an available port after ${MAX_RETRIES} attempts`);
+    if (retries === MAX_RETRIES) {
+      log(`Failed to find an available port after ${MAX_RETRIES} attempts`);
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
-})();
+}
+
+// Start the server
+startServer().catch(error => {
+  console.error('Unhandled server startup error:', error);
+  process.exit(1);
+});
