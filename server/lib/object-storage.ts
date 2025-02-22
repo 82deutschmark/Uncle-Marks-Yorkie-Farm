@@ -1,4 +1,4 @@
-import * as storage from "@replit/object-storage";
+import { Client } from '@replit/object-storage';
 import { Image } from "@shared/schema";
 import sharp from "sharp";
 import path from "path";
@@ -11,10 +11,7 @@ export class ImageStorage {
   constructor() {
     log('Initializing ImageStorage');
     try {
-      // Initialize with the bucket from .replit config
-      this.client = new storage.Client({
-        bucketId: process.env.REPLIT_BUCKET_ID || "replit-objstore-765db3a9-41bc-454b-9e99-f55145d9ea3a"
-      });
+      this.client = new Client();
       log('ImageStorage initialized with Replit Object Storage');
     } catch (error) {
       log('Failed to initialize Replit Object Storage', error);
@@ -45,7 +42,7 @@ export class ImageStorage {
 
       // Upload to Replit Object Storage
       log(`Uploading image to Replit Object Storage with key: ${key}`);
-      await this.client.putObject(
+      await this.client.put(
         key,
         imageBuffer,
         { access: 'public-read', contentType: 'image/png' }
@@ -65,7 +62,7 @@ export class ImageStorage {
 
   async deleteImage(fileId: string): Promise<void> {
     try {
-      await this.client.deleteObject(fileId);
+      await this.client.delete(fileId);
       log(`Deleted image from Replit Object Storage: ${fileId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
