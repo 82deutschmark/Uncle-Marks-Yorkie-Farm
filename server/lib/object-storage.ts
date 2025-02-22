@@ -15,7 +15,7 @@ class StorageClient {
       const key = `uploads/${Date.now()}-${path.basename(filename)}`;
 
       // Upload the file
-      await this.client.put(key, file);
+      await this.client.uploadFile(key, file);
 
       log('Successfully uploaded file:', key);
       return key;
@@ -27,10 +27,7 @@ class StorageClient {
 
   async getFileUrl(key: string): Promise<string> {
     try {
-      const url = await this.client.getSignedUrl({
-        key,
-        expiresIn: 3600 // 1 hour
-      });
+      const url = await this.client.getSignedUrl(key, 3600); // 1 hour expiry
       return url;
     } catch (error) {
       log('Failed to get file URL:', error);
