@@ -5,6 +5,12 @@ import path from "path";
 import express from "express";
 import { storage } from "./storage";
 import { log } from "./lib/logger";
+import OpenAI from "openai";
+import { insertStorySchema } from "@shared/schema";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
@@ -15,6 +21,74 @@ export async function registerRoutes(app: Express) {
   // Configure multer without restrictions
   const upload = multer({
     storage: multer.memoryStorage()
+  });
+
+  // Generate story endpoint
+  app.post("/api/stories/generate", async (req, res) => {
+    try {
+      const { characteristics, colors, setting, theme, antagonist } = req.body;
+
+      // Generate story using OpenAI
+      const prompt = `Create a short children's story about a Yorkshire Terrier with the following details:
+- Characteristics: ${characteristics}
+- Colors: ${colors}
+- Setting: ${setting}
+- Theme: ${theme}
+- Antagonist: ${antagonist}
+
+The story should be engaging for children, incorporating the Yorkie's characteristics and the antagonist in a fun way.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: "You are a children's story writer specializing in tales about Yorkshire Terriers living on Uncle Mark's magical farm."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      });
+
+      const generatedStory = completion.choices[0].message.content;
+
+      // Create story in database
+      const story = {
+        title: `${characteristics} Yorkie's Adventure`,
+        protagonist: `${colors} Yorkshire Terrier`,
+        setting,
+        theme,
+        content: generatedStory || "Once upon a time...",
+        selectedImages: {
+          slot1: 1,
+          slot2: 2,
+          slot3: 3
+        },
+        metadata: {
+          characteristics,
+          colors,
+          antagonist
+        }
+      };
+
+      // Validate story data
+      const parsedStory = insertStorySchema.parse(story);
+
+      // Save to database
+      const savedStory = await storage.createStory(parsedStory);
+
+      res.json(savedStory);
+    } catch (error) {
+      log('Story generation error:', error);
+      res.status(500).json({
+        error: 'Failed to generate story',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
   });
 
   // Get all images

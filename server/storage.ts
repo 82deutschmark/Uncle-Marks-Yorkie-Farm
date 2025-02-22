@@ -1,4 +1,4 @@
-import { images, type Image, type InsertImage } from "@shared/schema";
+import { images, stories, type Image, type InsertImage, type Story, type InsertStory } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
 import * as fs from 'fs/promises';
@@ -13,6 +13,8 @@ export interface IStorage {
   getAllImages(): Promise<Image[]>;
   updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image>;
   saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]>;
+  createStory(story: InsertStory): Promise<Story>;
+  getStory(id: number): Promise<Story | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -20,7 +22,6 @@ export class DatabaseStorage implements IStorage {
 
   constructor() {
     this.uploadsDir = path.resolve(process.cwd(), 'uploads');
-    // Ensure uploads directory exists
     fs.mkdir(this.uploadsDir, { recursive: true }).catch(console.error);
   }
 
@@ -87,15 +88,10 @@ export class DatabaseStorage implements IStorage {
     const fullPath = path.join(this.uploadsDir, filePath);
 
     try {
-      // Ensure the book directory exists
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
       log(`Created directory: ${path.dirname(fullPath)}`);
-
-      // Save the file
       await fs.writeFile(fullPath, file);
       log(`Saved file to: ${fullPath}`);
-
-      // Create database record
       const image = await this.createImage({
         bookId,
         path: filePath,
@@ -105,7 +101,6 @@ export class DatabaseStorage implements IStorage {
         analysis: null
       });
       log(`Created database record for image: ${image.id}`);
-
       return [image];
     } catch (error) {
       log(`Failed to save single image ${filename}: ${error}`);
@@ -128,20 +123,14 @@ export class DatabaseStorage implements IStorage {
       const file = imageFiles[i];
       const fileName = path.basename(file.path);
       log(`Processing ZIP image ${i + 1}/${imageFiles.length}: ${fileName}`);
-
       const filePath = path.join(`book-${bookId}`, fileName);
       const fullPath = path.join(this.uploadsDir, filePath);
 
       try {
-        // Ensure the book directory exists
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
-
-        // Extract and save the file
         const content = await file.buffer();
         await fs.writeFile(fullPath, content);
         log(`Saved extracted file to: ${fullPath}`);
-
-        // Create database record
         const image = await this.createImage({
           bookId,
           path: filePath,
@@ -151,11 +140,9 @@ export class DatabaseStorage implements IStorage {
           analysis: null
         });
         log(`Created database record for ZIP image: ${image.id}`);
-
         savedImages.push(image);
       } catch (error) {
         log(`Error processing ZIP image ${fileName}: ${error}`);
-        // Continue processing other images even if one fails
         continue;
       }
     }
@@ -167,8 +154,6 @@ export class DatabaseStorage implements IStorage {
   async saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     try {
       log(`Starting file upload process for: ${filename}`);
-
-      // Check if file is a ZIP by looking at magic numbers
       const isZip = file[0] === 0x50 && file[1] === 0x4B && file[2] === 0x03 && file[3] === 0x04;
       log(`File type detected: ${isZip ? 'ZIP archive' : 'Single file'}`);
 
@@ -180,6 +165,29 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       log(`Failed to process uploaded file ${filename}: ${error}`);
       throw new Error(`Failed to process uploaded file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createStory(story: InsertStory): Promise<Story> {
+    try {
+      const [newStory] = await db.insert(stories)
+        .values(story)
+        .returning();
+      log(`Created new story record: ${newStory.id}`);
+      return newStory;
+    } catch (error) {
+      log(`Failed to create story record: ${error}`);
+      throw new Error(`Failed to create story: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getStory(id: number): Promise<Story | undefined> {
+    try {
+      const [story] = await db.select().from(stories).where(eq(stories.id, id));
+      return story;
+    } catch (error) {
+      log(`Failed to get story ${id}: ${error}`);
+      throw new Error(`Failed to get story: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
