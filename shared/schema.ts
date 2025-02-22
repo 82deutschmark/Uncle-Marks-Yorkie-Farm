@@ -5,18 +5,31 @@ import { z } from "zod";
 // Table for storing image metadata
 export const images = pgTable("images", {
   id: serial("id").primaryKey(),
-  fileId: text("file_id").notNull().unique(), // Unique identifier for the image in Object Storage
-  objectUrl: text("object_url").notNull(), // URL to access the image
-  tags: text("tags").array(), // Array of tags for categorizing images
-  description: text("description"), // AI-generated description
-  characterProfile: json("character_profile").$type<{
-    name?: string;
-    personality?: string;
+  bookId: integer("book_id"), // Links image to a specific book
+  path: text("path").notNull(), // Relative path to the image file
+  order: integer("order"), // For maintaining image sequence
+  selected: boolean("selected").default(false), // Selection status
+  analyzed: boolean("analyzed").default(false), // AI analysis completion status
+  analysis: json("analysis").$type<{
     description?: string;
-  }>(), // AI-generated character profile
-  isProcessed: boolean("is_processed").default(false), // Track if metadata has been generated
+    characterProfile?: {
+      name?: string;
+      personality?: string;
+      description?: string;
+    };
+  }>(), // AI-generated analysis results
   createdAt: timestamp("created_at").defaultNow()
 });
+
+// Insert schemas
+export const insertImageSchema = createInsertSchema(images).omit({
+  id: true,
+  createdAt: true
+});
+
+// Types
+export type InsertImage = z.infer<typeof insertImageSchema>;
+export type Image = typeof images.$inferSelect;
 
 // Table for storing generated stories
 export const stories = pgTable("stories", {
@@ -36,18 +49,11 @@ export const stories = pgTable("stories", {
 });
 
 // Insert schemas
-export const insertImageSchema = createInsertSchema(images).omit({
-  id: true,
-  createdAt: true
-});
-
 export const insertStorySchema = createInsertSchema(stories).omit({
   id: true,
   createdAt: true
 });
 
 // Types
-export type InsertImage = z.infer<typeof insertImageSchema>;
-export type Image = typeof images.$inferSelect;
 export type InsertStory = z.infer<typeof insertStorySchema>;
 export type Story = typeof stories.$inferSelect;

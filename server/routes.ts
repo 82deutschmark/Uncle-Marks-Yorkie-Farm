@@ -1,52 +1,62 @@
 import type { Express } from "express";
 import { createServer } from "http";
 import multer from "multer";
-import { storageClient } from "./lib/object-storage";
+import path from "path";
+import express from "express";
+import { storage } from "./storage";
 import { log } from "./lib/logger";
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
-  // Basic multer setup for PNG files
+  // Serve static files from uploads directory
+  app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+
+  // Configure multer for handling ZIP uploads
   const upload = multer({
     storage: multer.memoryStorage(),
     fileFilter: (_req, file, cb) => {
-      if (file.mimetype === 'image/png') {
+      if (file.mimetype === 'application/zip') {
         cb(null, true);
       } else {
-        cb(new Error('Only PNG files are allowed'));
+        cb(new Error('Only ZIP files are allowed'));
       }
     },
     limits: {
-      fileSize: 5 * 1024 * 1024 // 5MB limit
+      fileSize: 50 * 1024 * 1024 // 50MB limit for ZIP files
     }
   });
 
   app.post("/api/upload", upload.single('file'), async (req, res) => {
     try {
-      // Validate file exists
       if (!req.file) {
         log('Upload failed: No file provided');
         return res.status(400).json({ error: 'No file provided' });
       }
 
-      // Log file details
+      const bookId = parseInt(req.body.bookId || '1', 10);
+
+      // Log upload details
       log('Processing upload:', {
         filename: req.file.originalname,
         size: req.file.size,
-        type: req.file.mimetype
+        type: req.file.mimetype,
+        bookId
       });
 
-      // Upload to storage
-      const key = await storageClient.uploadFile(req.file.buffer, req.file.originalname);
-      log('File uploaded successfully with key:', key);
+      // Process the ZIP file and store images
+      const images = await storage.saveUploadedZip(req.file.buffer, bookId);
+      log(`Successfully processed ${images.length} images from ZIP`);
 
-      // Generate URL
-      const url = await storageClient.getFileUrl(key);
-      log('Generated signed URL for file');
-
-      // Return success
-      res.json({ url });
+      // Return success with image data
+      res.json({ 
+        message: 'Upload successful',
+        images: images.map(img => ({
+          id: img.id,
+          path: `/uploads/${img.path}`,
+          order: img.order
+        }))
+      });
 
     } catch (error) {
       log('Upload error:', error);
