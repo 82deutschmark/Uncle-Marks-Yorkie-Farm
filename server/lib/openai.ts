@@ -1,69 +1,38 @@
 import OpenAI from "openai";
-import { z } from "zod";
-import { CharacterProfile, characterProfileSchema } from "@shared/schema";
 import { OpenAIError } from "./errors";
 import { log } from "./logger";
 
-const openai = new OpenAI();
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
-  return new Promise(async (resolve, reject) => {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        const result = await fn();
-        return resolve(result);
-      } catch (error: any) {
-        if (i === maxRetries - 1) {
-          return reject(error);
-        }
-        console.error(`Attempt ${i + 1} failed:`, error);
-        await new Promise(res => setTimeout(res, 1000 * (i + 1)));
-      }
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  retries = MAX_RETRIES,
+  delay = INITIAL_RETRY_DELAY
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!(error instanceof OpenAI.APIError)) {
+      throw OpenAIError.fromError(error);
     }
-  });
-}
 
-export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
-  return withRetry(async () => {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert at analyzing Yorkshire Terrier images and creating character profiles for stories. 
-          Analyze the image and create a character profile with these attributes:
-          - name: A cute, memorable name for the Yorkie
-          - personality: Their dominant personality trait (playful, serious, curious, etc.)
-          - quirk: A unique habit or characteristic
-          - backstory: A brief, imaginative background (1-2 sentences)
+    // Don't retry on authentication errors or invalid requests
+    if (error.status === 401 || error.status === 400) {
+      throw OpenAIError.fromError(error);
+    }
 
-          Respond with JSON matching this schema:
-          ${characterProfileSchema}`
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Analyze this Yorkshire Terrier and create a character profile for our story."
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ],
-        }
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 1000,
-      temperature: 0.7
-    });
+    // Only retry on rate limits or server errors
+    if (retries > 0 && (error.status === 429 || error.status >= 500)) {
+      log(`Retrying OpenAI request after ${delay}ms. Attempts remaining: ${retries}`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return withRetry(operation, retries - 1, delay * 2);
+    }
 
-    const result = JSON.parse(response.choices[0].message.content);
-    return characterProfileSchema.parse(result);
-  });
+    throw OpenAIError.fromError(error);
+  }
 }
 
 interface StoryParams {
@@ -82,6 +51,12 @@ interface StoryResponse {
     chapters: number;
     tone: string;
   };
+}
+
+interface CharacterProfile {
+  name: string;
+  personality: string;
+  description: string;
 }
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
@@ -113,7 +88,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
       messages: [
         {
           role: "system",
@@ -126,7 +101,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
       ],
       response_format: { type: "json_object" },
       temperature: 0.8,
-      max_tokens: 4096
+      max_tokens: 8000
     });
 
     const content = response.choices[0].message.content;
@@ -135,5 +110,64 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
     }
 
     return JSON.parse(content) as StoryResponse;
+  });
+}
+
+export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
+  return withRetry(async () => {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+      messages: [
+        {
+          role: "system",
+          content: `You are a Yorkshire terrier expert and creative character designer. 
+You excel at:
+- Understanding Yorkie breed characteristics: tiny but brave, intelligent, energetic, and affectionate
+- Creating unique personalities that match their appearance
+- Spotting distinctive features like coat texture, facial expressions, and body language
+- Generating Gen Z style names that match their personality
+
+Always consider these Yorkie traits:
+- Small size (usually 4-7 pounds) but confident demeanor
+- Silky coat that can be black and tan, blue and tan, or parti-colored
+- Alert expression with bright eyes and perked ears
+- Spirited and feisty personality despite their tiny size`
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Analyze this Yorkshire terrier and create a character profile with:
+1. A creative, Gen Z style name that matches their appearance
+2. Key personality traits focusing on their unique Yorkie characteristics
+3. A vivid physical description highlighting their distinctive features
+
+Format your response as JSON with these fields:
+- name: A playful, modern name (e.g., "Pixel", "Chai", "Glitch")
+- personality: 2-3 sentences about their character traits
+- description: 2-3 sentences about their physical appearance
+
+Remember to highlight their brave and spunky nature despite their small size!`
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${base64Image}`
+              }
+            }
+          ],
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 1000
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new OpenAIError("No content received from OpenAI");
+    }
+
+    return JSON.parse(content) as CharacterProfile;
   });
 }
