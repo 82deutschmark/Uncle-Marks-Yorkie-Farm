@@ -15,6 +15,9 @@ const openai = new OpenAI({
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
+  // Add JSON body parsing middleware
+  app.use(express.json());
+
   // Serve static files from uploads directory
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
@@ -86,20 +89,6 @@ The story should be engaging for children, incorporating the Yorkie's characteri
       log('Story generation error:', error);
       res.status(500).json({
         error: 'Failed to generate story',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
-  // Get all images
-  app.get("/api/images", async (_req, res) => {
-    try {
-      const images = await storage.getAllImages();
-      res.json(images);
-    } catch (error) {
-      log('Error fetching images:', error);
-      res.status(500).json({ 
-        error: 'Failed to fetch images',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
     }
