@@ -1,84 +1,41 @@
 import { Client } from '@replit/object-storage';
 import path from "path";
-import { createHash } from "crypto";
 import { log } from "./logger";
 
-export class ImageStorage {
+class StorageClient {
   private client: Client;
 
   constructor() {
-    log('Initializing ImageStorage');
-    try {
-      this.client = new Client();
-    } catch (error) {
-      log('Failed to initialize Replit Object Storage', error);
-      throw new Error('Failed to initialize storage client');
-    }
+    this.client = new Client();
   }
 
-  private generateFileId(buffer: Buffer): string {
-    return createHash('sha256')
-      .update(buffer)
-      .digest('hex')
-      .substring(0, 16);
-  }
-
-  async uploadImage(fileBuffer: Buffer, originalName: string): Promise<{ fileId: string; objectUrl: string }> {
+  async uploadFile(file: Buffer, filename: string): Promise<string> {
     try {
-      // Validate file is a zip
-      const extension = path.extname(originalName).toLowerCase();
-      if (extension !== '.zip') {
-        throw new Error('Only ZIP files are supported for Yorkshire terrier story packages');
-      }
+      const key = `uploads/${Date.now()}-${path.basename(filename)}`;
 
-      const fileId = this.generateFileId(fileBuffer);
-      const key = `${fileId}${extension}`;
-
-      // Create a new object in the bucket
-      await this.client.createObject({
+      await this.client.put(
         key,
-        data: fileBuffer,
-        contentType: 'application/zip'
-      });
+        file
+      );
 
-      // Get a signed URL for the uploaded object
-      const objectUrl = await this.client.getSignedUrl({
-        key,
-        expiresIn: 3600 * 24 * 7 // URL valid for 7 days
-      });
-
-      log(`Successfully uploaded file, URL: ${objectUrl}`);
-      return { fileId, objectUrl };
+      return key;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to upload file: ${message}`, error);
-      throw new Error(`Failed to upload file: ${message}`);
+      log('Upload failed:', error);
+      throw new Error('Failed to upload file');
     }
   }
 
-  async deleteImage(fileId: string): Promise<void> {
-    try {
-      await this.client.deleteObject({ key: fileId });
-      log(`Deleted file from Replit Object Storage: ${fileId}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to delete file: ${message}`, error);
-      throw new Error(`Failed to delete file: ${message}`);
-    }
-  }
-
-  async getImageUrl(fileId: string): Promise<string> {
+  async getFileUrl(key: string): Promise<string> {
     try {
       return await this.client.getSignedUrl({
-        key: fileId,
-        expiresIn: 3600 * 24 // URL valid for 24 hours
+        key,
+        expiresIn: 3600 * 24 // 24 hours
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      log(`Failed to get file URL: ${message}`, error);
-      throw new Error(`Failed to get file URL: ${message}`);
+      log('Failed to get file URL:', error);
+      throw new Error('Failed to get file URL');
     }
   }
 }
 
-export const imageStorage = new ImageStorage();
+export const storageClient = new StorageClient();
