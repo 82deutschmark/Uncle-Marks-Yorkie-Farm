@@ -6,9 +6,11 @@ import express from "express";
 import { storage } from "./storage";
 import { log } from "./lib/logger";
 import { generateStory, analyzeImage } from "./lib/openai";
-import { insertStorySchema } from "@shared/schema";
+import { insertStorySchema, midjourneyPromptSchema } from "@shared/schema";
 import { OpenAIError } from "./lib/errors";
 import * as fs from 'fs/promises';
+import { sendMidJourneyPrompt } from "./lib/discord";
+import { DiscordError } from "./lib/errors"; // Assuming DiscordError is defined here
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
@@ -195,6 +197,52 @@ export async function registerRoutes(app: Express) {
       res.status(500).json({
         error: 'Failed to fetch images',
         details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Add MidJourney image generation endpoint
+  app.post("/api/images/generate", async (req, res) => {
+    try {
+      const prompt = midjourneyPromptSchema.parse(req.body);
+
+      // Create a new image record with pending status
+      const newImage = await storage.createImage({
+        bookId: 1, // Default book ID
+        path: '', // Will be updated once image is generated
+        order: 0,
+        selected: false,
+        analyzed: false,
+        analysis: null,
+        midjourney: {
+          prompt: prompt.description,
+          status: 'pending'
+        }
+      });
+
+      // Send prompt to Discord
+      await sendMidJourneyPrompt(prompt);
+
+      res.json({
+        message: 'Image generation started',
+        imageId: newImage.id,
+        status: 'pending'
+      });
+    } catch (error) {
+      log('MidJourney prompt error:', error);
+
+      if (error instanceof DiscordError) {
+        return res.status(error.statusCode).json({
+          error: 'Discord Integration Error',
+          message: error.message,
+          retry: error.retryable
+        });
+      }
+
+      res.status(500).json({
+        error: 'Failed to start image generation',
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        retry: false
       });
     }
   });

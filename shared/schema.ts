@@ -18,6 +18,12 @@ export const images = pgTable("images", {
       description?: string;
     };
   }>(), // AI-generated analysis results
+  midjourney: jsonb("midjourney").$type<{
+    prompt?: string;
+    status?: 'pending' | 'completed' | 'failed';
+    discordMessageId?: string;
+    imageUrl?: string;
+  }>(), // MidJourney generation details
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -27,9 +33,17 @@ export const insertImageSchema = createInsertSchema(images).omit({
   createdAt: true
 });
 
+// MidJourney prompt schema
+export const midjourneyPromptSchema = z.object({
+  description: z.string(),
+  characteristics: z.array(z.string()).optional(),
+  setting: z.string().optional()
+});
+
 // Types
 export type InsertImage = z.infer<typeof insertImageSchema>;
 export type Image = typeof images.$inferSelect;
+export type MidJourneyPrompt = z.infer<typeof midjourneyPromptSchema>;
 
 // Table for storing generated stories
 export const stories = pgTable("stories", {

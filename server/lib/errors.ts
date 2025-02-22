@@ -12,6 +12,17 @@ export class APIError extends Error {
   }
 }
 
+export class DiscordError extends APIError {
+  constructor(
+    message: string,
+    statusCode: number = 500,
+    retryable: boolean = false
+  ) {
+    super(message, statusCode, undefined, retryable);
+    this.name = 'DiscordError';
+  }
+}
+
 export class OpenAIError extends APIError {
   constructor(
     message: string, 
