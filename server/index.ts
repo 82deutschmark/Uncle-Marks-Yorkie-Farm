@@ -67,9 +67,31 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  const PORT = 5000;
-  server.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
-  });
+  // Get port from environment variable with fallback
+  const PORT = process.env.PORT || 5000;
+  const MAX_RETRIES = 3;
+  let currentPort = Number(PORT);
+  let retries = 0;
+
+  while (retries < MAX_RETRIES) {
+    try {
+      server.listen(currentPort, "0.0.0.0", () => {
+        log(`serving on port ${currentPort}`);
+      });
+      break;
+    } catch (error: any) {
+      if (error.code === 'EADDRINUSE') {
+        retries++;
+        currentPort++;
+        log(`Port ${currentPort - 1} in use, trying port ${currentPort}`);
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  if (retries === MAX_RETRIES) {
+    log(`Failed to find an available port after ${MAX_RETRIES} attempts`);
+    process.exit(1);
+  }
 })();
