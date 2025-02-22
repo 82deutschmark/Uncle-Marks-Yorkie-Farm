@@ -4,6 +4,7 @@ import { db } from "./db";
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as unzipper from 'unzipper';
+import { log } from "./lib/logger";
 
 export interface IStorage {
   createImage(image: InsertImage): Promise<Image>;
@@ -22,25 +23,25 @@ export class DatabaseStorage implements IStorage {
     fs.mkdir(this.uploadsDir, { recursive: true }).catch(console.error);
   }
 
-  async createImage(insertImage: InsertImage): Promise<Image> {
+  async createImage(image: InsertImage): Promise<Image> {
     try {
-      const [image] = await db.insert(images)
-        .values(insertImage)
+      const [newImage] = await db.insert(images)
+        .values(image)
         .returning();
-      return image;
+      log(`Created new image record: ${newImage.id}`);
+      return newImage;
     } catch (error) {
+      log(`Failed to create image record: ${error}`);
       throw new Error(`Failed to create image: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   async getImage(id: number): Promise<Image | undefined> {
     try {
-      const [image] = await db.select()
-        .from(images)
-        .where(eq(images.id, id))
-        .limit(1);
+      const [image] = await db.select().from(images).where(eq(images.id, id));
       return image;
     } catch (error) {
+      log(`Failed to get image ${id}: ${error}`);
       throw new Error(`Failed to get image: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -56,6 +57,7 @@ export class DatabaseStorage implements IStorage {
       }
       return await query;
     } catch (error) {
+      log(`Failed to list images: ${error}`);
       throw new Error(`Failed to list images: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -68,75 +70,101 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return image;
     } catch (error) {
+      log(`Failed to update image ${id} metadata: ${error}`);
       throw new Error(`Failed to update image metadata: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
+    log(`Processing single image: ${filename}`);
     const filePath = path.join(`book-${bookId}`, filename);
     const fullPath = path.join(this.uploadsDir, filePath);
 
-    // Ensure the book directory exists
-    await fs.mkdir(path.dirname(fullPath), { recursive: true });
+    try {
+      // Ensure the book directory exists
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      log(`Created directory: ${path.dirname(fullPath)}`);
 
-    // Save the file
-    await fs.writeFile(fullPath, file);
+      // Save the file
+      await fs.writeFile(fullPath, file);
+      log(`Saved file to: ${fullPath}`);
 
-    // Create database record
-    const image = await this.createImage({
-      bookId,
-      path: filePath,
-      order: 0,
-      selected: false,
-      analyzed: false,
-      analysis: null
-    });
+      // Create database record
+      const image = await this.createImage({
+        bookId,
+        path: filePath,
+        order: 0,
+        selected: false,
+        analyzed: false,
+        analysis: null
+      });
+      log(`Created database record for image: ${image.id}`);
 
-    return [image];
+      return [image];
+    } catch (error) {
+      log(`Failed to save single image ${filename}: ${error}`);
+      throw error;
+    }
   }
 
   private async processZipFile(zipBuffer: Buffer, bookId: number): Promise<Image[]> {
+    log('Starting ZIP file processing');
     const directory = await unzipper.Open.buffer(zipBuffer);
     const imageFiles = directory.files.filter(file => 
       !file.path.startsWith('__MACOSX') && 
       /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(file.path)
     );
 
+    log(`Found ${imageFiles.length} image files in ZIP`);
     const savedImages: Image[] = [];
 
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
       const fileName = path.basename(file.path);
+      log(`Processing ZIP image ${i + 1}/${imageFiles.length}: ${fileName}`);
+
       const filePath = path.join(`book-${bookId}`, fileName);
       const fullPath = path.join(this.uploadsDir, filePath);
 
-      // Ensure the book directory exists
-      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      try {
+        // Ensure the book directory exists
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
 
-      // Extract and save the file
-      const content = await file.buffer();
-      await fs.writeFile(fullPath, content);
+        // Extract and save the file
+        const content = await file.buffer();
+        await fs.writeFile(fullPath, content);
+        log(`Saved extracted file to: ${fullPath}`);
 
-      // Create database record
-      const image = await this.createImage({
-        bookId,
-        path: filePath,
-        order: i,
-        selected: false,
-        analyzed: false,
-        analysis: null
-      });
+        // Create database record
+        const image = await this.createImage({
+          bookId,
+          path: filePath,
+          order: i,
+          selected: false,
+          analyzed: false,
+          analysis: null
+        });
+        log(`Created database record for ZIP image: ${image.id}`);
 
-      savedImages.push(image);
+        savedImages.push(image);
+      } catch (error) {
+        log(`Error processing ZIP image ${fileName}: ${error}`);
+        // Continue processing other images even if one fails
+        continue;
+      }
     }
 
+    log(`Completed processing ${savedImages.length} images from ZIP`);
     return savedImages;
   }
 
   async saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     try {
+      log(`Starting file upload process for: ${filename}`);
+
       // Check if file is a ZIP by looking at magic numbers
       const isZip = file[0] === 0x50 && file[1] === 0x4B && file[2] === 0x03 && file[3] === 0x04;
+      log(`File type detected: ${isZip ? 'ZIP archive' : 'Single file'}`);
 
       if (isZip) {
         return await this.processZipFile(file, bookId);
@@ -144,6 +172,7 @@ export class DatabaseStorage implements IStorage {
         return await this.saveSingleImage(file, filename, bookId);
       }
     } catch (error) {
+      log(`Failed to process uploaded file ${filename}: ${error}`);
       throw new Error(`Failed to process uploaded file: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
