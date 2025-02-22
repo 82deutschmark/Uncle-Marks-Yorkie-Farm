@@ -11,13 +11,13 @@ class StorageClient {
 
   async uploadFile(file: Buffer, filename: string): Promise<string> {
     try {
+      // Create a unique filename with timestamp
       const key = `uploads/${Date.now()}-${path.basename(filename)}`;
 
-      await this.client.put(
-        key,
-        file
-      );
+      // Upload the file
+      await this.client.put(key, file);
 
+      log('Successfully uploaded file:', key);
       return key;
     } catch (error) {
       log('Upload failed:', error);
@@ -27,10 +27,11 @@ class StorageClient {
 
   async getFileUrl(key: string): Promise<string> {
     try {
-      return await this.client.getSignedUrl({
+      const url = await this.client.getSignedUrl({
         key,
-        expiresIn: 3600 * 24 // 24 hours
+        expiresIn: 3600 // 1 hour
       });
+      return url;
     } catch (error) {
       log('Failed to get file URL:', error);
       throw new Error('Failed to get file URL');
