@@ -10,6 +10,7 @@ export interface IStorage {
   createImage(image: InsertImage): Promise<Image>;
   getImage(id: number): Promise<Image | undefined>;
   listImages(options?: { analyzed?: boolean; selected?: boolean }): Promise<Image[]>;
+  getAllImages(): Promise<Image[]>;
   updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image>;
   saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]>;
 }
@@ -55,11 +56,16 @@ export class DatabaseStorage implements IStorage {
       if (options?.selected !== undefined) {
         query = query.where(eq(images.selected, options.selected));
       }
-      return await query;
+      const results = await query;
+      return results;
     } catch (error) {
       log(`Failed to list images: ${error}`);
       throw new Error(`Failed to list images: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  async getAllImages(): Promise<Image[]> {
+    return this.listImages();
   }
 
   async updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image> {
@@ -110,8 +116,8 @@ export class DatabaseStorage implements IStorage {
   private async processZipFile(zipBuffer: Buffer, bookId: number): Promise<Image[]> {
     log('Starting ZIP file processing');
     const directory = await unzipper.Open.buffer(zipBuffer);
-    const imageFiles = directory.files.filter(file => 
-      !file.path.startsWith('__MACOSX') && 
+    const imageFiles = directory.files.filter(file =>
+      !file.path.startsWith('__MACOSX') &&
       /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(file.path)
     );
 
