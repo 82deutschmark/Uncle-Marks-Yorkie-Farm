@@ -71,47 +71,49 @@ interface CharacterProfile {
 }
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
-  const prompt = `## General Setting
+  const prompt = `Create a story about a Yorkshire terrier at Uncle Mark's Farm with these parameters:
+
+## Story World
 • Setting: Uncle Mark's Farm  
-• Environment:
- – Numerous chickens  
- – A few turkeys  
-• Role of Yorkshire terriers:
- – Protect the chickens and turkeys from threats
+• Environment: Numerous chickens and a few turkeys that need protection
+• Key Characters:
+  - Uncle Mark: The farm owner
+  - Existing Farm Yorkies:
+    * Pawel: A brave and impulsive male Yorkie who acts without thinking
+    * Pawleen: An intelligent and sweet female Yorkie who thinks before acting
+  - Protagonist: A ${params.colors} Yorkshire Terrier with these traits: ${params.characteristics}
+  - Antagonists:
+    * Main: A sorcerer living in the woods who tries to steal chickens and eggs
+    * Minions: Evil squirrels who serve the sorcerer
+    * Minor Threats: Mice and moles that try to steal food and damage crops
 
-## Plot Elements & Threats
-• Primary antagonist: A sorcerer living in the woods  
- – Objective: Steal chickens and eggs  
- – Henchmen: Evil squirrels  
-• Secondary nuisances:
- – Mice and moles that try to steal food and damage crops
-
-## Key Characters
-• Uncle Mark – The owner of the farm
-• Existing Farm Yorkies:
- – Pawel: A brave and impulsive male Yorkie who acts without thinking
- – Pawleen: An intelligent and sweet female Yorkie who thinks before acting
-• Protagonist: A ${params.colors} Yorkshire Terrier with these traits: ${params.characteristics}
-  – Role: ${params.theme || 'Protecting the Farm'}
-
-## Additional Story Parameters
-• Theme: ${params.theme}
+## Story Parameters
+• Theme: ${params.theme || 'Protecting the Farm'}
 • Writing Style: Use Gen Z language and references
 • Length: 3,000-5,000 words
 • Format: Multiple chapters with clear breaks
 
-## Required Story Elements
-• Emphasize the farm's animal environment
-• Highlight the protective role of the terriers
-• Include both the sorcerer and his squirrel henchmen as main antagonists
-• Reference the threat from mice and moles
-• Include interactions with Pawel and Pawleen as mentor figures or friends
+## Required Elements
+• The protagonist must interact with both Pawel and Pawleen, who serve as mentors
+• Include scenes showing the farm's animal environment
+• Feature both the sorcerer and his squirrel henchmen as antagonists
+• Show the Yorkshire terriers protecting the farm animals
+• Reference the ongoing issues with mice and moles
 
-Provide the response as a JSON object with:
-- title: story title
-- content: full story text with chapter breaks
-- metadata: containing wordCount, number of chapters, overall tone, and protagonist details
-  * protagonist should include name and personality traits`;
+Provide your response in this exact JSON format:
+{
+  "title": "The story title",
+  "content": "The complete story as a single string with chapters separated by \\n\\n### Chapter N: Title\\n\\n",
+  "metadata": {
+    "wordCount": number,
+    "chapters": number,
+    "tone": "The overall tone of the story",
+    "protagonist": {
+      "name": "The protagonist's name",
+      "personality": "Key personality traits"
+    }
+  }
+}`;
 
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
