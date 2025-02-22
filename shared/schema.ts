@@ -23,6 +23,7 @@ export const images = pgTable("images", {
     status?: 'pending' | 'completed' | 'failed';
     discordMessageId?: string;
     imageUrl?: string;
+    artStyle?: string;
   }>(), // MidJourney generation details
   createdAt: timestamp("created_at").defaultNow()
 });
@@ -33,17 +34,53 @@ export const insertImageSchema = createInsertSchema(images).omit({
   createdAt: true
 });
 
+// Art style schema
+export const artStyleSchema = z.object({
+  style: z.enum([
+    'abstract',
+    'pixelated',
+    'impressionist',
+    'cartoon',
+    'whimsical',
+    'realistic',
+    'watercolor',
+    'digital-art',
+    'studio-ghibli',
+    'pop-art'
+  ]),
+  description: z.string()
+});
+
+// Story parameters schema
+export const storyParamsSchema = z.object({
+  protagonist: z.object({
+    name: z.string().optional(),
+    personality: z.string(),
+    appearance: z.string()
+  }),
+  antagonist: z.object({
+    type: z.string(),
+    personality: z.string()
+  }),
+  theme: z.string(),
+  mood: z.string(),
+  artStyle: artStyleSchema
+});
+
 // MidJourney prompt schema
 export const midjourneyPromptSchema = z.object({
   description: z.string(),
   characteristics: z.array(z.string()).optional(),
-  setting: z.string().optional()
+  setting: z.string().optional(),
+  artStyle: artStyleSchema.optional()
 });
 
 // Types
 export type InsertImage = z.infer<typeof insertImageSchema>;
 export type Image = typeof images.$inferSelect;
 export type MidJourneyPrompt = z.infer<typeof midjourneyPromptSchema>;
+export type StoryParams = z.infer<typeof storyParamsSchema>;
+export type ArtStyle = z.infer<typeof artStyleSchema>;
 
 // Table for storing generated stories
 export const stories = pgTable("stories", {
@@ -59,6 +96,7 @@ export const stories = pgTable("stories", {
     slot3: number;
   }>().notNull(), // References to the three selected images
   metadata: jsonb("metadata").notNull(),
+  artStyle: jsonb("art_style").$type<ArtStyle>(),
   createdAt: timestamp("created_at").defaultNow()
 });
 
