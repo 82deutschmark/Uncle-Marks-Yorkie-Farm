@@ -1,5 +1,4 @@
 import { Client } from '@replit/object-storage';
-import { Image } from "@shared/schema";
 import path from "path";
 import { createHash } from "crypto";
 import { log } from "./logger";
@@ -11,7 +10,6 @@ export class ImageStorage {
     log('Initializing ImageStorage');
     try {
       this.client = new Client();
-      log('ImageStorage initialized with Replit Object Storage');
     } catch (error) {
       log('Failed to initialize Replit Object Storage', error);
       throw new Error('Failed to initialize storage client');
@@ -37,7 +35,7 @@ export class ImageStorage {
       const key = `${fileId}${extension}`;
 
       // Create a new object in the bucket
-      const obj = await this.client.createObject({
+      await this.client.createObject({
         key,
         data: fileBuffer,
         contentType: 'application/zip'
