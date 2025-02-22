@@ -54,6 +54,7 @@ export async function registerRoutes(app: Express) {
           characteristics,
           colors,
           antagonist,
+          artStyle: storyResponse.artStyle, // Move artStyle into metadata
           ...storyResponse.metadata
         }
       };
