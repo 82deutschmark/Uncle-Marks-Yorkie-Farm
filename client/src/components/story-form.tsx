@@ -14,6 +14,7 @@ interface StoryFormData {
   setting: string;
   theme: string;
   antagonist: string;
+  storyPackage?: FileList;
 }
 
 const characteristics = [
@@ -84,7 +85,26 @@ export function StoryForm() {
     if (!data.characteristics || !data.colors || !data.setting || !data.theme || !data.antagonist) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all the fields to find matching Yorkie characters.",
+        description: "Please fill in all the fields to create your story.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!data.storyPackage || !data.storyPackage[0]) {
+      toast({
+        title: "Missing Story Package",
+        description: "Please upload a ZIP file containing your story assets.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const file = data.storyPackage[0];
+    if (file.type !== "application/zip") {
+      toast({
+        title: "Invalid File Type",
+        description: "Please upload a ZIP file containing your story assets.",
         variant: "destructive"
       });
       return;
@@ -92,19 +112,29 @@ export function StoryForm() {
 
     setIsLoading(true);
     try {
-      const response = await apiRequest("GET", "/api/images", {
-        params: {
-          processed: true,
-          characteristics: data.characteristics,
-          colors: data.colors
-        }
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('characteristics', data.characteristics);
+      formData.append('colors', data.colors);
+      formData.append('setting', data.setting);
+      formData.append('theme', data.theme);
+      formData.append('antagonist', data.antagonist);
+
+      const response = await fetch('/api/stories/upload', {
+        method: 'POST',
+        body: formData
       });
-      const images = await response.json();
-      setLocation(`/character-selection?${new URLSearchParams(data as any).toString()}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to upload story package');
+      }
+
+      const result = await response.json();
+      setLocation(`/story/${result.id}`);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to find matching Yorkie characters. Please try again.",
+        description: "Failed to upload story package. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -227,8 +257,29 @@ export function StoryForm() {
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="storyPackage"
+          render={({ field: { onChange, value, ...field } }) => (
+            <FormItem>
+              <FormLabel>Story Package (ZIP)</FormLabel>
+              <FormControl>
+                <Input 
+                  type="file" 
+                  accept=".zip,application/zip"
+                  onChange={(e) => onChange(e.target.files)}
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                Upload a ZIP file containing your story assets
+              </FormDescription>
+            </FormItem>
+          )}
+        />
+
         <Button type="submit" disabled={isLoading} className="w-full">
-          {isLoading ? "Finding Characters..." : "Find Yorkie Characters for My Story"}
+          {isLoading ? "Uploading Story Package..." : "Upload Story Package"}
         </Button>
       </form>
     </Form>
