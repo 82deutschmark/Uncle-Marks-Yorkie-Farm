@@ -7,11 +7,13 @@ import Home from "@/pages/home";
 import StoryViewer from "@/pages/story-viewer";
 import UploadPage from "@/pages/upload";
 import { StoryForm } from "@/components/story-form";
+import YorkieSelector from "@/pages/yorkie-selector";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/select-yorkie" component={YorkieSelector} />
       <Route path="/create" component={StoryForm} />
       <Route path="/story/:id" component={StoryViewer} />
       <Route path="/upload" component={UploadPage} />

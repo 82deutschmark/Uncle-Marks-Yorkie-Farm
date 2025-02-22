@@ -68,7 +68,7 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col items-center gap-4">
-            <Link href="/create">
+            <Link href="/select-yorkie">
               <Button size="lg" className="w-full md:w-auto font-serif">
                 <Dog className="mr-2 h-4 w-4" />
                 Start Your Farm Tale

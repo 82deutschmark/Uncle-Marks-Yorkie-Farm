@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,10 +69,20 @@ export function StoryForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [selectedYorkie, setSelectedYorkie] = useState<any>(null);
+
+  useEffect(() => {
+    const yorkieData = localStorage.getItem('selectedYorkie');
+    if (!yorkieData) {
+      setLocation('/select-yorkie');
+      return;
+    }
+    setSelectedYorkie(JSON.parse(yorkieData));
+  }, [setLocation]);
 
   const form = useForm<StoryFormData>({
     defaultValues: {
-      characteristics: "",
+      characteristics: selectedYorkie?.analysis?.characterProfile?.personality || "",
       colors: "",
       setting: "",
       theme: "",
@@ -81,6 +91,16 @@ export function StoryForm() {
   });
 
   const onSubmit = async (data: StoryFormData) => {
+    if (!selectedYorkie) {
+      toast({
+        title: "No Yorkie Selected",
+        description: "Please select a Yorkie first.",
+        variant: "destructive"
+      });
+      setLocation('/select-yorkie');
+      return;
+    }
+
     if (!data.characteristics || !data.colors || !data.setting || !data.theme || !data.antagonist) {
       toast({
         title: "Missing Information",
@@ -99,10 +119,12 @@ export function StoryForm() {
           colors: data.colors,
           setting: data.setting,
           theme: data.theme,
-          antagonist: data.antagonist
+          antagonist: data.antagonist,
+          yorkieId: selectedYorkie.id
         })
       });
 
+      localStorage.removeItem('selectedYorkie');
       setLocation(`/story/${response.id}`);
     } catch (error) {
       toast({
