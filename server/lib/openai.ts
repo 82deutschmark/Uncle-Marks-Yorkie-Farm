@@ -6,6 +6,15 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 10000; // 10 seconds
+
+// Exponential backoff with jitter
+function calculateBackoff(attempt: number, initialDelay: number): number {
+  const exponentialDelay = initialDelay * Math.pow(2, attempt);
+  const maxDelay = Math.min(exponentialDelay, MAX_RETRY_DELAY);
+  // Add jitter to prevent thundering herd
+  return maxDelay * (0.75 + Math.random() * 0.5);
+}
 
 async function withRetry<T>(
   operation: () => Promise<T>,
@@ -15,23 +24,23 @@ async function withRetry<T>(
   try {
     return await operation();
   } catch (error) {
-    if (!(error instanceof OpenAI.APIError)) {
-      throw OpenAIError.fromError(error);
+    const openAIError = OpenAIError.fromError(error);
+
+    // Don't retry if the error is not retryable
+    if (!openAIError.retryable) {
+      throw openAIError;
     }
 
-    // Don't retry on authentication errors or invalid requests
-    if (error.status === 401 || error.status === 400) {
-      throw OpenAIError.fromError(error);
+    // Only retry if we have attempts left
+    if (retries > 0) {
+      const backoffDelay = calculateBackoff(MAX_RETRIES - retries, delay);
+      log(`Retrying OpenAI request after ${backoffDelay}ms. Attempts remaining: ${retries}`);
+
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      return withRetry(operation, retries - 1, delay);
     }
 
-    // Only retry on rate limits or server errors
-    if (retries > 0 && (error.status === 429 || error.status >= 500)) {
-      log(`Retrying OpenAI request after ${delay}ms. Attempts remaining: ${retries}`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return withRetry(operation, retries - 1, delay * 2);
-    }
-
-    throw OpenAIError.fromError(error);
+    throw openAIError;
   }
 }
 

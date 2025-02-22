@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Image } from "@shared/schema";
-import { Loader2, Dog, RefreshCcw } from "lucide-react";
+import { Loader2, Dog, RefreshCcw, AlertTriangle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -83,12 +83,25 @@ export default function YorkieSelector() {
           ? `Meet ${response.analysis.characterProfile.name}!` 
           : "Your new friend's personality has been revealed."
       });
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message;
+      const isRetryable = error.response?.data?.retry || false;
+
       toast({
-        title: "Error",
-        description: "Failed to analyze the image. Please try again.",
-        variant: "destructive"
+        title: "Analysis Error",
+        description: errorMessage,
+        variant: "destructive",
+        action: isRetryable ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => handleDescribe(image)}
+          >
+            Retry
+          </Button>
+        ) : undefined
       });
+
       setSelectedYorkie(null);
     } finally {
       setAnalyzingId(null);
@@ -126,11 +139,32 @@ export default function YorkieSelector() {
 
       localStorage.removeItem('selectedYorkie');
       setLocation(`/story/${response.id}`);
-    } catch (error) {
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || error.message;
+      const isRetryable = error.response?.data?.retry || false;
+
       toast({
-        title: "Error",
-        description: "Failed to generate story. Please try again.",
-        variant: "destructive"
+        title: "Story Generation Error",
+        description: (
+          <div className="flex flex-col gap-2">
+            <span>{errorMessage}</span>
+            {isRetryable && (
+              <span className="text-sm text-muted-foreground">
+                This is a temporary error. Please try again.
+              </span>
+            )}
+          </div>
+        ),
+        variant: "destructive",
+        action: isRetryable ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleGenerateStory}
+          >
+            Retry
+          </Button>
+        ) : undefined
       });
     } finally {
       setIsGenerating(false);
