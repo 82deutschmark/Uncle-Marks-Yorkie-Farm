@@ -5,20 +5,15 @@ import { generateStory, analyzeImage } from "./lib/openai";
 import { insertStorySchema } from "@shared/schema";
 import multer from "multer";
 import { imageStorage } from "./lib/object-storage";
-import fs from "fs/promises";
 import * as unzipper from "unzipper";
-import { Readable } from "stream";
 import path from "path";
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
-  // Configure multer for handling PNG and ZIP uploads with increased size limit
+  // Configure multer for handling PNG and ZIP uploads with no size limit
   const upload = multer({
     storage: multer.memoryStorage(),
-    limits: {
-      fileSize: 200 * 1024 * 1024, // 200MB limit
-    },
     fileFilter: (_req, file, cb) => {
       if (file.mimetype === 'image/png') {
         cb(null, true);
@@ -34,29 +29,6 @@ export async function registerRoutes(app: Express) {
       cb(new Error('Only PNG images and ZIP files are allowed'));
     }
   });
-
-  // Error handling middleware for multer
-  app.use((err: any, req: any, res: any, next: any) => {
-    if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(413).json({
-          message: 'File is too large. Maximum size is 200MB'
-        });
-      }
-    }
-    next(err);
-  });
-
-  // Add route to serve images from memory storage
-  app.get("/api/images/memory/:key", (req, res) => {
-    const imageData = imageStorage.getMemoryImage(req.params.key);
-    if (!imageData) {
-      return res.status(404).json({ message: "Image not found" });
-    }
-    res.setHeader('Content-Type', 'image/png');
-    res.send(imageData);
-  });
-
 
   async function processZipFile(buffer: Buffer): Promise<Array<{buffer: Buffer, filename: string}>> {
     const extractedImages: Array<{buffer: Buffer, filename: string}> = [];
@@ -79,7 +51,6 @@ export async function registerRoutes(app: Express) {
           });
         } catch (error) {
           console.error(`Failed to extract ${entry.path}:`, error);
-          // Continue with other files even if one fails
           continue;
         }
       }
@@ -165,6 +136,17 @@ export async function registerRoutes(app: Express) {
       res.status(500).json({ message });
     }
   });
+
+  // Add route to serve images from memory storage
+  app.get("/api/images/memory/:key", (req, res) => {
+    const imageData = imageStorage.getMemoryImage(req.params.key);
+    if (!imageData) {
+      return res.status(404).json({ message: "Image not found" });
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.send(imageData);
+  });
+
 
   // Only analyze image when requested
   app.post("/api/images/:id/analyze", async (req, res) => {
