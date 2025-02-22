@@ -23,6 +23,7 @@ export default function YorkieSelector() {
   const { toast } = useToast();
   const [displayImages, setDisplayImages] = useState<Image[][]>([[], [], []]);
   const [selectedYorkie, setSelectedYorkie] = useState<YorkieSlot | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const { data: images, isLoading } = useQuery<Image[]>({
     queryKey: ['/api/images'],
@@ -82,9 +83,48 @@ export default function YorkieSelector() {
     }
   };
 
-  const handleProceed = () => {
-    localStorage.setItem('selectedYorkie', JSON.stringify(selectedYorkie));
-    setLocation('/create');
+  const handleGenerateStory = async () => {
+    if (!selectedYorkie?.characterProfile) {
+      toast({
+        title: "Error",
+        description: "Please select a Yorkie first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await apiRequest("/api/stories/generate", {
+        method: "POST",
+        body: JSON.stringify({
+          characteristics: selectedYorkie.characterProfile.personality || "friendly",
+          colors: "brown and black",
+          setting: "Uncle Mark's Magical Farm",
+          theme: "Adventure",
+          antagonist: "Mischievous Squirrel",
+          yorkieId: selectedYorkie.id
+        })
+      });
+
+      localStorage.removeItem('selectedYorkie');
+      setLocation(`/story/${response.id}`);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate story. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAddDetails = () => {
+    if (selectedYorkie) {
+      localStorage.setItem('selectedYorkie', JSON.stringify(selectedYorkie));
+      setLocation('/details');
+    }
   };
 
   if (isLoading) {
@@ -156,17 +196,29 @@ export default function YorkieSelector() {
 
             {selectedYorkie && (
               <div className="mt-8 space-y-6 text-center">
-                <Button
-                  size="lg"
-                  onClick={handleProceed}
-                  className="text-xl py-6 px-12 transform hover:scale-105 transition-transform"
-                >
-                  <Dog className="mr-3 h-6 w-6" />
-                  Generate Story Now
-                </Button>
+                <div className="flex flex-col items-center gap-4">
+                  <Button
+                    size="lg"
+                    onClick={handleGenerateStory}
+                    disabled={isGenerating}
+                    className="text-xl py-6 px-12 transform hover:scale-105 transition-transform"
+                  >
+                    <Dog className="mr-3 h-6 w-6" />
+                    {isGenerating ? "Generating Story..." : "Generate Quick Story"}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={handleAddDetails}
+                    size="lg"
+                    className="text-lg"
+                  >
+                    Customize Story Details
+                  </Button>
+                </div>
 
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={rerollAllSlots}
                   size="sm"
                   className="flex items-center gap-2"

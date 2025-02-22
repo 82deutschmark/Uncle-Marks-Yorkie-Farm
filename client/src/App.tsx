@@ -14,7 +14,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/select-yorkie" component={YorkieSelector} />
-      <Route path="/create" component={StoryForm} />
+      <Route path="/details" component={StoryForm} />
       <Route path="/story/:id" component={StoryViewer} />
       <Route path="/upload" component={UploadPage} />
       <Route component={NotFound} />
