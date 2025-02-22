@@ -71,9 +71,10 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
   - Antagonist: ${params.antagonist}
 
   Story Context:
-  - The story takes place at Uncle Mark's magical Yorkie farm
+  - The story takes place at Uncle Mark's magical Yorkie farm, where Yorkies develop special abilities
   - Use Gen Z slang and references to make the story relatable and fun
   - Yorkshire terriers have a natural rivalry with squirrels and other rodents
+  - Highlight the Yorkie's brave and spunky personality despite their small size
 
   Requirements:
   - Story should be between 3,000-5,000 words
@@ -87,11 +88,11 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
       messages: [
         {
           role: "system",
-          content: "You are a creative children's book author specializing in Yorkshire terrier adventures with a Gen Z twist."
+          content: "You are a creative children's book author specializing in Yorkshire terrier adventures with a Gen Z twist. You understand their unique traits: intelligence, bravery, and loyalty. Your stories capture their distinctive personalities and small but mighty spirit."
         },
         {
           role: "user",
@@ -115,18 +116,39 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
 export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
   return withRetry(async () => {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024
       messages: [
         {
           role: "system",
-          content: "You are a Yorkshire terrier expert and creative character designer with a Gen Z flair."
+          content: `You are a Yorkshire terrier expert and creative character designer. 
+You excel at:
+- Understanding Yorkie breed characteristics: tiny but brave, intelligent, energetic, and affectionate
+- Creating unique personalities that match their appearance
+- Spotting distinctive features like coat texture, facial expressions, and body language
+- Generating Gen Z style names that match their personality
+
+Always consider these Yorkie traits:
+- Small size (usually 4-7 pounds) but confident demeanor
+- Silky coat that can be black and tan, blue and tan, or parti-colored
+- Alert expression with bright eyes and perked ears
+- Spirited and feisty personality despite their tiny size`
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Create a detailed character profile for the Yorkshire terrier in this image. Include a unique Gen Z style name, personality traits, and vivid description. Format as JSON with name, personality, and description fields."
+              text: `Analyze this Yorkshire terrier and create a character profile with:
+1. A creative, Gen Z style name that matches their appearance
+2. Key personality traits focusing on their unique Yorkie characteristics
+3. A vivid physical description highlighting their distinctive features
+
+Format your response as JSON with these fields:
+- name: A playful, modern name (e.g., "Pixel", "Chai", "Glitch")
+- personality: 2-3 sentences about their character traits
+- description: 2-3 sentences about their physical appearance
+
+Remember to highlight their brave and spunky nature despite their small size!`
             },
             {
               type: "image_url",
