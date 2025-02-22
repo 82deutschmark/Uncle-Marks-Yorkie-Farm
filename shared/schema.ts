@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, json, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, jsonb, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -10,7 +10,7 @@ export const images = pgTable("images", {
   order: integer("order"), // For maintaining image sequence
   selected: boolean("selected").default(false), // Selection status
   analyzed: boolean("analyzed").default(false), // AI analysis completion status
-  analysis: json("analysis").$type<{
+  analysis: jsonb("analysis").$type<{
     description?: string;
     characterProfile?: {
       name?: string;
@@ -39,12 +39,12 @@ export const stories = pgTable("stories", {
   setting: text("setting").notNull(),
   theme: text("theme").notNull(),
   content: text("content").notNull(),
-  selectedImages: json("selected_images").$type<{
+  selectedImages: jsonb("selected_images").$type<{
     slot1: number;
     slot2: number;
     slot3: number;
   }>().notNull(), // References to the three selected images
-  metadata: json("metadata").notNull(),
+  metadata: jsonb("metadata").notNull(),
   createdAt: timestamp("created_at").defaultNow()
 });
 

@@ -28,7 +28,7 @@ export class DatabaseStorage implements IStorage {
   async createImage(image: InsertImage): Promise<Image> {
     try {
       const [newImage] = await db.insert(images)
-        .values(image)
+        .values([image])
         .returning();
       log(`Created new image record: ${newImage.id}`);
       return newImage;
@@ -51,14 +51,15 @@ export class DatabaseStorage implements IStorage {
   async listImages(options?: { analyzed?: boolean; selected?: boolean }): Promise<Image[]> {
     try {
       let query = db.select().from(images);
+
       if (options?.analyzed !== undefined) {
         query = query.where(eq(images.analyzed, options.analyzed));
       }
       if (options?.selected !== undefined) {
         query = query.where(eq(images.selected, options.selected));
       }
-      const results = await query;
-      return results;
+
+      return await query;
     } catch (error) {
       log(`Failed to list images: ${error}`);
       throw new Error(`Failed to list images: ${error instanceof Error ? error.message : String(error)}`);
@@ -71,11 +72,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image> {
     try {
-      const [image] = await db.update(images)
+      const [updatedImage] = await db.update(images)
         .set(metadata)
         .where(eq(images.id, id))
         .returning();
-      return image;
+      return updatedImage;
     } catch (error) {
       log(`Failed to update image ${id} metadata: ${error}`);
       throw new Error(`Failed to update image metadata: ${error instanceof Error ? error.message : String(error)}`);
@@ -92,6 +93,7 @@ export class DatabaseStorage implements IStorage {
       log(`Created directory: ${path.dirname(fullPath)}`);
       await fs.writeFile(fullPath, file);
       log(`Saved file to: ${fullPath}`);
+
       const image = await this.createImage({
         bookId,
         path: filePath,
@@ -100,6 +102,7 @@ export class DatabaseStorage implements IStorage {
         analyzed: false,
         analysis: null
       });
+
       log(`Created database record for image: ${image.id}`);
       return [image];
     } catch (error) {
@@ -131,6 +134,7 @@ export class DatabaseStorage implements IStorage {
         const content = await file.buffer();
         await fs.writeFile(fullPath, content);
         log(`Saved extracted file to: ${fullPath}`);
+
         const image = await this.createImage({
           bookId,
           path: filePath,
@@ -139,6 +143,7 @@ export class DatabaseStorage implements IStorage {
           analyzed: false,
           analysis: null
         });
+
         log(`Created database record for ZIP image: ${image.id}`);
         savedImages.push(image);
       } catch (error) {
@@ -171,7 +176,7 @@ export class DatabaseStorage implements IStorage {
   async createStory(story: InsertStory): Promise<Story> {
     try {
       const [newStory] = await db.insert(stories)
-        .values(story)
+        .values([story])
         .returning();
       log(`Created new story record: ${newStory.id}`);
       return newStory;
