@@ -13,21 +13,11 @@ import path from "path";
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
-  // Add route to serve images from memory storage
-  app.get("/api/images/memory/:key", (req, res) => {
-    const imageData = imageStorage.getMemoryImage(req.params.key);
-    if (!imageData) {
-      return res.status(404).json({ message: "Image not found" });
-    }
-    res.setHeader('Content-Type', 'image/png');
-    res.send(imageData);
-  });
-
-  // Configure multer for handling PNG and ZIP uploads
+  // Configure multer for handling PNG and ZIP uploads with increased size limit
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-      fileSize: 50 * 1024 * 1024, // 50MB limit
+      fileSize: 200 * 1024 * 1024, // 200MB limit
     },
     fileFilter: (_req, file, cb) => {
       if (file.mimetype === 'image/png') {
@@ -44,6 +34,29 @@ export async function registerRoutes(app: Express) {
       cb(new Error('Only PNG images and ZIP files are allowed'));
     }
   });
+
+  // Error handling middleware for multer
+  app.use((err: any, req: any, res: any, next: any) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({
+          message: 'File is too large. Maximum size is 200MB'
+        });
+      }
+    }
+    next(err);
+  });
+
+  // Add route to serve images from memory storage
+  app.get("/api/images/memory/:key", (req, res) => {
+    const imageData = imageStorage.getMemoryImage(req.params.key);
+    if (!imageData) {
+      return res.status(404).json({ message: "Image not found" });
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.send(imageData);
+  });
+
 
   async function processZipFile(buffer: Buffer): Promise<Array<{buffer: Buffer, filename: string}>> {
     const extractedImages: Array<{buffer: Buffer, filename: string}> = [];
