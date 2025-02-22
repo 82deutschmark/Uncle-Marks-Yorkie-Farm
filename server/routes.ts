@@ -7,6 +7,45 @@ import multer from "multer";
 import { imageStorage } from "./lib/object-storage";
 import * as unzipper from "unzipper";
 import path from "path";
+import sharp from 'sharp';
+
+async function processZipFile(buffer: Buffer, maxFileSizeInMB = 50): Promise<Array<{buffer: Buffer, filename: string}>> {
+  const extractedImages: Array<{buffer: Buffer, filename: string}> = [];
+  const maxFileSize = maxFileSizeInMB * 1024 * 1024; // Convert to bytes
+
+  try {
+    const directory = await unzipper.Open.buffer(buffer);
+
+    for (const entry of directory.files) {
+      // Skip directories and non-PNG files
+      if (entry.type !== 'File') continue;
+
+      const ext = path.extname(entry.path).toLowerCase();
+      if (ext !== '.png') continue;
+
+      // Check file size before extraction
+      if (entry.uncompressedSize > maxFileSize) {
+        console.log(`Skipping ${entry.path}: File size exceeds ${maxFileSizeInMB}MB limit`);
+        continue;
+      }
+
+      try {
+        const content = await entry.buffer();
+        extractedImages.push({
+          buffer: content,
+          filename: path.basename(entry.path)
+        });
+      } catch (error) {
+        console.log(`Failed to extract ${entry.path}:`, error);
+        continue;
+      }
+    }
+
+    return extractedImages;
+  } catch (error) {
+    throw new Error(`Failed to process ZIP file: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
@@ -30,37 +69,6 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  async function processZipFile(buffer: Buffer): Promise<Array<{buffer: Buffer, filename: string}>> {
-    const extractedImages: Array<{buffer: Buffer, filename: string}> = [];
-
-    try {
-      const directory = await unzipper.Open.buffer(buffer);
-
-      for (const entry of directory.files) {
-        // Skip directories and non-PNG files
-        if (entry.type !== 'File') continue;
-
-        const ext = path.extname(entry.path).toLowerCase();
-        if (ext !== '.png') continue;
-
-        try {
-          const content = await entry.buffer();
-          extractedImages.push({
-            buffer: content,
-            filename: path.basename(entry.path)
-          });
-        } catch (error) {
-          console.error(`Failed to extract ${entry.path}:`, error);
-          continue;
-        }
-      }
-
-      return extractedImages;
-    } catch (error) {
-      throw new Error(`Failed to process ZIP file: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
   app.post("/api/images/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
@@ -68,15 +76,16 @@ export async function registerRoutes(app: Express) {
       }
 
       let imagesToProcess: Array<{buffer: Buffer, filename: string}> = [];
+      const maxFileSizeInMB = 50; // Set maximum file size for individual images
 
       // Handle zip files
       if (req.file.mimetype === 'application/zip' || 
           req.file.mimetype === 'application/x-zip-compressed' ||
           req.file.mimetype === 'application/octet-stream') {
         try {
-          imagesToProcess = await processZipFile(req.file.buffer);
+          imagesToProcess = await processZipFile(req.file.buffer, maxFileSizeInMB);
           if (imagesToProcess.length === 0) {
-            return res.status(400).json({ message: "No PNG images found in ZIP file" });
+            return res.status(400).json({ message: "No valid PNG images found in ZIP file" });
           }
         } catch (error) {
           return res.status(400).json({ 
@@ -85,6 +94,12 @@ export async function registerRoutes(app: Express) {
         }
       } else {
         // Single PNG file
+        if (req.file.size > maxFileSizeInMB * 1024 * 1024) {
+          return res.status(400).json({ 
+            message: `File size exceeds ${maxFileSizeInMB}MB limit` 
+          });
+        }
+
         imagesToProcess = [{
           buffer: req.file.buffer,
           filename: req.file.originalname
@@ -96,6 +111,12 @@ export async function registerRoutes(app: Express) {
 
       for (const image of imagesToProcess) {
         try {
+          // Validate image dimensions and format using sharp
+          const metadata = await sharp(image.buffer).metadata();
+          if (!metadata.format || metadata.format.toLowerCase() !== 'png') {
+            throw new Error('Invalid image format. Only PNG files are allowed.');
+          }
+
           const { fileId, objectUrl } = await imageStorage.uploadImage(
             image.buffer,
             image.filename

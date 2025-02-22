@@ -1,0 +1,51 @@
+# Update: Handling Large .zip Files in Replit Object Storage
+
+## Problem
+- The Replit agent is experiencing issues when processing large .zip files.
+- Bucket ID is already provided, but the storage system is optimized for individual file uploads (e.g., PNG files).
+
+## Solution
+1. Pre-Processing of .zip Files
+   - Do not upload large .zip files directly.
+   - Use a pre-deployment script to extract PNG files from each .zip file.
+     - For example, in Node.js:
+       ```
+       const AdmZip = require('adm-zip');
+       const fs = require('fs');
+       const path = require('path');
+
+       // Path to the input .zip file
+       const zipFilePath = '/path/to/large.zip';
+
+       // Initialize the zip extraction
+       const zip = new AdmZip(zipFilePath);
+       const zipEntries = zip.getEntries();
+
+       zipEntries.forEach(entry => {
+         if (entry.entryName.endsWith('.png')) {
+           // Define the output path for the extracted PNG file
+           const outputPath = path.join('/path/to/temp', entry.entryName);
+           fs.writeFileSync(outputPath, entry.getData());
+           // Call your upload function to upload the PNG to Replit Object Storage using the provided bucket ID.
+           uploadPNGToBucket(outputPath);
+         }
+       });
+       ```
+     - Ensure that each PNG file is extracted and validated before upload.
+     
+2. Upload Process
+   - For each extracted PNG file:
+     - Upload the file individually to the designated bucket using the provided bucket ID.
+     - Record a database entry for the image (metadata fields can be left blank initially).
+     
+3. Error Handling & Verification
+   - Implement error checks in the extraction script:
+     - Verify that the .zip file is successfully opened and each PNG file is extracted without corruption.
+     - Log any errors related to extraction or file size issues.
+   - Confirm that the uploaded PNG files appear correctly in Object Storage by cross-checking with the bucket ID.
+
+## Notes
+- This update ensures that the Replit agent deals with individual PNG files rather than handling a large .zip file directly.
+- The pre-processing script can be integrated as part of the build or deployment process in your Replit project.
+
+# End of Update

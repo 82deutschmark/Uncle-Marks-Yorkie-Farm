@@ -1,5 +1,5 @@
 import { Client } from "@replit/object-storage";
-import { Image, InsertImage } from "@shared/schema";
+import { Image } from "@shared/schema";
 import sharp from "sharp";
 import path from "path";
 import { createHash } from "crypto";
@@ -11,8 +11,9 @@ export class ImageStorage {
   constructor() {
     log('Initializing ImageStorage');
     try {
+      // Initialize with the bucket from .replit config
       this.client = new Client({
-        bucketId: "replit-objstore-765db3a9-41bc-454b-9e99-f55145d9ea3a"
+        bucketId: process.env.REPLIT_BUCKET_ID || "replit-objstore-765db3a9-41bc-454b-9e99-f55145d9ea3a"
       });
       log('ImageStorage initialized with Replit Object Storage');
     } catch (error) {
@@ -44,10 +45,15 @@ export class ImageStorage {
 
       // Upload to Replit Object Storage
       log(`Uploading image to Replit Object Storage with key: ${key}`);
-      await this.client.put(key, imageBuffer);
+      await this.client.upload(key, imageBuffer, {
+        contentType: 'image/png'
+      });
 
       // Get the URL for the uploaded object
-      const objectUrl = await this.client.get(key);
+      const objectUrl = await this.client.getSignedURL(key, {
+        expiresIn: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
       return { fileId, objectUrl };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -69,7 +75,9 @@ export class ImageStorage {
 
   async getImageUrl(fileId: string): Promise<string> {
     try {
-      return await this.client.get(fileId);
+      return await this.client.getSignedURL(fileId, {
+        expiresIn: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       log(`Failed to get image URL: ${message}`, error);
