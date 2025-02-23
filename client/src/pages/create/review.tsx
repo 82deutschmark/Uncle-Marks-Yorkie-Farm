@@ -18,7 +18,6 @@ import { Code2 } from "lucide-react";
 import type { StoryDetails } from "@shared/schema";
 import { RefreshCw } from "lucide-react";
 
-
 interface YorkieOption {
   id: string;
   url: string;
@@ -29,7 +28,7 @@ export default function ReviewPage() {
   const { toast } = useToast();
   const [developerMode, setDeveloperMode] = useState(false);
   const [images, setImages] = useState<YorkieOption[]>([]);
-  const [selectedImageId, setSelectedImageId] = useState<string>();
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [storyDetails, setStoryDetails] = useState<StoryDetails>({
     colors: [],
@@ -176,21 +175,21 @@ export default function ReviewPage() {
               <div className="grid gap-6 md:grid-cols-3">
                 {images.map((image) => (
                   <div key={image.id} className="space-y-4">
-                    <div 
+                    <div
                       className={`rounded-lg bg-card text-card-foreground shadow-sm relative border-2 ${
                         selectedImageId === image.id ? 'border-primary' : 'border-muted'
                       }`}
                     >
                       <div className="p-4">
                         <div className="aspect-square mb-4 relative overflow-hidden rounded-lg">
-                          <img 
-                            src={image.url} 
+                          <img
+                            src={image.url}
                             alt="Yorkshire Terrier"
                             className="object-cover w-full h-full"
                           />
                         </div>
                         <div className="items-center p-6 pt-0 flex gap-2">
-                          <Button 
+                          <Button
                             className="flex-1"
                             onClick={() => handleSelectYorkie(image.id)}
                             disabled={isLoading}
@@ -203,7 +202,7 @@ export default function ReviewPage() {
                             onClick={fetchRandomImages}
                             disabled={isLoading}
                           >
-                            <RefreshCw className="h-4 w-4"/>
+                            <RefreshCw className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
