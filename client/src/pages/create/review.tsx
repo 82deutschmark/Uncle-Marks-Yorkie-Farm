@@ -97,7 +97,7 @@ export default function ReviewPage() {
   // Format the API commands for developer preview
   const getOpenAICommand = () => {
     return {
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -122,7 +122,7 @@ export default function ReviewPage() {
 
   const getMidJourneyCommand = () => {
     return {
-      prompt: `A Yorkshire Terrier ${storyDetails.colors.join(" and ")} colors, ${storyDetails.personality.toLowerCase()} expression, magical farm setting, ${storyDetails.artStyles.join(", ")}, children's book illustration, detailed, vibrant, whimsical --v 6.0 --style raw --q 2`,
+      prompt: `/imagine Yorkshire Terrier ${storyDetails.colors.join(" and ")} colors, ${storyDetails.personality.toLowerCase()} expression, magical farm setting, ${storyDetails.artStyles.join(", ")}, children book illustration, detailed, vibrant, whimsical "Uncle Mark's Yorkie Farm" --s 550 --p 44j29we --ar 2:3 --c 50 --w 1255`,
       channelId: import.meta.env.VITE_DISCORD_CHANNEL_ID,
       botId: import.meta.env.VITE_MIDJOURNEY_BOT_ID
     };
