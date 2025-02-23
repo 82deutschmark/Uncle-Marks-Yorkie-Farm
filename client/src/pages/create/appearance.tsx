@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FormItem, FormLabel, FormDescription } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
 import { ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -79,7 +78,7 @@ export default function AppearancePage() {
     localStorage.setItem("yorkieAppearance", 
       `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`
     );
-    
+
     setLocation("/create/character");
   };
 
@@ -99,11 +98,11 @@ export default function AppearancePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <FormItem>
-              <FormLabel>Yorkie's Colors (Select up to 3)</FormLabel>
-              <FormDescription>
+            <div>
+              <h3 className="text-base font-semibold mb-2">Yorkie's Colors (Select up to 3)</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 Mix and match up to three magical colors for your Yorkie
-              </FormDescription>
+              </p>
               <div className="grid grid-cols-3 gap-4">
                 {colors.map((color) => (
                   <div
@@ -144,7 +143,7 @@ export default function AppearancePage() {
                   </div>
                 </div>
               )}
-            </FormItem>
+            </div>
 
             <div className="flex justify-end mt-6">
               <Button 
