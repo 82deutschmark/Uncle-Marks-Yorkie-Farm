@@ -59,51 +59,22 @@ export default function YorkieSelector() {
     ]);
   };
 
-  const handleGenerateStory = async () => {
-    setIsGenerating(true);
-    toast({
-      title: "Creating Your Story",
-      description: "Our AI is crafting a magical tale about your Yorkie..."
-    });
+  const handleGenerateStory = () => {
+    // Store story parameters in localStorage
+    localStorage.setItem("storyParams", JSON.stringify({
+      characteristics: "friendly and adventurous",
+      colors: "brown and black",
+      setting: "Uncle Mark's Magical Farm",
+      theme: "Adventure",
+      antagonist: "Mischievous Squirrel",
+      artStyle: {
+        style: "whimsical",
+        description: "A playful and enchanting style perfect for children's stories"
+      }
+    }));
 
-    try {
-      const response = await apiRequest("/api/stories/generate", {
-        method: "POST",
-        body: JSON.stringify({
-          characteristics: "friendly and adventurous",
-          colors: "brown and black",
-          setting: "Uncle Mark's Magical Farm",
-          theme: "Adventure",
-          antagonist: "Mischievous Squirrel",
-          artStyle: {
-            style: "whimsical",
-            description: "A playful and enchanting style perfect for children's stories"
-          }
-        })
-      });
-
-      setLocation(`/story/${response.id}`);
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message;
-      const isRetryable = error.response?.data?.retry || false;
-
-      toast({
-        title: "Story Generation Error",
-        description: errorMessage,
-        variant: "destructive",
-        action: isRetryable ? (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleGenerateStory}
-          >
-            Retry
-          </Button>
-        ) : undefined
-      });
-    } finally {
-      setIsGenerating(false);
-    }
+    // Redirect to the story generation page
+    setLocation("/story-generation");
   };
 
   const handleAddDetails = () => {
@@ -184,7 +155,7 @@ export default function YorkieSelector() {
                 {displayImages.map((slotImages, slotIndex) => (
                   <div key={slotIndex} className="space-y-4">
                     {slotImages.map((image) => (
-                      <Card 
+                      <Card
                         key={image.id}
                         className={`relative ${
                           selectedYorkie?.id === image.id ? 'border-primary border-2' : ''
@@ -192,7 +163,7 @@ export default function YorkieSelector() {
                       >
                         <CardContent className="p-4">
                           <div className="aspect-square mb-4 relative overflow-hidden rounded-lg">
-                            <img 
+                            <img
                               src={`/uploads/${image.path}`}
                               alt="Yorkshire Terrier"
                               className="object-cover w-full h-full"
