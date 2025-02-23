@@ -39,7 +39,7 @@ export default function Home() {
                     <li>• Beautiful illustrations in your chosen artistic style</li>
                   </ul>
                 </div>
-                <Link href="/select-yorkie">
+                <Link href="/details">
                   <Button 
                     size="lg" 
                     className="text-xl py-6 px-12 font-serif transform hover:scale-105 transition-transform"
@@ -59,7 +59,7 @@ export default function Home() {
                     <BookOpen className="h-6 w-6 text-primary" />
                   </div>
                   <h3 className="font-semibold">1. Design Characters</h3>
-                  <p className="text-sm text-muted-foreground">Choose your Yorkie's personality and style</p>
+                  <p className="text-sm text-muted-foreground">Create your unique Yorkie hero</p>
                 </div>
                 <div className="text-center space-y-2">
                   <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
@@ -72,8 +72,8 @@ export default function Home() {
                   <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
                     <Wand2 className="h-6 w-6 text-primary" />
                   </div>
-                  <h3 className="font-semibold">3. Illustrate</h3>
-                  <p className="text-sm text-muted-foreground">AI brings characters to life</p>
+                  <h3 className="font-semibold">3. Enjoy Your Story</h3>
+                  <p className="text-sm text-muted-foreground">Read your magical adventure</p>
                 </div>
               </div>
             </div>
