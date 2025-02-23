@@ -8,12 +8,14 @@ import ReviewPage from "@/pages/create/review";
 import StoryGenerationPage from "@/pages/create/story-generation";
 import YorkieSelector from "@/pages/create/yorkie-selector";
 import DebugPage from "@/pages/debug";
+import AppearancePage from "@/pages/create/appearance";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/home" component={Home} />
+      <Route path="/create/appearance" component={AppearancePage} />
       <Route path="/create/review" component={ReviewPage} />
       <Route path="/story-generation" component={StoryGenerationPage} />
       <Route path="/select-yorkie" component={YorkieSelector} />
