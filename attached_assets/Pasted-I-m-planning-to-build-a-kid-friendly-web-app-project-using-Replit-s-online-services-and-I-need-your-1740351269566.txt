@@ -1,0 +1,24 @@
+I’m planning to build a kid‑friendly web app project using Replit’s online services, and I need your assistance setting it up with the following detailed specifications:
+	1.	Project & Storage Setup
+ 1.1. Create a full‑stack Replit project.
+ 1.2. Use Replit Object Storage to host approximately 20,000 individual PNG files (extracted from provided zip files); note that I do not want to store the zip files, only the PNGs.
+ 1.3. Configure an online database (using Replit DB or PostgreSQL) to index each image. Initially, many images won’t have metadata—tags and descriptions will be added progressively via API calls over time.
+	2.	Image Upload & Tagging Process
+ 2.1. Develop functionality to batch‑upload zip files, extract the contained PNG files, and store each PNG individually in Object Storage.
+ 2.2. After each image is successfully uploaded, create a database record for it. Initially, metadata (such as relevant keywords) may be missing; these tags and descriptive data will be generated and appended later via API processing.
+	3.	Kid‑Friendly Story Book Application
+ 3.1. The app should present a friendly interface that prompts kids to choose the kind of Yorkshire terrier adventure they want (offering pre‑defined adventure themes as well as an option for custom input).
+ 3.2. Based on their input, the app will search the image database:
+  – For the first two image slots, if metadata/tags exist, images must strictly match the keywords from the user’s prompt; if not, images may be selected at random.
+  – The third image slot is always populated with a random image.
+ 3.3. For each image slot, display two or three image options.
+ 3.4. For every image option, provide two actions:
+  – “Describe”: When selected, the image is sent via the OpenAI API along with instructions to generate a detailed description and to create a creative character profile (including a personality and a name) for the Yorkshire terrier depicted.
+  – “Reroll”: If the user isn’t satisfied with either the image or its description, they can request a new image or a new generated description.
+ 3.5. Once the kid approves and “describes” three images (i.e. each slot now has an approved image with its generated character details), display a “Start Creating Story” button that transitions the user to the story generation phase.
+	4.	Story Generation Process
+ 4.1. On the next screen, prompt the user for additional details—either using a default option (for example, a story about the Yorkshire terrier visiting Uncle Mark and his magical farm) or by asking for the child’s name (to generate a personalized adventure).
+ 4.2. Combine the approved images’ character profiles and the user’s input, then send all these details to ChatGPT via the OpenAI API to generate a fun, engaging story.
+ 4.3. Present the generated story as a digital storybook for the child.
+	5.	Deployment & Scalability
+ 5.1. Deploy the app using Replit Deployments to obtain a permanent URL and ensure robust, scalable performance.
