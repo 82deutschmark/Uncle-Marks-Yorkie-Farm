@@ -1,10 +1,9 @@
-
 import { log } from './logger';
 
 const DISCORD_API_VERSION = '10';
 const BASE_URL = `https://discord.com/api/v${DISCORD_API_VERSION}`;
 
-export async function sendMidJourneyPromptViaPuppeteer(prompt: string) {
+export async function sendMidJourneyPromptViaPuppeteer(prompt: {protagonist: {appearance: string, personality: string}, artStyle: {style: string, description: string}, description?: string}) {
   try {
     const headers = {
       'Authorization': process.env.DISCORD_USER_TOKEN,
@@ -22,24 +21,12 @@ export async function sendMidJourneyPromptViaPuppeteer(prompt: string) {
         id: "938956540159881230",
         name: "imagine",
         type: 1,
-        options: [{ type: 3, name: "prompt", value: prompt }],
-        application_command: {
-          id: "938956540159881230",
-          application_id: process.env.MIDJOURNEY_APP_ID,
-          version: "1237876415471554623",
-          default_permission: true,
-          default_member_permissions: null,
-          type: 1,
-          name: "imagine",
-          description: "Create images with Midjourney",
-          dm_permission: true,
-          options: [{
-            type: 3,
-            name: "prompt",
-            description: "The prompt to imagine",
-            required: true
-          }]
-        }
+        options: [{ 
+          type: 3, 
+          name: "prompt", 
+          value: `${prompt.protagonist.appearance} with ${prompt.protagonist.personality} personality, ${prompt.artStyle.style} art style with ${prompt.artStyle.description} elements. ${prompt.description || ''}`
+        }],
+        attachments: []
       }
     };
 
