@@ -1,27 +1,25 @@
 import { log } from "./logger";
 import { DiscordError } from "./errors";
 import type { MidJourneyPrompt } from "@shared/schema";
-import { Client, GatewayIntentBits, TextChannel } from "discord.js";
+import { Client, GatewayIntentBits } from "discord.js";
 import { storage } from "../storage";
 import crypto from 'crypto';
+import { sendMidJourneyPromptViaPuppeteer } from './discord-automation';
 
 // Initialize Discord bot client with minimal required intents
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,          // Required for basic server interaction
-    GatewayIntentBits.GuildMessages,   // Required for sending/receiving messages
-  ]
-});
-
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+const botToken = process.env.DISCORD_BOT_TOKEN;
 let isConnected = false;
 
 // Handle bot authentication
 client.once('ready', () => {
   isConnected = true;
-  log.info('Discord bot is ready!', {
-    username: client.user?.tag,
-    guilds: client.guilds.cache.size
-  });
+  log.info('Discord bot is ready!');
+});
+
+client.on('disconnect', () => {
+  isConnected = false;
+  log.warn('Discord bot disconnected');
 });
 
 client.on('error', (error) => {
@@ -29,8 +27,8 @@ client.on('error', (error) => {
   log.error('Discord bot error:', error);
 });
 
+
 // Start bot if token is available
-const botToken = process.env.DISCORD_BOT_TOKEN;
 if (!botToken) {
   log.error('Discord bot token is missing');
 } else {
@@ -112,38 +110,9 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
     // Format the prompt with required elements
     const basePrompt = `${prompt.protagonist.appearance} Yorkshire Terrier with ${prompt.protagonist.personality} personality, ${prompt.artStyle.style} art style with ${prompt.artStyle.description} elements, "Uncle Mark's Yorkie Farm" --s 550 --p --c 50 --w 1000`;
 
-    // Get the bot token
-    const token = client.token;
-    if (!token) {
-      throw new DiscordError('Bot token not available', 500, false);
-    }
-
-    const channelId = process.env.DISCORD_CHANNEL_ID;
-    const guildId = process.env.DISCORD_GUILD_ID;
-    
-    // Construct the interaction payload
-    const payload = {
-      type: 2, // APPLICATION_COMMAND
-      application_id: "936929561302675456", // Midjourney's application ID
-      guild_id: guildId,
-      channel_id: channelId,
-      data: {
-        version: "1118961510123847772",
-        id: "938956540159881230",
-        name: "imagine",
-        type: 1,
-        options: [{
-          type: 3,
-          name: "prompt",
-          value: basePrompt
-        }]
-      }
-    };
-
     try {
       // Use Puppeteer to automate Discord interaction
       await sendMidJourneyPromptViaPuppeteer(basePrompt);
-      
       log.info('Successfully sent MidJourney prompt through Puppeteer');
     } catch (error) {
       log.error('Failed to send prompt via Puppeteer:', error);
@@ -153,30 +122,6 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
         true
       );
     }
-        response.status,
-        response.status === 429
-      );
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      log.error('Discord API error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorData,
-        payload: payload // Log the payload that caused the error
-      });
-      throw new DiscordError(
-        `Failed to send interaction: ${response.statusText}`,
-        response.status,
-        response.status === 429 // Retry on rate limit
-      );
-    }
-
-    log.info('Successfully sent MidJourney prompt through Discord API', {
-      prompt: basePrompt,
-      status: response.status
-    });
   } catch (error) {
     log.error('Failed to send prompt:', error);
 
