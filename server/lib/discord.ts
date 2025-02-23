@@ -140,19 +140,8 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
       }
     };
 
-    log.info('Sending interaction payload:', { payload });
-
-    // Send interaction to Discord
-    const response = await fetch('https://discord.com/api/v10/interactions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bot ${client.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
+    // Use Puppeteer to automate Discord interaction
+    await sendMidJourneyPromptViaPuppeteer(basePrompt);
       const errorData = await response.json().catch(() => ({}));
       throw new DiscordError(
         `Failed to send Midjourney command: ${response.statusText}`,
