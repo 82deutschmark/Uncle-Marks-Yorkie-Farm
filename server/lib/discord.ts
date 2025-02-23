@@ -192,7 +192,7 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-export async function findSimilarYorkieImage(description: string): Promise<{imageUrl: string, prompt: string}> {
+async function findSimilarYorkieImage(description: string): Promise<{imageUrl: string, prompt: string}> {
   try {
     const messages = await fetchDiscordChannelMessages(200);
     const yorkieMessages = messages.filter(msg => 
@@ -238,7 +238,7 @@ export async function findSimilarYorkieImage(description: string): Promise<{imag
     throw new Error("Failed to find a suitable Yorkie image.");
   }
 }
-export async function findSimilarYorkieImage(description: string) {
+export async function findSimilarYorkieImage2(description: string) {
   try {
     // First try Discord search
     try {
