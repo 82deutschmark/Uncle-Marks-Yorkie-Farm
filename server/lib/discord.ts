@@ -118,11 +118,6 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
       throw new DiscordError('Bot token not available', 500, false);
     }
 
-    // Construct the interaction payload
-    const payload = await constructInteractionPayload(basePrompt);
-
-    log.info('Sending interaction payload:', { payload });
-
     const channelId = process.env.DISCORD_CHANNEL_ID;
     const guildId = process.env.DISCORD_GUILD_ID;
     
@@ -144,6 +139,8 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
         }]
       }
     };
+
+    log.info('Sending interaction payload:', { payload });
 
     // Send interaction to Discord
     const response = await fetch('https://discord.com/api/v10/interactions', {
