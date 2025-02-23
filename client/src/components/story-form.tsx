@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,41 +45,20 @@ const themes = [
   { label: "Helping Others", emoji: "🌟" }
 ];
 
-
 export function StoryForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [selectedYorkie, setSelectedYorkie] = useState<any>(null);
-
-  useEffect(() => {
-    const yorkieData = localStorage.getItem('selectedYorkie');
-    if (!yorkieData) {
-      setLocation('/select-yorkie');
-      return;
-    }
-    setSelectedYorkie(JSON.parse(yorkieData));
-  }, [setLocation]);
 
   const form = useForm<StoryFormData>({
     defaultValues: {
-      characteristics: selectedYorkie?.analysis?.characterProfile?.personality || "",
+      characteristics: "",
       colors: "",
       theme: ""
     }
   });
 
   const onSubmit = async (data: StoryFormData) => {
-    if (!selectedYorkie) {
-      toast({
-        title: "No Yorkie Selected",
-        description: "Please select a Yorkie first.",
-        variant: "destructive"
-      });
-      setLocation('/select-yorkie');
-      return;
-    }
-
     if (!data.characteristics || !data.colors || !data.theme) {
       toast({
         title: "Missing Information",
@@ -98,12 +77,10 @@ export function StoryForm() {
           colors: data.colors,
           setting: "Uncle Mark's Farm",
           theme: data.theme,
-          antagonist: "Evil Sorcerer",
-          yorkieId: selectedYorkie.id
+          antagonist: "Evil Sorcerer"
         })
       });
 
-      localStorage.removeItem('selectedYorkie');
       setLocation(`/story/${response.id}`);
     } catch (error) {
       toast({
