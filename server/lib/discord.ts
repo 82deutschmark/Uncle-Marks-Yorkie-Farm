@@ -240,10 +240,12 @@ export async function findSimilarYorkieImage(description: string): Promise<{imag
 }
 export async function findSimilarYorkieImage(description: string) {
   try {
-    const channel = client.channels.cache.get(process.env.DISCORD_CHANNEL_ID!);
-    if (!channel || !channel.isTextBased()) {
-      throw new DiscordError('Invalid channel configuration', 500, false);
-    }
+    // First try Discord search
+    try {
+      const channel = client.channels.cache.get(process.env.DISCORD_CHANNEL_ID!);
+      if (!channel || !channel.isTextBased()) {
+        throw new DiscordError('Invalid channel configuration', 500, false);
+      }
 
     const allImages = [];
     let lastMessageId = null;
@@ -281,6 +283,21 @@ export async function findSimilarYorkieImage(description: string) {
       images: allImages,
       count: allImages.length
     };
+    } catch (discordError) {
+      // If Discord search fails, fall back to database
+      const dbImages = await storage.listImages({ analyzed: true });
+      if (dbImages.length === 0) {
+        throw new DiscordError(`No images found in Discord or database`, 500, false);
+      }
+      return {
+        images: dbImages.map(img => ({
+          url: img.path,
+          id: img.id.toString(),
+          timestamp: img.createdAt?.getTime() || Date.now()
+        })),
+        count: dbImages.length
+      };
+    }
   } catch (error) {
     throw new DiscordError(`Failed to search images: ${error instanceof Error ? error.message : 'Unknown error'}`, 500, false);
   }
