@@ -204,6 +204,41 @@ export default function ReviewPage() {
     }
   };
 
+  // Function to generate API command preview for developer mode
+  const getOpenAIPreview = () => {
+    return {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a master storyteller specializing in children's literature. Create an engaging, age-appropriate story that captures the magic and charm of Yorkshire Terriers while weaving in important life lessons. The story should be suitable for reading aloud, with clear narrative flow and engaging dialogue."
+        },
+        {
+          role: "user",
+          content: `Create a children's story with these elements:
+- Main Character: A ${storyDetails.personality.toLowerCase()} Yorkshire Terrier with ${storyDetails.colors.join(" and ")} colors
+- Setting: Uncle Mark's Farm, featuring ${storyDetails.farmElements.join(", ")}
+- Theme: ${storyDetails.theme}
+- Antagonist: ${storyDetails.antagonist}
+- Tone: Magical and lighthearted, suitable for young readers
+- Story Structure: Clear beginning, middle, and end with a positive message
+- Length: Approximately 1000 words, divided into scenes suitable for illustrations`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000
+    };
+  };
+
+  // Function to generate MidJourney command preview for developer mode
+  const getMidJourneyPreview = () => {
+    return {
+      prompt: `/imagine Yorkshire Terrier, ${storyDetails.colors.join(" and ")}, ${storyDetails.personality.toLowerCase()}, magical farm setting, ${storyDetails.artStyles.join(", ")}, watercolor, whimsical, children book illustration, detailed, vibrant, whimsical "Uncle Mark's Yorkie Farm" --s 550 --p --ar 3:3 --c 50 --w 1255`,
+      channelId: import.meta.env.VITE_DISCORD_CHANNEL_ID,
+      botId: import.meta.env.VITE_MIDJOURNEY_BOT_ID
+    };
+  };
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -234,6 +269,7 @@ export default function ReviewPage() {
           <CardContent>
             <ScrollArea className="h-[60vh] pr-4">
               <div className="space-y-6">
+                {/* Story Details Display */}
                 <div>
                   <h3 className="font-semibold mb-2">Appearance</h3>
                   <div className="bg-muted/20 rounded-lg p-4">
@@ -319,13 +355,13 @@ export default function ReviewPage() {
                         <div>
                           <h4 className="text-sm font-medium mb-2">OpenAI Command</h4>
                           <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
-                            <code>{JSON.stringify(getOpenAICommand(), null, 2)}</code>
+                            <code>{JSON.stringify(getOpenAIPreview(), null, 2)}</code>
                           </pre>
                         </div>
                         <div>
                           <h4 className="text-sm font-medium mb-2">MidJourney Command</h4>
                           <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
-                            <code>{JSON.stringify(getMidJourneyCommand(), null, 2)}</code>
+                            <code>{JSON.stringify(getMidJourneyPreview(), null, 2)}</code>
                           </pre>
                         </div>
                       </div>
@@ -417,36 +453,3 @@ export default function ReviewPage() {
     </div>
   );
 }
-
-const getOpenAICommand = () => {
-  return {
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: "You are a master storyteller specializing in children's literature. Create an engaging, age-appropriate story that captures the magic and charm of Yorkshire Terriers while weaving in important life lessons. The story should be suitable for reading aloud, with clear narrative flow and engaging dialogue."
-      },
-      {
-        role: "user",
-        content: `Create a children's story with these elements:
-- Main Character: A ${storyDetails.personality.toLowerCase()} Yorkshire Terrier with ${storyDetails.colors.join(" and ")} colors
-- Setting: Uncle Mark's Farm, featuring ${storyDetails.farmElements.join(", ")}
-- Theme: ${storyDetails.theme}
-- Antagonist: ${storyDetails.antagonist}
-- Tone: Magical and lighthearted, suitable for young readers
-- Story Structure: Clear beginning, middle, and end with a positive message
-- Length: Approximately 1000 words, divided into scenes suitable for illustrations`
-      }
-    ],
-    temperature: 0.7,
-    max_tokens: 2000
-  };
-};
-
-const getMidJourneyCommand = () => {
-  return {
-    prompt: `/imagine Yorkshire Terrier, ${storyDetails.colors.join(" and ")}, ${storyDetails.personality.toLowerCase()}, magical farm setting, ${storyDetails.artStyles.join(", ")}, watercolor, whimsical, children book illustration, detailed, vibrant, whimsical "Uncle Mark's Yorkie Farm" --s 550 --p --ar 3:3 --c 50 --w 1255`,
-    channelId: import.meta.env.VITE_DISCORD_CHANNEL_ID,
-    botId: import.meta.env.VITE_MIDJOURNEY_BOT_ID
-  };
-};
