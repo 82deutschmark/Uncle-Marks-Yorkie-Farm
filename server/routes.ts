@@ -11,6 +11,7 @@ import { OpenAIError } from "./lib/errors";
 import * as fs from 'fs/promises';
 import { sendMidJourneyPrompt } from "./lib/discord";
 import { DiscordError } from "./lib/errors";
+import { ZodError } from "zod";
 
 // Add multer request type
 interface MulterRequest extends Request {
@@ -303,7 +304,7 @@ export async function registerRoutes(app: Express) {
       }
 
       // Handle validation errors
-      if (error.name === 'ZodError') {
+      if (error instanceof ZodError) {
         return res.status(400).json({
           error: 'Invalid Request',
           message: 'The request payload is invalid',
