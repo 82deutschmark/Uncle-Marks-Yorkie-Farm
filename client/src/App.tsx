@@ -7,6 +7,7 @@ import Home from "@/pages/home";
 import StoryViewer from "@/pages/story-viewer";
 import { StoryForm } from "@/components/story-form";
 import StoryGenerationPage from "@/pages/story-generation";
+import YorkieSelector from "@/pages/yorkie-selector";
 
 function Router() {
   return (
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/details" component={StoryForm} />
       <Route path="/story/:id" component={StoryViewer} />
       <Route path="/story-generation" component={StoryGenerationPage} />
+      <Route path="/select-yorkie" component={YorkieSelector} />
       <Route component={NotFound} />
     </Switch>
   );
