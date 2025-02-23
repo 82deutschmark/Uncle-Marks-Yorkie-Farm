@@ -123,15 +123,18 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
 
     log.info('Sending interaction payload:', { payload });
 
-    // Send the interaction to Discord's API
-    const response = await fetch('https://discord.com/api/v10/interactions', {
+    const channelId = process.env.DISCORD_CHANNEL_ID;
+    // Send message to Discord channel
+    const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bot ${token}`,
         'Content-Type': 'application/json',
         'User-Agent': 'DiscordBot (https://github.com/discord/discord-api-docs, 10)'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        content: `/imagine ${basePrompt}`
+      })
     });
 
     if (!response.ok) {
