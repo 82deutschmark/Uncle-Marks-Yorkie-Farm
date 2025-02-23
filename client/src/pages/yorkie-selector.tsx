@@ -74,7 +74,11 @@ export default function YorkieSelector() {
           colors: "brown and black",
           setting: "Uncle Mark's Magical Farm",
           theme: "Adventure",
-          antagonist: "Mischievous Squirrel"
+          antagonist: "Mischievous Squirrel",
+          artStyle: {
+            style: "whimsical",
+            description: "A playful and enchanting style perfect for children's stories"
+          }
         })
       });
 
