@@ -10,7 +10,9 @@ import {
   insertStorySchema,
   storyParamsSchema,
   artStyleSchema,
-  type StoryParams
+  midjourneyPromptSchema,
+  type StoryParams,
+  type MidJourneyPrompt
 } from "@shared/schema";
 import { OpenAIError } from "./lib/errors";
 import * as fs from 'fs/promises';
@@ -243,7 +245,8 @@ export async function registerRoutes(app: Express) {
     try {
       log.info('Received MidJourney generation request:', { body: req.body });
 
-      const prompt = midjourneyPromptSchema.parse(req.body);
+      // Parse and validate the request body
+      const prompt: MidJourneyPrompt = midjourneyPromptSchema.parse(req.body);
       log.info('Starting MidJourney image generation', { prompt });
 
       // Create a new image record with pending status
