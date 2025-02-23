@@ -240,7 +240,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // Add MidJourney image generation endpoint
+  // MidJourney image generation endpoint
   app.post("/api/images/generate", async (req, res) => {
     try {
       log.info('Received MidJourney generation request:', { body: req.body });
@@ -274,7 +274,7 @@ export async function registerRoutes(app: Express) {
         imageIds: [newImage.id] // Adding imageIds to match the expected response format
       });
     } catch (error) {
-      log.apiError('MidJourney prompt error:', error);
+      log.error('MidJourney prompt error:', error);
 
       if (error instanceof DiscordError) {
         return res.status(error.statusCode).json({
