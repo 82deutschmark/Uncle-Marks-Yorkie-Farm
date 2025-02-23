@@ -76,32 +76,33 @@ export default function StoryGenerationPage() {
   }, [retryTimeout]);
 
   // Query to generate the story
-  const { error } = useQuery({
+  const { error } = useQuery<StoryResponse>({
     queryKey: ['/api/stories/generate', retryAttempt],
     queryFn: async () => {
       const response = await apiRequest("/api/stories/generate", {
         method: "POST",
         body: JSON.stringify(storyParams)
       });
-      return response as StoryResponse;
+      return response;
     },
     enabled: Boolean(storyParams) && retryTimeout === null,
+    retry: 3,
     staleTime: 0,
     gcTime: 0,
-    onSuccess: (data) => {
+    onSuccess(data) {
       setStoryData(data);
       setProgress(100);
       setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
       queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
     },
-    onError: (error: any) => {
+    onError(error: any) {
       const isRateLimit = error.message?.includes('rate limit');
       if (isRateLimit && error.retryAfter) {
         setRetryTimeout(error.retryAfter * 1000);
         toast({
           title: "Generation Paused",
           description: `Rate limit reached. Retrying in ${Math.ceil(error.retryAfter)} seconds...`,
-          variant: "warning"
+          variant: "default"
         });
       } else {
         toast({
@@ -184,12 +185,12 @@ export default function StoryGenerationPage() {
     }
   };
 
-  // Placeholder images - these will be replaced with actual images from the database
+  // Update placeholderImages array with SVG paths
   const placeholderImages = [
-    "/placeholder/yorkie1.jpg",
-    "/placeholder/yorkie2.jpg",
-    "/placeholder/yorkie3.jpg",
-    "/placeholder/yorkie4.jpg",
+    "/placeholder/yorkie1.svg",
+    "/placeholder/yorkie2.svg",
+    "/placeholder/yorkie3.svg",
+    "/placeholder/yorkie4.svg",
   ];
 
   const renderContent = () => {

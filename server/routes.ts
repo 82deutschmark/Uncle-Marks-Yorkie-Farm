@@ -34,44 +34,36 @@ export async function registerRoutes(app: Express) {
   // Generate story endpoint
   app.post("/api/stories/generate", async (req, res) => {
     try {
-      const storyParams: StoryParams = {
-        protagonist: {
-          name: req.body.name,
-          personality: req.body.characteristics,
-          appearance: req.body.colors
-        },
-        antagonist: {
-          type: req.body.antagonist,
-          personality: req.body.antagonist
-        },
-        theme: req.body.theme,
-        mood: req.body.theme,
-        artStyle: req.body.artStyle || {
-          style: "whimsical",
-          description: "A playful and enchanting style perfect for children's stories"
-        }
-      };
+      const { characteristics, colors, theme, antagonist } = req.body;
 
-      const storyResponse = await generateStory(storyParams);
+      // Generate story with proper parameter structure
+      const response = await generateStory({
+        characteristics,
+        colors,
+        theme
+      });
 
       const story = {
-        title: storyResponse.title,
-        protagonist: `${req.body.colors} Yorkshire Terrier`,
-        setting: "Uncle Mark's Farm", // Add the required setting field
-        theme: req.body.theme,
-        content: storyResponse.content,
+        title: response.title,
+        protagonist: `${colors} Yorkshire Terrier`,
+        setting: "Uncle Mark's Farm",
+        theme,
+        content: response.content,
         selectedImages: {
           slot1: 1,
           slot2: 2,
           slot3: 3
         },
         metadata: {
-          characteristics: req.body.characteristics,
-          colors: req.body.colors,
-          antagonist: req.body.antagonist,
-          ...storyResponse.metadata
+          wordCount: response.metadata.wordCount,
+          chapters: response.metadata.chapters,
+          tone: response.metadata.tone,
+          protagonist: response.metadata.protagonist
         },
-        artStyle: storyResponse.artStyle
+        artStyle: {
+          style: "whimsical",
+          description: "A playful and enchanting style perfect for children's stories"
+        }
       };
 
       const parsedStory = insertStorySchema.parse(story);

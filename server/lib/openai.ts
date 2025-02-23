@@ -117,7 +117,7 @@ Provide your response in this exact JSON format:
       ],
       response_format: { type: "json_object" },
       temperature: 0.9,
-      max_tokens: 4000 // Reduced from 8000 to help with rate limits
+      max_tokens: 4000
     });
 
     const content = response.choices[0].message.content;
