@@ -43,6 +43,18 @@ export async function registerRoutes(app: Express) {
   app.post("/api/images/:id/analyze", analyzeImageHandler);
   app.post("/api/images/generate", generateImageHandler);
 
+  app.get("/api/images/random", async (req, res) => {
+    try {
+      const images = await storage.listImages({ analyzed: true });
+      const shuffled = images.sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, 3);
+      res.json({ images: selected });
+    } catch (error) {
+      log.error('Failed to fetch random images:', error);
+      res.status(500).json({ error: 'Failed to fetch random images' });
+    }
+  });
+
   app.post("/api/images/search", async (req, res) => {
     try {
       const { description } = req.body;
