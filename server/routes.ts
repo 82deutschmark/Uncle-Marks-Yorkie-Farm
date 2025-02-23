@@ -49,10 +49,7 @@ app.post("/api/images/search", async (req, res) => {
   }
 });
 
-  type StoryParams,
-  type MidJourneyPrompt
-} from "@shared/schema";
-import { OpenAIError } from "./lib/errors";
+  import { OpenAIError } from "./lib/errors";
 import * as fs from 'fs/promises';
 import { sendMidJourneyPrompt } from "./lib/discord";
 import { DiscordError } from "./lib/errors";
