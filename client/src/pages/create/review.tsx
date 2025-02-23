@@ -3,10 +3,12 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, Wand2, Loader2 } from "lucide-react";
+import { ChevronLeft, Wand2, Loader2, Code2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
 interface StoryDetails {
   colors: string[];
@@ -21,6 +23,7 @@ export default function ReviewPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [developerMode, setDeveloperMode] = useState(false);
   const [storyDetails, setStoryDetails] = useState<StoryDetails>({
     colors: [],
     personality: '',
@@ -76,8 +79,7 @@ export default function ReviewPage() {
         farmElements: storyDetails.farmElements
       }));
 
-      // Redirect to debug page instead of story-generation
-      setLocation("/debug");
+      setLocation("/story-generation");
     } catch (error) {
       toast({
         title: "Error",
@@ -92,6 +94,37 @@ export default function ReviewPage() {
     setLocation("/create/art-style");
   };
 
+  // Format the API commands for developer preview
+  const getOpenAICommand = () => {
+    return {
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a creative children's story writer crafting tales about Yorkshire Terriers."
+        },
+        {
+          role: "user",
+          content: `Create a story about a ${storyDetails.personality.toLowerCase()} Yorkshire Terrier 
+            with ${storyDetails.colors.join(" and ")} colors. The story should focus on ${storyDetails.theme} 
+            at Uncle Mark's Farm, featuring ${storyDetails.antagonist} as the antagonist. 
+            Include these farm elements: ${storyDetails.farmElements.join(", ")}.`
+        }
+      ]
+    };
+  };
+
+  const getMidJourneyCommand = () => {
+    return {
+      prompt: `/imagine a cute Yorkshire Terrier puppy with ${storyDetails.colors.join(" and ")} fur, 
+        ${storyDetails.personality.toLowerCase()} expression, in a magical farm setting. 
+        Art style: ${storyDetails.artStyles.join(", ")}. Detailed illustration, vibrant colors, 
+        charming children's book style --v 6.0 --style raw`,
+      channelId: process.env.DISCORD_CHANNEL_ID,
+      botId: process.env.MIDJOURNEY_BOT_ID
+    };
+  };
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -100,9 +133,21 @@ export default function ReviewPage() {
           <p className="text-sm text-muted-foreground mt-2">Final Step: Review & Create</p>
         </div>
 
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Review Your Story</h1>
+          <div className="flex items-center gap-2">
+            <Code2 className="h-4 w-4" />
+            <span className="text-sm">Developer Mode</span>
+            <Switch
+              checked={developerMode}
+              onCheckedChange={setDeveloperMode}
+            />
+          </div>
+        </div>
+
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl font-serif">Review Your Story</CardTitle>
+            <CardTitle className="text-2xl font-serif">Story Details</CardTitle>
             <CardDescription>
               Review all your choices before creating your magical Yorkie tale
             </CardDescription>
@@ -181,6 +226,33 @@ export default function ReviewPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Developer Mode Preview */}
+                {developerMode && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="font-semibold mb-2 flex items-center gap-2">
+                        API Commands Preview
+                        <Badge variant="outline">Developer</Badge>
+                      </h3>
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-sm font-medium mb-2">OpenAI Command</h4>
+                          <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                            <code>{JSON.stringify(getOpenAICommand(), null, 2)}</code>
+                          </pre>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium mb-2">MidJourney Command</h4>
+                          <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                            <code>{JSON.stringify(getMidJourneyCommand(), null, 2)}</code>
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </ScrollArea>
 
