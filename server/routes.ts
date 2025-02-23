@@ -5,8 +5,12 @@ import path from "path";
 import express from "express";
 import { storage } from "./storage";
 import { log, requestLogger, errorLogger } from "./lib/logger";
-import { generateStory, analyzeImage } from "./lib/openai";
-import { insertStorySchema, midjourneyPromptSchema, type StoryParams } from "@shared/schema";
+import { generateStory } from "./lib/openai";
+import { 
+  insertStorySchema, 
+  storyParamsSchema, 
+  type StoryParams 
+} from "@shared/schema";
 import { OpenAIError } from "./lib/errors";
 import * as fs from 'fs/promises';
 import { sendMidJourneyPrompt } from "./lib/discord";
@@ -38,71 +42,37 @@ export async function registerRoutes(app: Express) {
   // Generate story endpoint
   app.post("/api/stories/generate", async (req, res) => {
     try {
-      const { colors, theme, antagonist, characteristics, artStyle } = req.body;
-
-      if (!characteristics || !colors || !theme) {
-        log.warn('Missing required story parameters', { characteristics, colors, theme });
-        return res.status(400).json({
-          error: 'Missing Parameters',
-          message: 'Please provide all required story parameters'
-        });
-      }
-
-      log.info('Generating story with params:', { 
-        characteristics, 
-        colors, 
-        theme,
-        antagonist,
-        artStyle 
-      });
-
-      // Properly structure story parameters according to schema
-      const storyParams: StoryParams = {
+      // First validate the input parameters against our schema
+      const storyParams = storyParamsSchema.parse({
         protagonist: {
-          personality: characteristics || '',
-          appearance: colors || ''
+          name: req.body.name,
+          personality: req.body.characteristics,
+          appearance: req.body.colors
         },
         antagonist: {
-          type: antagonist?.type || "squirrel-gang",
-          personality: "playful and mischievous" // Default personality
+          type: req.body.antagonist?.type || "squirrel-gang",
+          personality: "playful and mischievous"
         },
-        theme: theme || '',
-        mood: "Lighthearted", // Default mood
+        theme: req.body.theme,
+        mood: "Lighthearted",
         artStyle: {
-          style: "whimsical", // Default to whimsical if invalid
+          style: "whimsical",
           description: "A playful and enchanting style perfect for children's stories"
         },
         farmElements: ["barn", "tractor", "chickens", "garden"]
-      };
+      });
 
-      // Try to use provided art style if valid
-      if (artStyle?.style && typeof artStyle.style === 'string') {
-        const validStyles = [
-          'whimsical',
-          'studio-ghibli',
-          'watercolor',
-          'pixel-art',
-          'pop-art',
-          'pencil-sketch',
-          '3d-cartoon',
-          'storybook'
-        ];
-
-        // Use the first valid style or default to whimsical
-        const style = artStyle.style.split(',')[0].trim();
-        if (validStyles.includes(style)) {
-          storyParams.artStyle.style = style;
-        }
-      }
+      log.info('Generating story with validated params:', storyParams);
 
       // Generate story with validated parameters
       const response = await generateStory(storyParams);
 
+      // Create the story record
       const story = {
         title: response.title,
-        protagonist: `${colors} Yorkshire Terrier`,
+        protagonist: storyParams.protagonist.appearance,
         setting: "Uncle Mark's Farm",
-        theme,
+        theme: storyParams.theme,
         content: response.content,
         selectedImages: {
           slot1: 1,
@@ -113,22 +83,18 @@ export async function registerRoutes(app: Express) {
         artStyle: storyParams.artStyle
       };
 
-      try {
-        const parsedStory = insertStorySchema.parse(story);
-        const savedStory = await storage.createStory(parsedStory);
+      // Validate and save the story
+      const parsedStory = insertStorySchema.parse(story);
+      const savedStory = await storage.createStory(parsedStory);
 
-        log.info('Story generated and saved successfully', {
-          storyId: savedStory.id,
-          title: savedStory.title
-        });
+      log.info('Story generated and saved successfully', {
+        storyId: savedStory.id,
+        title: savedStory.title
+      });
 
-        res.json(savedStory);
-      } catch (error) {
-        log.error('Story validation or storage error:', error);
-        throw error;
-      }
+      res.json(savedStory);
     } catch (error) {
-      log.apiError('Story generation error:', error);
+      log.error('Story generation error:', error);
 
       if (error instanceof OpenAIError) {
         return res.status(error.statusCode).json({
@@ -148,7 +114,7 @@ export async function registerRoutes(app: Express) {
 
       res.status(500).json({
         error: 'Story Generation Failed',
-        message: error instanceof Error ? error.message : 'An unexpected error occurred while generating your story. Please try again.',
+        message: error instanceof Error ? error.message : 'An unexpected error occurred',
         retry: false
       });
     }
