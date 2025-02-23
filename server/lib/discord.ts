@@ -192,50 +192,86 @@ client.on('messageCreate', async (message) => {
   }
 });
 
+import { Client, GatewayIntentBits } from 'discord.js';
+
+const client2 = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ]
+});
+
+client2.login(process.env.DISCORD_BOT_TOKEN).catch(err => {
+  console.error('Failed to login to Discord:', err);
+});
+
 export async function findSimilarYorkieImage(description: string): Promise<{imageUrl: string, prompt: string}> {
   try {
-    const messages = await fetchDiscordChannelMessages(200);
-    const yorkieMessages = messages.filter(msg => 
-      (msg.content.toLowerCase().includes('yorkie') || 
-       msg.content.toLowerCase().includes('yorkshire')) &&
-      msg.attachments.length > 0
-    );
+    // First try Discord search
+    try {
+      if (!client2.isReady()) {
+        throw new Error('Discord client not ready');
+      }
 
-    // Try to find style matches first
-    const styleMatches = yorkieMessages.filter(msg => 
-      msg.content.toLowerCase().includes(description.toLowerCase())
-    );
+      const channel = client2.channels.cache.get(process.env.DISCORD_CHANNEL_ID!);
+      if (!channel || !channel.isTextBased()) {
+        throw new DiscordError('Invalid channel configuration', 500, false);
+      }
 
-    if (styleMatches.length > 0) {
-      const selected = styleMatches[Math.floor(Math.random() * styleMatches.length)];
-      return {
-        imageUrl: selected.attachments[0].url,
-        prompt: selected.content
-      };
+    const allImages = [];
+    let lastMessageId = null;
+    let hasMore = true;
+
+    while (hasMore) {
+      const options: any = { limit: 100 };
+      if (lastMessageId) {
+        options.before = lastMessageId;
+      }
+
+      const messages = await channel.messages.fetch(options);
+      if (messages.size === 0) {
+        hasMore = false;
+        break;
+      }
+
+      const imageMessages = messages.filter(msg => msg.attachments.size > 0);
+      const yorkieImages = imageMessages.map(msg => ({
+        url: msg.attachments.first()?.url,
+        id: msg.id,
+        timestamp: msg.createdTimestamp
+      })).filter(img => img.url);
+
+      allImages.push(...yorkieImages);
+      lastMessageId = messages.last()?.id;
+
+      // Stop after collecting 500 images or if we got less than 100 messages
+      if (allImages.length >= 500 || messages.size < 100) {
+        hasMore = false;
+      }
     }
 
-    // Fallback to cartoon yorkies
-    const cartoonMatches = yorkieMessages.filter(msg => 
-      msg.content.toLowerCase().includes('cartoon')
-    );
-
-    if (cartoonMatches.length > 0) {
-      const selected = cartoonMatches[Math.floor(Math.random() * cartoonMatches.length)];
-      return {
-        imageUrl: selected.attachments[0].url,
-        prompt: selected.content
-      };
-    }
-
-    // Last resort: return any yorkie image
-    const selected = yorkieMessages[Math.floor(Math.random() * yorkieMessages.length)];
     return {
-      imageUrl: selected.attachments[0].url,
-      prompt: selected.content
+      images: allImages,
+      count: allImages.length
     };
+    } catch (discordError) {
+      // If Discord search fails, fall back to database
+      const dbImages = await storage.listImages({ analyzed: true });
+      if (dbImages.length === 0) {
+        throw new DiscordError(`No images found in Discord or database`, 500, false);
+      }
+      return {
+        images: dbImages.map(img => ({
+          url: img.path,
+          id: img.id.toString(),
+          timestamp: img.createdAt?.getTime() || Date.now()
+        })),
+        count: dbImages.length
+      };
+    }
   } catch (error) {
-    console.error("Error finding Yorkie image:", error);
-    throw new Error("Failed to find a suitable Yorkie image.");
+    throw new DiscordError(`Failed to search images: ${error instanceof Error ? error.message : 'Unknown error'}`, 500, false);
   }
 }
 export async function findSimilarYorkieImage2(description: string) {
