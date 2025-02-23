@@ -17,7 +17,7 @@ import type { Request } from "express";
 import { storage } from "./storage";
 import { log } from "./lib/logger";
 import { generateStory } from "./lib/openai";
-import { findSimilarYorkieImage } from "./lib/discord";
+// Discord integration removed
 import {
   insertStorySchema,
   storyParamsSchema,
