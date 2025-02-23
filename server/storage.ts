@@ -47,7 +47,7 @@ export class DatabaseStorage implements IStorage {
       discord: []
     };
     fs.mkdir(this.uploadsDir, { recursive: true }).catch(err => log.error('Failed to create uploads directory:', err));
-    
+
     // Verify database connection
     db.select().from(images).limit(1)
       .then(() => log.info('Successfully connected to database'))
@@ -208,7 +208,7 @@ export class DatabaseStorage implements IStorage {
 
   async createStory(story: InsertStory): Promise<Story> {
     try {
-      log.info('Creating new story'); //Corrected logging
+      log.info('Creating new story', {story}); 
       const [newStory] = await db.insert(stories)
         .values({
           ...story,

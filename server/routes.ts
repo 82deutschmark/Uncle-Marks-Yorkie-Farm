@@ -3,6 +3,7 @@ import { createServer } from "http";
 import multer from "multer";
 import path from "path";
 import express from "express";
+import { z } from "zod";
 
 const upload = multer({
   dest: path.resolve(process.cwd(), 'uploads'),
@@ -22,7 +23,7 @@ import {
   insertStorySchema,
   storyParamsSchema,
   artStyleSchema,
-  midjourneyPromptSchema,
+  //midjourneyPromptSchema,
   type StoryParams,
   type MidJourneyPrompt
 } from "@shared/schema";
