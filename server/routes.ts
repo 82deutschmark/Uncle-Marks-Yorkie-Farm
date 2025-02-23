@@ -257,6 +257,8 @@ export async function registerRoutes(app: Express) {
   // Add MidJourney image generation endpoint
   app.post("/api/images/generate", async (req, res) => {
     try {
+      log.info('Received MidJourney generation request:', { body: req.body });
+
       const prompt = midjourneyPromptSchema.parse(req.body);
       log.info('Starting MidJourney image generation', { prompt });
 
@@ -287,10 +289,25 @@ export async function registerRoutes(app: Express) {
       log.apiError('MidJourney prompt error:', error);
 
       if (error instanceof DiscordError) {
-        return res.status(error.statusCode).json({
+        const errorResponse = {
           error: 'Discord Integration Error',
           message: error.message,
-          retry: error.retryable
+          retry: error.retryable,
+          details: error instanceof Error ? {
+            status: error.statusCode,
+            cause: error.cause
+          } : undefined
+        };
+        log.error('Sending error response:', errorResponse);
+        return res.status(error.statusCode).json(errorResponse);
+      }
+
+      // Handle validation errors
+      if (error.name === 'ZodError') {
+        return res.status(400).json({
+          error: 'Invalid Request',
+          message: 'The request payload is invalid',
+          details: error.errors
         });
       }
 
