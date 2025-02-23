@@ -43,25 +43,25 @@ export default function AppearancePage() {
   }, []);
 
   const handleColorSelect = (colorLabel: string) => {
-    setSelectedColors(prev => {
-      let newColors;
-      if (prev.includes(colorLabel)) {
-        newColors = prev.filter(c => c !== colorLabel);
-      } else {
-        if (prev.length >= 3) {
-          toast({
-            title: "Maximum Colors Selected",
-            description: "You can select up to 3 colors for your Yorkie.",
-            variant: "destructive"
-          });
-          return prev;
-        }
-        newColors = [...prev, colorLabel];
-      }
-      // Save to localStorage
+    if (selectedColors.includes(colorLabel)) {
+      const newColors = selectedColors.filter(c => c !== colorLabel);
+      setSelectedColors(newColors);
       localStorage.setItem("yorkieColors", JSON.stringify(newColors));
-      return newColors;
-    });
+      return;
+    }
+
+    if (selectedColors.length >= 3) {
+      toast({
+        title: "Maximum Colors Selected",
+        description: "You can select up to 3 colors for your Yorkie.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newColors = [...selectedColors, colorLabel];
+    setSelectedColors(newColors);
+    localStorage.setItem("yorkieColors", JSON.stringify(newColors));
   };
 
   const handleNext = () => {
@@ -133,7 +133,10 @@ export default function AppearancePage() {
                       >
                         {color}
                         <button
-                          onClick={() => handleColorSelect(color)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleColorSelect(color);
+                          }}
                           className="hover:text-destructive"
                         >
                           ×

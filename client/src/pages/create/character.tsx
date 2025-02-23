@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FormItem, FormLabel, FormDescription } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -66,33 +65,33 @@ export default function CharacterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <FormItem>
-              <FormLabel>Yorkie's Personality</FormLabel>
-              <FormDescription>
+            <div>
+              <h3 className="text-base font-semibold mb-2">Yorkie's Personality</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 Choose the personality that best fits your character
-              </FormDescription>
+              </p>
               <RadioGroup
                 value={selectedPersonality}
                 onValueChange={setSelectedPersonality}
                 className="grid grid-cols-2 gap-4"
               >
                 {personalities.map((personality) => (
-                  <FormItem key={personality}>
+                  <div key={personality} className="relative">
                     <RadioGroupItem
                       value={personality}
                       id={personality}
                       className="peer sr-only"
                     />
-                    <FormLabel
+                    <label
                       htmlFor={personality}
-                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                     >
                       {personality}
-                    </FormLabel>
-                  </FormItem>
+                    </label>
+                  </div>
                 ))}
               </RadioGroup>
-            </FormItem>
+            </div>
 
             <div className="flex justify-between mt-6">
               <Button
