@@ -3,6 +3,13 @@ import { createServer } from "http";
 import multer from "multer";
 import path from "path";
 import express from "express";
+
+const upload = multer({
+  dest: path.resolve(process.cwd(), 'uploads'),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 import { requestLogger, errorLogger } from "./lib/logger";
 import { generateStoryHandler, getStoryHandler } from "./controllers/storyController";
 import { uploadImageHandler, analyzeImageHandler, generateImageHandler } from "./controllers/imageController";
