@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FormItem, FormLabel, FormDescription } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -127,75 +126,75 @@ export default function StoryPage() {
           </CardHeader>
           <CardContent className="space-y-8">
             {/* Theme Selection */}
-            <FormItem>
-              <FormLabel>Story Theme</FormLabel>
-              <FormDescription>
+            <div>
+              <h3 className="text-base font-semibold mb-2">Story Theme</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 Choose the main theme for your story
-              </FormDescription>
+              </p>
               <RadioGroup
                 value={selectedTheme}
                 onValueChange={setSelectedTheme}
                 className="grid grid-cols-2 gap-4"
               >
                 {themes.map((theme) => (
-                  <FormItem key={theme.value}>
+                  <div key={theme.value} className="relative">
                     <RadioGroupItem
                       value={theme.value}
                       id={theme.value}
                       className="peer sr-only"
                     />
-                    <FormLabel
+                    <label
                       htmlFor={theme.value}
-                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                     >
                       <span className="font-semibold">{theme.label}</span>
                       <span className="text-sm text-muted-foreground text-center mt-1">
                         {theme.description}
                       </span>
-                    </FormLabel>
-                  </FormItem>
+                    </label>
+                  </div>
                 ))}
               </RadioGroup>
-            </FormItem>
+            </div>
 
             {/* Antagonist Selection */}
-            <FormItem>
-              <FormLabel>Story Villain</FormLabel>
-              <FormDescription>
+            <div>
+              <h3 className="text-base font-semibold mb-2">Story Villain</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 Choose who your Yorkie will face off against
-              </FormDescription>
+              </p>
               <RadioGroup
                 value={selectedAntagonist}
                 onValueChange={setSelectedAntagonist}
                 className="grid grid-cols-2 gap-4"
               >
                 {antagonists.map((antagonist) => (
-                  <FormItem key={antagonist.value}>
+                  <div key={antagonist.value} className="relative">
                     <RadioGroupItem
                       value={antagonist.value}
                       id={antagonist.value}
                       className="peer sr-only"
                     />
-                    <FormLabel
+                    <label
                       htmlFor={antagonist.value}
-                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                     >
                       <span className="font-semibold">{antagonist.label}</span>
                       <span className="text-sm text-muted-foreground text-center mt-1">
                         {antagonist.description}
                       </span>
-                    </FormLabel>
-                  </FormItem>
+                    </label>
+                  </div>
                 ))}
               </RadioGroup>
-            </FormItem>
+            </div>
 
             {/* Farm Elements Selection */}
-            <FormItem>
-              <FormLabel>Farm Elements</FormLabel>
-              <FormDescription>
+            <div>
+              <h3 className="text-base font-semibold mb-2">Farm Elements</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 Select the magical farm elements in your story
-              </FormDescription>
+              </p>
               <div className="grid grid-cols-2 gap-4">
                 {farmElements.map((element) => (
                   <div
@@ -214,7 +213,7 @@ export default function StoryPage() {
                   </div>
                 ))}
               </div>
-            </FormItem>
+            </div>
 
             <div className="flex justify-between pt-6 border-t">
               <Button
