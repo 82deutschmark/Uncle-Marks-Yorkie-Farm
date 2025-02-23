@@ -124,7 +124,6 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
         error instanceof Error ? error.message : 'Failed to send prompt to Discord',
         500,
         true
-        true
       );
     }
   } catch (error) {

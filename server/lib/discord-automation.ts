@@ -5,7 +5,8 @@ import { log } from './logger';
 export async function sendMidJourneyPromptViaPuppeteer(prompt: string) {
   const browser = await puppeteer.launch({ 
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    timeout: 30000
   });
   
   try {
