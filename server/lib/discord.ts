@@ -191,3 +191,50 @@ client.on('messageCreate', async (message) => {
     }
   }
 });
+
+export async function findSimilarYorkieImage(description: string): Promise<{imageUrl: string, prompt: string}> {
+  try {
+    const messages = await fetchDiscordChannelMessages(200);
+    const yorkieMessages = messages.filter(msg => 
+      (msg.content.toLowerCase().includes('yorkie') || 
+       msg.content.toLowerCase().includes('yorkshire')) &&
+      msg.attachments.length > 0
+    );
+
+    // Try to find style matches first
+    const styleMatches = yorkieMessages.filter(msg => 
+      msg.content.toLowerCase().includes(description.toLowerCase())
+    );
+
+    if (styleMatches.length > 0) {
+      const selected = styleMatches[Math.floor(Math.random() * styleMatches.length)];
+      return {
+        imageUrl: selected.attachments[0].url,
+        prompt: selected.content
+      };
+    }
+
+    // Fallback to cartoon yorkies
+    const cartoonMatches = yorkieMessages.filter(msg => 
+      msg.content.toLowerCase().includes('cartoon')
+    );
+
+    if (cartoonMatches.length > 0) {
+      const selected = cartoonMatches[Math.floor(Math.random() * cartoonMatches.length)];
+      return {
+        imageUrl: selected.attachments[0].url,
+        prompt: selected.content
+      };
+    }
+
+    // Last resort: return any yorkie image
+    const selected = yorkieMessages[Math.floor(Math.random() * yorkieMessages.length)];
+    return {
+      imageUrl: selected.attachments[0].url,
+      prompt: selected.content
+    };
+  } catch (error) {
+    console.error("Error finding Yorkie image:", error);
+    throw new Error("Failed to find a suitable Yorkie image.");
+  }
+}

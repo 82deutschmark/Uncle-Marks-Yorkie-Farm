@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import { storage } from "../storage";
 import { log } from "../lib/logger";
@@ -9,6 +8,24 @@ import { midJourneyPromptSchema } from "../../shared/schema";
 import { ZodError } from "zod";
 import * as fs from 'fs/promises';
 import path from "path";
+
+// Assumed implementation - needs to be properly implemented based on actual data structures
+async function findSimilarYorkieImage(description: string): Promise<any[] | null> {
+  // Replace this with actual search logic.  This example just simulates finding some matches.
+  const matches = [];
+  if (description.includes("Yorkie") || description.includes("Yorkshire")) {
+    matches.push({id:1, path: 'path1'});
+    matches.push({id:2, path: 'path2'});
+    matches.push({id:3, path: 'path3'});
+  } else if (description.includes("cartoon") && (description.includes("Yorkie") || description.includes("Yorkshire"))) {
+      matches.push({id:4, path: 'path4'});
+      matches.push({id:5, path: 'path5'});
+      matches.push({id:6, path: 'path6'});
+  }
+  return matches.length > 0 ? matches.slice(0,3) : null;
+
+}
+
 
 export async function uploadImageHandler(req: Request, res: Response) {
   try {
@@ -100,9 +117,18 @@ export async function generateImageHandler(req: Request, res: Response) {
   try {
     log.info('Received MidJourney generation request:', { body: req.body });
     const prompt = midJourneyPromptSchema.parse(req.body);
-    
+
     if (!prompt.protagonist || !prompt.artStyle) {
       throw new Error('Invalid prompt parameters');
+    }
+
+    const matches = await findSimilarYorkieImage(prompt.description || `A Yorkshire Terrier ${prompt.protagonist.appearance} with ${prompt.protagonist.personality} personality`);
+
+    if (matches) {
+        //Use the matches
+        log.info('Found similar images', { matches });
+        res.json({message: 'Found similar images', images: matches});
+        return;
     }
 
     const newImage = await storage.createImage({
