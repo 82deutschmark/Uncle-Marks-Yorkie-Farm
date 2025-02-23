@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { StoryParams } from "@shared/schema";
 
 interface StoryDetails {
   colors: string[];
@@ -25,6 +26,7 @@ interface GenerationState {
     completed: boolean;
     loading: boolean;
     error?: string;
+    imageIds?: number[];
   };
   story: {
     completed: boolean;
@@ -60,15 +62,24 @@ export default function ReviewPage() {
 
   // Load all selections from localStorage
   useEffect(() => {
-    const details: StoryDetails = {
-      colors: JSON.parse(localStorage.getItem("yorkieColors") || "[]"),
-      personality: localStorage.getItem("yorkiePersonality") || "",
-      theme: localStorage.getItem("yorkieTheme") || "",
-      antagonist: localStorage.getItem("yorkieAntagonist") || "",
-      farmElements: JSON.parse(localStorage.getItem("yorkieElements") || "[]"),
-      artStyles: JSON.parse(localStorage.getItem("yorkieArtStyles") || "[]")
-    };
-    setStoryDetails(details);
+    try {
+      const details: StoryDetails = {
+        colors: JSON.parse(localStorage.getItem("yorkieColors") || "[]"),
+        personality: localStorage.getItem("yorkiePersonality") || "",
+        theme: localStorage.getItem("yorkieTheme") || "",
+        antagonist: localStorage.getItem("yorkieAntagonist") || "",
+        farmElements: JSON.parse(localStorage.getItem("yorkieElements") || "[]"),
+        artStyles: JSON.parse(localStorage.getItem("yorkieArtStyles") || "[]")
+      };
+      setStoryDetails(details);
+    } catch (error) {
+      console.error('Error loading story details:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load story details. Please try again.",
+        variant: "destructive"
+      });
+    }
   }, []);
 
   const handleGenerateCharacters = async () => {
@@ -78,7 +89,8 @@ export default function ReviewPage() {
     }));
 
     try {
-      const storyParams = {
+      // Prepare character generation parameters
+      const params = {
         protagonist: {
           personality: storyDetails.personality,
           appearance: `A beautiful Yorkshire Terrier with ${storyDetails.colors.join(" and ").toLowerCase()} colors`
@@ -92,7 +104,7 @@ export default function ReviewPage() {
       // Send request to generate character illustrations
       const response = await apiRequest("/api/images/generate", {
         method: "POST",
-        body: JSON.stringify(storyParams)
+        body: JSON.stringify(params)
       });
 
       if (response.error) {
@@ -101,7 +113,11 @@ export default function ReviewPage() {
 
       setGenerationState(prev => ({
         ...prev,
-        characters: { loading: false, completed: true }
+        characters: { 
+          loading: false, 
+          completed: true,
+          imageIds: response.imageIds 
+        }
       }));
 
       toast({
@@ -134,7 +150,7 @@ export default function ReviewPage() {
     }));
 
     try {
-      const storyParams = {
+      const storyParams: StoryParams = {
         protagonist: {
           personality: storyDetails.personality,
           appearance: `A beautiful Yorkshire Terrier with ${storyDetails.colors.join(" and ").toLowerCase()} colors`
@@ -146,7 +162,7 @@ export default function ReviewPage() {
           description: `A magical blend of ${storyDetails.artStyles.join(", ")}`
         },
         antagonist: {
-          type: storyDetails.antagonist as any,
+          type: storyDetails.antagonist as any, // Type will be validated by schema
           personality: "playful yet challenging"
         },
         farmElements: storyDetails.farmElements
@@ -170,9 +186,6 @@ export default function ReviewPage() {
           data: response
         }
       }));
-
-      // Save story data for the viewer
-      localStorage.setItem("generatedStory", JSON.stringify(response));
 
       toast({
         title: "Success",
@@ -201,52 +214,53 @@ export default function ReviewPage() {
     const storyData = generationState.story.data;
     if (storyData?.id) {
       setLocation(`/story/${storyData.id}`);
+    } else {
+      toast({
+        title: "Error",
+        description: "Story data is not available. Please try generating the story again.",
+        variant: "destructive"
+      });
     }
   };
 
-  // Function to generate API command preview for developer mode
-  const getOpenAIPreview = () => {
-    return {
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a master storyteller specializing in children's literature. Create an engaging, age-appropriate story that captures the magic and charm of Yorkshire Terriers while weaving in important life lessons. The story should be suitable for reading aloud, with clear narrative flow and engaging dialogue."
-        },
-        {
-          role: "user",
-          content: `Create a children's story with these elements:
+  // Developer mode preview functions
+  const getOpenAIPreview = () => ({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You are a master storyteller specializing in children's literature. Create an engaging, age-appropriate story that captures the magic and charm of Yorkshire Terriers while weaving in important life lessons."
+      },
+      {
+        role: "user",
+        content: `Create a children's story with these elements:
 - Main Character: A ${storyDetails.personality.toLowerCase()} Yorkshire Terrier with ${storyDetails.colors.join(" and ")} colors
 - Setting: Uncle Mark's Farm, featuring ${storyDetails.farmElements.join(", ")}
 - Theme: ${storyDetails.theme}
 - Antagonist: ${storyDetails.antagonist}
-- Tone: Magical and lighthearted, suitable for young readers
-- Story Structure: Clear beginning, middle, and end with a positive message
-- Length: Approximately 1000 words, divided into scenes suitable for illustrations`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
-    };
-  };
+- Tone: Magical and lighthearted, suitable for young readers`
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: 2000
+  });
 
-  // Function to generate MidJourney command preview for developer mode
-  const getMidJourneyPreview = () => {
-    return {
-      prompt: `/imagine Yorkshire Terrier, ${storyDetails.colors.join(" and ")}, ${storyDetails.personality.toLowerCase()}, magical farm setting, ${storyDetails.artStyles.join(", ")}, watercolor, whimsical, children book illustration, detailed, vibrant, whimsical "Uncle Mark's Yorkie Farm" --s 550 --p --ar 3:3 --c 50 --w 1255`,
-      channelId: import.meta.env.VITE_DISCORD_CHANNEL_ID,
-      botId: import.meta.env.VITE_MIDJOURNEY_BOT_ID
-    };
-  };
+  const getMidJourneyPreview = () => ({
+    prompt: `/imagine Yorkshire Terrier, ${storyDetails.colors.join(" and ")}, ${storyDetails.personality.toLowerCase()}, magical farm setting, ${storyDetails.artStyles.join(", ")}, whimsical children's book illustration style --ar 1:1 --v 5.2`,
+    artStyle: storyDetails.artStyles[0],
+    description: `A magical blend of ${storyDetails.artStyles.join(", ")}`
+  });
 
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Progress indicator */}
         <div className="w-full">
           <Progress value={100} className="w-full" />
           <p className="text-sm text-muted-foreground mt-2">Final Step: Review & Generate</p>
         </div>
 
+        {/* Header with developer mode toggle */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Review Your Story</h1>
           <div className="flex items-center gap-2">
@@ -259,6 +273,7 @@ export default function ReviewPage() {
           </div>
         </div>
 
+        {/* Main content card */}
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl font-serif">Story Details</CardTitle>
@@ -371,6 +386,7 @@ export default function ReviewPage() {
               </div>
             </ScrollArea>
 
+            {/* Action Buttons */}
             <div className="flex flex-col gap-4 mt-6 pt-6 border-t">
               {/* Character Generation Button */}
               <Button

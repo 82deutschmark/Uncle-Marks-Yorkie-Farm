@@ -146,7 +146,7 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
   }
 }
 
-// Listen for MidJourney responses with simplified message handling
+// Listen for MidJourney responses with image processing
 client.on('messageCreate', async (message) => {
   // Only process messages from MidJourney bot
   if (message.author.id !== process.env.MIDJOURNEY_BOT_ID) return;
@@ -156,6 +156,7 @@ client.on('messageCreate', async (message) => {
     hasAttachments: message.attachments.size > 0
   });
 
+  // Log the response for debugging
   await storage.addDebugLog("midjourney", "response", {
     event: "message_received",
     content: message.content,
@@ -166,4 +167,31 @@ client.on('messageCreate', async (message) => {
     })),
     timestamp: new Date().toISOString()
   });
+
+  // Process any image attachments
+  for (const attachment of message.attachments.values()) {
+    if (attachment.contentType?.startsWith('image/')) {
+      try {
+        // Save the image URL to your storage
+        await storage.createImage({
+          bookId: 1, // Default book ID
+          path: attachment.url,
+          order: 0,
+          selected: false,
+          analyzed: false,
+          midjourney: {
+            status: 'completed',
+            imageUrl: attachment.url
+          }
+        });
+
+        log.info('Successfully saved MidJourney image:', {
+          url: attachment.url,
+          size: attachment.size
+        });
+      } catch (error) {
+        log.error('Failed to save MidJourney image:', error);
+      }
+    }
+  }
 });
