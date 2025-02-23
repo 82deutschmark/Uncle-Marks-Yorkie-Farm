@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupVite, serveStatic } from "./vite";
+import { log } from "./lib/logger";
 
 const app = express();
 app.use(express.json());
@@ -29,7 +30,7 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      log.info(logLine);
     }
   });
 
@@ -45,10 +46,12 @@ app.use((req, res, next) => {
     const message = err.message || "Internal Server Error";
 
     // Log the error for debugging
-    console.error('Error:', {
+    log.error('Error:', {
       status,
       message,
-      stack: err.stack
+      stack: err.stack,
+      name: err.name,
+      code: err.code
     });
 
     // Send error response to client
@@ -70,6 +73,6 @@ app.use((req, res, next) => {
   // ALWAYS serve the app on port 5000
   const PORT = 5000;
   server.listen(PORT, "0.0.0.0", () => {
-    log(`serving on port ${PORT}`);
+    log.info(`serving on port ${PORT}`);
   });
 })();

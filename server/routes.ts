@@ -4,7 +4,7 @@ import multer from "multer";
 import path from "path";
 import express from "express";
 import { storage } from "./storage";
-import { log } from "./lib/logger";
+import { log, requestLogger, errorLogger } from "./lib/logger";
 import { generateStory, analyzeImage } from "./lib/openai";
 import { insertStorySchema, midjourneyPromptSchema, type StoryParams } from "@shared/schema";
 import { OpenAIError } from "./lib/errors";
@@ -19,6 +19,9 @@ interface MulterRequest extends Request {
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
+
+  // Add request logging middleware
+  app.use(requestLogger);
 
   // Add JSON body parsing middleware
   app.use(express.json());
@@ -35,6 +38,8 @@ export async function registerRoutes(app: Express) {
   app.post("/api/stories/generate", async (req, res) => {
     try {
       const { characteristics, colors, theme, antagonist } = req.body;
+
+      log.info('Generating story', { characteristics, colors, theme });
 
       // Generate story with proper parameter structure
       const response = await generateStory({
@@ -68,9 +73,15 @@ export async function registerRoutes(app: Express) {
 
       const parsedStory = insertStorySchema.parse(story);
       const savedStory = await storage.createStory(parsedStory);
+
+      log.info('Story generated successfully', { 
+        storyId: savedStory.id,
+        title: savedStory.title
+      });
+
       res.json(savedStory);
     } catch (error) {
-      log('Story generation error:', error);
+      log.apiError('Story generation error:', error);
 
       if (error instanceof OpenAIError) {
         return res.status(error.statusCode).json({
@@ -92,15 +103,18 @@ export async function registerRoutes(app: Express) {
   app.get("/api/stories/:id", async (req, res) => {
     try {
       const storyId = parseInt(req.params.id, 10);
+      log.info('Fetching story', { storyId });
+
       const story = await storage.getStory(storyId);
 
       if (!story) {
+        log.warn('Story not found', { storyId });
         return res.status(404).json({ error: 'Story not found' });
       }
 
       res.json(story);
     } catch (error) {
-      log('Error fetching story:', error);
+      log.apiError('Error fetching story:', error);
       res.status(500).json({
         error: 'Failed to fetch story',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -112,14 +126,14 @@ export async function registerRoutes(app: Express) {
   app.post("/api/upload", upload.single('file'), async (req: MulterRequest, res) => {
     try {
       if (!req.file) {
-        log('Upload failed: No file provided');
+        log.warn('Upload failed: No file provided');
         return res.status(400).json({ error: 'No file provided' });
       }
 
       const bookId = parseInt(req.body.bookId || '1', 10);
 
       // Log upload details
-      log('Processing upload:', {
+      log.info('Processing upload:', {
         filename: req.file.originalname,
         size: req.file.size,
         type: req.file.mimetype,
@@ -128,7 +142,7 @@ export async function registerRoutes(app: Express) {
 
       // Process the file (either ZIP or single image)
       const images = await storage.saveUploadedFile(req.file.buffer, req.file.originalname, bookId);
-      log(`Successfully processed ${images.length} image(s)`);
+      log.info(`Successfully processed ${images.length} image(s)`);
 
       // Return success with image data
       res.json({
@@ -140,7 +154,7 @@ export async function registerRoutes(app: Express) {
         }))
       });
     } catch (error) {
-      log('Upload error:', error);
+      log.apiError('Upload error:', error);
       res.status(500).json({
         error: 'Upload failed',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -152,9 +166,12 @@ export async function registerRoutes(app: Express) {
   app.post("/api/images/:id/analyze", async (req, res) => {
     try {
       const imageId = parseInt(req.params.id, 10);
+      log.info('Analyzing image', { imageId });
+
       const image = await storage.getImage(imageId);
 
       if (!image) {
+        log.warn('Image not found', { imageId });
         return res.status(404).json({
           error: 'Not Found',
           message: 'Image not found'
@@ -174,9 +191,10 @@ export async function registerRoutes(app: Express) {
         }
       });
 
+      log.info('Image analysis completed', { imageId });
       res.json(updatedImage);
     } catch (error) {
-      log('Image analysis error:', error);
+      log.apiError('Image analysis error:', error);
 
       if (error instanceof OpenAIError) {
         res.status(error.statusCode).json({
@@ -198,10 +216,11 @@ export async function registerRoutes(app: Express) {
   // Add GET endpoint for listing images
   app.get("/api/images", async (req, res) => {
     try {
+      log.info('Fetching all images');
       const images = await storage.getAllImages();
       res.json(images);
     } catch (error) {
-      log('Error fetching images:', error);
+      log.apiError('Error fetching images:', error);
       res.status(500).json({
         error: 'Failed to fetch images',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -213,6 +232,7 @@ export async function registerRoutes(app: Express) {
   app.post("/api/images/generate", async (req, res) => {
     try {
       const prompt = midjourneyPromptSchema.parse(req.body);
+      log.info('Starting MidJourney image generation', { prompt });
 
       // Create a new image record with pending status
       const newImage = await storage.createImage({
@@ -231,13 +251,14 @@ export async function registerRoutes(app: Express) {
       // Send prompt to Discord
       await sendMidJourneyPrompt(prompt);
 
+      log.info('Image generation started', { imageId: newImage.id });
       res.json({
         message: 'Image generation started',
         imageId: newImage.id,
         status: 'pending'
       });
     } catch (error) {
-      log('MidJourney prompt error:', error);
+      log.apiError('MidJourney prompt error:', error);
 
       if (error instanceof DiscordError) {
         return res.status(error.statusCode).json({
@@ -254,6 +275,9 @@ export async function registerRoutes(app: Express) {
       });
     }
   });
+
+  // Add error logging middleware last
+  app.use(errorLogger);
 
   return httpServer;
 }

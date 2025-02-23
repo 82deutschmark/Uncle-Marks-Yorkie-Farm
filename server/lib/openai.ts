@@ -24,12 +24,12 @@ async function withRetry<T>(
   try {
     return await operation();
   } catch (error) {
-    log('OpenAI API Error:', error);
+    log.apiError('OpenAI API Error:', error);
     const openAIError = OpenAIError.fromError(error);
 
     if (openAIError.retryable && retries > 0) {
       const backoffDelay = calculateBackoff(MAX_RETRIES - retries, delay);
-      log(`Retrying OpenAI request after ${backoffDelay}ms. Attempts remaining: ${retries}`);
+      log.info(`Retrying OpenAI request after ${backoffDelay}ms. Attempts remaining: ${retries}`);
       await new Promise(resolve => setTimeout(resolve, backoffDelay));
       return withRetry(operation, retries - 1, delay);
     }
@@ -102,7 +102,7 @@ Provide your response in this exact JSON format:
 }`;
 
   return withRetry(async () => {
-    log('Initiating story generation request to OpenAI');
+    log.info('Initiating story generation request to OpenAI');
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -125,7 +125,7 @@ Provide your response in this exact JSON format:
       throw new OpenAIError("No content received from OpenAI");
     }
 
-    log('Successfully received story from OpenAI');
+    log.info('Successfully received story from OpenAI');
     return JSON.parse(content) as StoryResponse;
   });
 }
@@ -138,7 +138,7 @@ interface CharacterProfile {
 
 export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
   return withRetry(async () => {
-    log('Initiating image analysis request to OpenAI');
+    log.info('Initiating image analysis request to OpenAI');
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -179,7 +179,7 @@ Format your response as JSON with:
       throw new OpenAIError("No content received from OpenAI");
     }
 
-    log('Successfully received character profile from OpenAI');
+    log.info('Successfully received character profile from OpenAI');
     return JSON.parse(content) as CharacterProfile;
   });
 }
