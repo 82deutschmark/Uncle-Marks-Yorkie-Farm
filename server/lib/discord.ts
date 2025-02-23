@@ -238,3 +238,28 @@ export async function findSimilarYorkieImage(description: string): Promise<{imag
     throw new Error("Failed to find a suitable Yorkie image.");
   }
 }
+export async function findSimilarYorkieImage(description: string) {
+  try {
+    const channel = client.channels.cache.get(process.env.DISCORD_CHANNEL_ID!);
+    if (!channel || !channel.isTextBased()) {
+      throw new DiscordError('Invalid channel configuration', 500, false);
+    }
+
+    const messages = await channel.messages.fetch({ limit: 100 });
+    const imageMessages = messages.filter(msg => msg.attachments.size > 0);
+    
+    // Filter for upscaled images only
+    const yorkieImages = imageMessages.map(msg => ({
+      url: msg.attachments.first()?.url,
+      id: msg.id,
+      timestamp: msg.createdTimestamp
+    })).filter(img => img.url);
+
+    return {
+      images: yorkieImages,
+      count: yorkieImages.length
+    };
+  } catch (error) {
+    throw new DiscordError(`Failed to search images: ${error instanceof Error ? error.message : 'Unknown error'}`, 500, false);
+  }
+}
