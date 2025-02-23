@@ -57,7 +57,7 @@ export async function registerRoutes(app: Express) {
       const story = {
         title: storyResponse.title,
         protagonist: `${req.body.colors} Yorkshire Terrier`,
-        setting: req.body.setting,
+        setting: "Uncle Mark's Farm", // Add the required setting field
         theme: req.body.theme,
         content: storyResponse.content,
         selectedImages: {
