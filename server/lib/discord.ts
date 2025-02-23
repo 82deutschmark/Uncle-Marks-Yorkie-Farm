@@ -22,52 +22,26 @@ client.once('ready', () => {
     guilds: client.guilds.cache.size
   });
 
-  storage.addDebugLog("midjourney", "response", {
-    event: "ready",
-    status: "Bot successfully connected",
-    botUsername: client.user?.tag
-  }).catch(error => log.error('Failed to log bot ready status:', error));
 });
 
 client.on('error', (error) => {
   isConnected = false;
   log.error('Discord bot error:', error);
-  storage.addDebugLog("midjourney", "error", {
-    event: "client_error",
-    error: error.message,
-    stack: error.stack
-  }).catch(error => log.error('Failed to log bot error:', error));
 });
 
 // Start bot if token is available
 const botToken = process.env.DISCORD_BOT_TOKEN;
 if (!botToken) {
   log.error('Discord bot token is missing');
-  storage.addDebugLog("midjourney", "error", {
-    event: "missing_token",
-    error: "DISCORD_BOT_TOKEN is not configured"
-  }).catch(error => log.error('Failed to log missing token:', error));
 } else {
   client.login(botToken).catch((error) => {
     log.error('Failed to login to Discord:', error);
-    storage.addDebugLog("midjourney", "error", {
-      event: "login_failed",
-      error: error.message,
-      stack: error.stack
-    }).catch(error => log.error('Failed to log login error:', error));
   });
 }
 
 export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<void> {
   try {
-    await storage.addDebugLog("midjourney", "request", {
-      event: "send_prompt",
-      prompt,
-      botStatus: {
-        connected: isConnected,
-        username: client.user?.tag
-      }
-    });
+    log.info('Starting MidJourney prompt generation', { prompt });
 
     // Check bot connection status
     if (!isConnected || !client.isReady()) {
@@ -110,29 +84,13 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
     // Send the prompt
     await channel.send(formattedPrompt);
 
-    await storage.addDebugLog("midjourney", "response", {
-      event: "prompt_sent",
-      channel: channelId,
-      prompt: formattedPrompt,
-      timestamp: new Date().toISOString()
-    });
-
     log.info('Successfully sent prompt through bot:', {
       prompt: formattedPrompt,
       channel: channelId,
       botUsername: client.user?.tag
     });
   } catch (error) {
-    await storage.addDebugLog("midjourney", "error", {
-      event: "send_prompt_failed",
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      prompt,
-      botStatus: {
-        connected: isConnected,
-        username: client.user?.tag
-      }
-    });
+    log.error('Failed to send prompt:', error);
 
     if (error instanceof DiscordError) {
       throw error;
@@ -155,17 +113,6 @@ client.on('messageCreate', async (message) => {
     hasAttachments: message.attachments.size > 0
   });
 
-  // Log the response for debugging
-  await storage.addDebugLog("midjourney", "response", {
-    event: "message_received",
-    content: message.content,
-    attachments: Array.from(message.attachments.values()).map(a => ({
-      url: a.url,
-      contentType: a.contentType,
-      size: a.size
-    })),
-    timestamp: new Date().toISOString()
-  });
 
   // Process any image attachments
   const attachments = Array.from(message.attachments.values());
