@@ -8,6 +8,7 @@ import { Loader2, Wand2, ChevronRight, ImagePlus, AlertCircle } from "lucide-rea
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { ImageGallery } from "@/components/image-gallery";
 
 enum GenerationStage {
   GENERATING_STORY,
@@ -158,7 +159,7 @@ export default function StoryGenerationPage() {
         return {
           title: "Creating Your Magical Story",
           description: `Our AI is crafting a unique tale just for you... (${timeElapsed}s)`,
-          subtext: retryAttempt > 0 
+          subtext: retryAttempt > 0
             ? `Attempt ${retryAttempt + 1} - This usually takes about 20 seconds`
             : "This usually takes about 20 seconds"
         };
@@ -183,6 +184,14 @@ export default function StoryGenerationPage() {
     }
   };
 
+  // Placeholder images - these will be replaced with actual images from the database
+  const placeholderImages = [
+    "/placeholder/yorkie1.jpg",
+    "/placeholder/yorkie2.jpg",
+    "/placeholder/yorkie3.jpg",
+    "/placeholder/yorkie4.jpg",
+  ];
+
   const renderContent = () => {
     const message = getStageMessage();
 
@@ -199,6 +208,10 @@ export default function StoryGenerationPage() {
                 )}
                 <h2 className="text-2xl font-serif text-center">{message.title}</h2>
                 <p className="text-muted-foreground text-center">{message.description}</p>
+
+                {/* Add ImageGallery component */}
+                <ImageGallery images={placeholderImages} />
+
                 <Progress value={progress} className="w-full" />
                 <p className="text-sm text-muted-foreground">{message.subtext}</p>
               </div>
@@ -224,8 +237,8 @@ export default function StoryGenerationPage() {
                 <h3 className="font-semibold text-xl">{storyData?.metadata.protagonist.name}</h3>
                 <p className="text-muted-foreground">{storyData?.metadata.protagonist.personality}</p>
               </div>
-              <Button 
-                onClick={handleDrawCharacter} 
+              <Button
+                onClick={handleDrawCharacter}
                 disabled={drawCharacterMutation.isPending}
                 className="w-full"
               >
@@ -267,7 +280,7 @@ export default function StoryGenerationPage() {
             <CardContent className="p-6 text-center space-y-6">
               <h2 className="text-2xl font-serif">{message.title}</h2>
               <p className="text-muted-foreground">{message.description}</p>
-              <Button 
+              <Button
                 onClick={() => setLocation(`/story/${storyData?.id}`)}
                 className="mx-auto"
               >
