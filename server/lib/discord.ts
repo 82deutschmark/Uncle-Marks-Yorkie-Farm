@@ -99,6 +99,9 @@ async function constructInteractionPayload(prompt: string) {
 }
 
 export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<void> {
+  if (!process.env.DISCORD_USER_TOKEN || !process.env.DISCORD_CHANNEL_ID) {
+    throw new Error('Discord configuration missing. Please check environment variables.');
+  }
   try {
     log.info('Starting MidJourney prompt generation', { prompt });
 

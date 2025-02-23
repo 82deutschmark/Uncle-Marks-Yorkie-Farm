@@ -267,8 +267,17 @@ export async function registerRoutes(app: Express) {
         }
       });
 
-      // Send prompt to Discord
-      await sendMidJourneyPrompt(prompt);
+      try {
+        // Send prompt to Discord
+        await sendMidJourneyPrompt(prompt);
+      } catch (discordError) {
+        log.error('Discord prompt error:', discordError);
+        throw new DiscordError({
+          message: discordError instanceof Error ? discordError.message : 'Failed to send prompt to Discord',
+          statusCode: 500,
+          retryable: true
+        });
+      }
 
       log.info('Image generation started', { imageId: newImage.id });
       res.json({
