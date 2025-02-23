@@ -2,9 +2,8 @@ import { Request, Response } from "express";
 import { storage } from "../storage";
 import { log } from "../lib/logger";
 import { analyzeImage } from "../lib/openai";
-import { sendMidJourneyPrompt } from "../lib/discord";
-import { OpenAIError, DiscordError } from "../lib/errors";
-import { midJourneyPromptSchema } from "../../shared/schema";
+import { OpenAIError } from "../lib/errors";
+import { midJourneyPromptSchema, type MidJourneyPrompt } from "../../shared/schema";
 import { ZodError } from "zod";
 import * as fs from 'fs/promises';
 import path from "path";
@@ -118,51 +117,12 @@ export async function generateImageHandler(req: Request, res: Response) {
     log.info('Received MidJourney generation request:', { body: req.body });
     const prompt = midJourneyPromptSchema.parse(req.body);
 
-    if (!prompt.protagonist || !prompt.artStyle) {
-      throw new Error('Invalid prompt parameters');
-    }
+    const result = await generateImage(prompt);
+    res.json(result);
 
-    const matches = await findSimilarYorkieImage(prompt.description || `A Yorkshire Terrier ${prompt.protagonist.appearance} with ${prompt.protagonist.personality} personality`);
 
-    if (matches) {
-        //Use the matches
-        log.info('Found similar images', { matches });
-        res.json({message: 'Found similar images', images: matches});
-        return;
-    }
-
-    const newImage = await storage.createImage({
-      bookId: 1,
-      path: '',
-      order: 0,
-      selected: false,
-      analyzed: false,
-      midjourney: {
-        prompt: prompt.description || `A Yorkshire Terrier ${prompt.protagonist.appearance} with ${prompt.protagonist.personality} personality`,
-        status: 'pending',
-        artStyle: prompt.artStyle.style
-      }
-    });
-
-    await sendMidJourneyPrompt(prompt);
-
-    log.info('Image generation started', { imageId: newImage.id });
-    res.json({
-      message: 'Image generation started',
-      imageId: newImage.id,
-      status: 'pending',
-      imageIds: [newImage.id]
-    });
   } catch (error) {
     log.error('MidJourney prompt error:', error);
-
-    if (error instanceof DiscordError) {
-      return res.status(error.statusCode).json({
-        error: 'Discord Integration Error',
-        message: error.message,
-        retry: error.retryable
-      });
-    }
 
     if (error instanceof ZodError) {
       return res.status(400).json({
@@ -172,10 +132,50 @@ export async function generateImageHandler(req: Request, res: Response) {
       });
     }
 
-    res.status(500).json({
+    res.status(error?.status || 500).json({
       error: 'Failed to start image generation',
       message: error instanceof Error ? error.message : 'Unknown error occurred',
       retry: false
     });
+  }
+}
+
+export async function generateImage(prompt: MidJourneyPrompt) {
+  try {
+    const newImage = await storage.createImage({
+      bookId: 1,
+      path: '',
+      order: 0,
+      selected: false,
+      analyzed: false,
+      midjourney: {
+        prompt: prompt.description || `A Yorkshire Terrier ${prompt.protagonist.appearance} with ${prompt.protagonist.personality} personality`,
+        status: 'completed',
+        artStyle: prompt.artStyle.style
+      }
+    });
+
+    log.info('Image generation started', { imageId: newImage.id });
+    return {
+      message: 'Image generation started',
+      imageId: newImage.id,
+      status: 'completed',
+      imageIds: [newImage.id]
+    };
+  } catch (error) {
+    log.error('Image generation error:', error);
+
+    if (error instanceof ZodError) {
+      throw {
+        status: 400,
+        message: 'The request payload is invalid',
+        details: error.errors
+      };
+    }
+
+    throw {
+      status: 500,
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
   }
 }
