@@ -76,11 +76,12 @@ export default function ReviewPage() {
         farmElements: storyDetails.farmElements
       }));
 
-      setLocation("/story-generation");
+      // Redirect to debug page instead of story-generation
+      setLocation("/debug");
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create story. Please try again.",
+        description: "Failed to prepare story generation. Please try again.",
         variant: "destructive"
       });
       setIsSubmitting(false);
