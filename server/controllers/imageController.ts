@@ -5,7 +5,7 @@ import { log } from "../lib/logger";
 import { analyzeImage } from "../lib/openai";
 import { sendMidJourneyPrompt } from "../lib/discord";
 import { OpenAIError, DiscordError } from "../lib/errors";
-import { midJourneyPromptSchema } from "@shared/schema";
+import { midJourneyPromptSchema } from "../../shared/schema";
 import { ZodError } from "zod";
 import * as fs from 'fs/promises';
 import path from "path";
