@@ -31,6 +31,11 @@ interface GenerationState {
     error?: string;
     data?: any;
   };
+  images: {
+    loading: boolean;
+    options: { id: string; url: string }[];
+    selectedId?: string;
+  };
 }
 
 export default function ReviewPage() {
@@ -46,6 +51,11 @@ export default function ReviewPage() {
     story: {
       completed: false,
       loading: false
+    },
+    images: {
+      loading: false,
+      options: [],
+      selectedId: undefined
     }
   });
 
@@ -121,6 +131,43 @@ export default function ReviewPage() {
     const prompt = `A heartwarming ${storyDetails.artStyles.join(", ")} style illustration of a Yorkshire Terrier with ${storyDetails.colors.join(", ")} fur, displaying a ${storyDetails.personality} personality. Set in Uncle Mark's Farm, featuring ${storyDetails.farmElements.join(", ")}. The story involves ${storyDetails.antagonist} as a playful antagonist. ${storyDetails.theme} theme. --ar 16:9 --style raw`;
     setMidjourneyPrompt(prompt);
   };
+
+  const fetchImages = async () => {
+    setGenerationState((prev) => ({
+      ...prev,
+      images: { ...prev.images, loading: true },
+    }));
+    try {
+      const response = await fetch('/api/images/random', {method: 'GET'});
+      const data = await response.json();
+      const imageOptions = data.images.map((url, index) => ({id: index.toString(), url}));
+      setGenerationState((prev) => ({
+        ...prev,
+        images: {
+          ...prev.images,
+          loading: false,
+          options: imageOptions,
+          selectedId: imageOptions[0].id
+        }
+      }));
+    } catch (error) {
+      console.error("Error fetching images:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch images. Please try again.",
+        variant: "destructive",
+      });
+      setGenerationState((prev) => ({
+        ...prev,
+        images: { ...prev.images, loading: false },
+      }));
+    }
+  };
+
+  useEffect(() => {
+    fetchImages();
+  }, []);
+
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -248,6 +295,39 @@ export default function ReviewPage() {
                     {midjourneyPrompt}
                   </pre>
                 )}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold">Select Your Story Image</h2>
+                    <Button onClick={fetchImages} disabled={generationState.images.loading} variant="outline">
+                      {generationState.images.loading ? "Loading..." : "Reroll Images"}
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {generationState.images.options.map((image) => (
+                      <div
+                        key={image.id}
+                        className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${
+                          generationState.images.selectedId === image.id
+                            ? 'border-primary'
+                            : 'border-transparent'
+                        }`}
+                        onClick={() =>
+                          setGenerationState((prev) => ({
+                            ...prev,
+                            images: { ...prev.images, selectedId: image.id },
+                          }))
+                        }
+                      >
+                        <img
+                          src={image.url}
+                          alt="Story illustration option"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
