@@ -12,6 +12,7 @@ import ArtStylePage from "@/pages/create/art-style";
 import ReviewPage from "@/pages/create/review";
 import StoryGenerationPage from "@/pages/story-generation";
 import YorkieSelector from "@/pages/yorkie-selector";
+import DebugPage from "@/pages/debug";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/story/:id" component={StoryViewer} />
       <Route path="/story-generation" component={StoryGenerationPage} />
       <Route path="/select-yorkie" component={YorkieSelector} />
+      <Route path="/debug" component={DebugPage} />
       <Route component={NotFound} />
     </Switch>
   );
