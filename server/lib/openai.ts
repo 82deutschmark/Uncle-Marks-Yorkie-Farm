@@ -4,7 +4,7 @@ import { log } from "./logger";
 import type { StoryParams, StoryResponse } from "@shared/schema";
 import { storage } from "../storage";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+// Use gpt-4-turbo-preview for optimal performance in chat completions
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MAX_RETRIES = 3;
@@ -49,12 +49,12 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
   return withRetry(async () => {
     try {
       await storage.addDebugLog("openai", "request", {
-        model: "gpt-4o",
+        model: "gpt-4-turbo-preview",
         params
       });
 
       log.info('Initiating story generation request to OpenAI', {
-        model: "gpt-4o",
+        model: "gpt-4-turbo-preview",
         theme: params.theme,
         artStyle: params.artStyle.style
       });
@@ -91,7 +91,7 @@ Response Format:
 }`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4-turbo-preview",
         messages: [
           {
             role: "system",
@@ -153,7 +153,7 @@ export async function generateCharacterImagePrompt(params: CharacterImagePrompt)
     log.info('Generating character image prompt');
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-turbo-preview",
       messages: [
         {
           role: "system",
@@ -191,7 +191,7 @@ export async function analyzeImage(base64Image: string): Promise<CharacterProfil
   return withRetry(async () => {
     log.info('Initiating image analysis request to OpenAI');
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-turbo-preview",
       messages: [
         {
           role: "system",
