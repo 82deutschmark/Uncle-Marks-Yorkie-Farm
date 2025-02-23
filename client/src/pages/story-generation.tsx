@@ -26,6 +26,7 @@ interface StoryResponse {
       name: string;
       personality: string;
     };
+    image_urls?: string[];
   };
 }
 
@@ -47,12 +48,10 @@ export default function StoryGenerationPage() {
     let interval: NodeJS.Timeout;
 
     if (currentStage === GenerationStage.GENERATING_STORY) {
-      // Start progress timer
       interval = setInterval(() => {
         setTimeElapsed(prev => prev + 1);
         setProgress(prev => {
-          // Estimated time: 20 seconds
-          const newProgress = Math.min((prev + 5), 95);
+          const newProgress = Math.min((prev + 2), 95); // Slower progress for concurrent generation
           return newProgress;
         });
       }, 1000);
@@ -75,23 +74,31 @@ export default function StoryGenerationPage() {
     }
   }, [retryTimeout]);
 
-  // Query to generate the story with proper error handling
-  const { error } = useQuery<StoryResponse>({
+  // Query to generate the story and character image concurrently
+  const { error } = useQuery({
     queryKey: ['/api/stories/generate', retryAttempt],
     queryFn: async () => {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for both generations
 
       try {
         const response = await apiRequest("/api/stories/generate", {
           method: "POST",
-          body: JSON.stringify(storyParams),
+          body: JSON.stringify({
+            ...storyParams,
+            generate_image: true // Flag to trigger concurrent image generation
+          }),
           signal: controller.signal
         });
+
+        if (response.error) {
+          throw new Error(response.error);
+        }
+
         return response;
       } catch (error: any) {
         if (error.name === 'AbortError') {
-          throw new Error('Request timed out. The AI might be experiencing high load.');
+          throw new Error('Generation timed out. The AI might be experiencing high load.');
         }
         throw error;
       } finally {
@@ -102,13 +109,20 @@ export default function StoryGenerationPage() {
     retry: 3,
     staleTime: 0,
     gcTime: 0,
-    onSuccess(data) {
+    onSuccess: (data) => {
       setStoryData(data);
       setProgress(100);
-      setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
+
+      // If we have image URLs, skip character approval
+      if (data.metadata.image_urls?.length) {
+        setCurrentStage(GenerationStage.CHAPTER_DISPLAY);
+      } else {
+        setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
     },
-    onError(error: any) {
+    onError: (error: any) => {
       const isRateLimit = error.message?.includes('rate limit');
       const isTimeout = error.message?.includes('timed out');
 
@@ -137,7 +151,7 @@ export default function StoryGenerationPage() {
     }
   });
 
-  // Mutation to trigger character drawing
+  // Mutation to trigger character drawing separately if needed
   const drawCharacterMutation = useMutation({
     mutationFn: async () => {
       return await apiRequest("/api/midjourney/generate", {
@@ -155,7 +169,7 @@ export default function StoryGenerationPage() {
         setCurrentStage(GenerationStage.CHAPTER_DISPLAY);
       }, 2000);
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to generate character illustration. Please try again.",
@@ -181,10 +195,10 @@ export default function StoryGenerationPage() {
       case GenerationStage.GENERATING_STORY:
         return {
           title: "Creating Your Magical Story",
-          description: `Our AI is crafting a unique tale just for you... (${timeElapsed}s)`,
+          description: `Our AI is crafting your tale and illustrations... (${timeElapsed}s)`,
           subtext: retryAttempt > 0
-            ? `Attempt ${retryAttempt + 1} - This usually takes about 20 seconds`
-            : "This usually takes about 20 seconds"
+            ? `Attempt ${retryAttempt + 1} - This usually takes about a minute`
+            : "This usually takes about a minute"
         };
       case GenerationStage.CHARACTER_APPROVAL:
         return {
@@ -207,7 +221,7 @@ export default function StoryGenerationPage() {
     }
   };
 
-  // Update placeholderImages array with SVG paths
+  // Placeholder images array
   const placeholderImages = [
     "/placeholder/yorkie1.svg",
     "/placeholder/yorkie2.svg",
@@ -232,7 +246,6 @@ export default function StoryGenerationPage() {
                 <h2 className="text-2xl font-serif text-center">{message.title}</h2>
                 <p className="text-muted-foreground text-center">{message.description}</p>
 
-                {/* Add ImageGallery component */}
                 <ImageGallery images={placeholderImages} />
 
                 <Progress value={progress} className="w-full" />
@@ -303,6 +316,18 @@ export default function StoryGenerationPage() {
             <CardContent className="p-6 text-center space-y-6">
               <h2 className="text-2xl font-serif">{message.title}</h2>
               <p className="text-muted-foreground">{message.description}</p>
+              {storyData?.metadata.image_urls && (
+                <div className="grid grid-cols-2 gap-4">
+                  {storyData.metadata.image_urls.map((url, index) => (
+                    <img
+                      key={index}
+                      src={url}
+                      alt={`Story illustration ${index + 1}`}
+                      className="rounded-lg shadow-lg"
+                    />
+                  ))}
+                </div>
+              )}
               <Button
                 onClick={() => setLocation(`/story/${storyData?.id}`)}
                 className="mx-auto"
