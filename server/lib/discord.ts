@@ -124,18 +124,44 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
     log.info('Sending interaction payload:', { payload });
 
     const channelId = process.env.DISCORD_CHANNEL_ID;
-    // Send message to Discord channel
-    // Get the channel
-    const channel = await client.channels.fetch(channelId);
-    if (!channel || !channel.isTextBased()) {
-      throw new DiscordError('Invalid channel configuration', 500, false);
-    }
-
-    // Send the command as a message
-    const response = await channel.send(`/imagine prompt:${basePrompt}`);
+    const guildId = process.env.DISCORD_GUILD_ID;
     
-    if (!response) {
-      throw new DiscordError('Failed to send message to Discord', 500, true);
+    // Construct the interaction payload
+    const payload = {
+      type: 2, // APPLICATION_COMMAND
+      application_id: "936929561302675456", // Midjourney's application ID
+      guild_id: guildId,
+      channel_id: channelId,
+      data: {
+        version: "1118961510123847772",
+        id: "938956540159881230",
+        name: "imagine",
+        type: 1,
+        options: [{
+          type: 3,
+          name: "prompt",
+          value: basePrompt
+        }]
+      }
+    };
+
+    // Send interaction to Discord
+    const response = await fetch('https://discord.com/api/v10/interactions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bot ${client.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new DiscordError(
+        `Failed to send Midjourney command: ${response.statusText}`,
+        response.status,
+        response.status === 429
+      );
     }
 
     if (!response.ok) {
