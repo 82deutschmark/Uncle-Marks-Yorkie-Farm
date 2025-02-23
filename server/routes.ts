@@ -270,7 +270,8 @@ export async function registerRoutes(app: Express) {
       res.json({
         message: 'Image generation started',
         imageId: newImage.id,
-        status: 'pending'
+        status: 'pending',
+        imageIds: [newImage.id] // Adding imageIds to match the expected response format
       });
     } catch (error) {
       log.apiError('MidJourney prompt error:', error);

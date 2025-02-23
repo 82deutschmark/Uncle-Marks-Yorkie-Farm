@@ -82,73 +82,79 @@ export default function ReviewPage() {
     }
   }, []);
 
-  async function handleGenerateCharacters() {
+async function handleGenerateCharacters() {
+  setGenerationState(prev => ({
+    ...prev,
+    characters: { ...prev.characters, loading: true, error: undefined }
+  }));
+
+  try {
+    const artStyle = storyDetails.artStyles[0];
+    // Validate art style type
+    if (!artStyle || !["whimsical", "studio-ghibli", "watercolor", "pixel-art", "pop-art", "pencil-sketch", "3d-cartoon", "storybook"].includes(artStyle)) {
+      throw new Error("Invalid art style selected");
+    }
+
+    // Prepare character generation parameters
+    const params = {
+      protagonist: {
+        personality: storyDetails.personality,
+        appearance: `A beautiful Yorkshire Terrier with ${storyDetails.colors.join(" and ").toLowerCase()} colors`
+      },
+      artStyle: {
+        style: artStyle,
+        description: `A magical blend of ${storyDetails.artStyles.join(", ")}`
+      },
+      description: `Create an illustration of a Yorkshire Terrier character. The Yorkie has ${storyDetails.colors.join(" and ").toLowerCase()} colors and embodies ${storyDetails.personality.toLowerCase()} personality traits.`
+    };
+
+    console.log('Sending generation request with params:', params);
+
+    // Send request to generate character illustrations
+    const response = await apiRequest("/api/images/generate", {
+      method: "POST",
+      body: JSON.stringify(params)
+    });
+
+    if (!response) {
+      throw new Error('No response received from server');
+    }
+
+    if (response.error) {
+      throw new Error(response.error);
+    }
+
     setGenerationState(prev => ({
       ...prev,
-      characters: { ...prev.characters, loading: true, error: undefined }
+      characters: { 
+        loading: false, 
+        completed: true,
+        imageIds: response.imageIds 
+      }
     }));
 
-    try {
-      // Prepare character generation parameters
-      const params = {
-        protagonist: {
-          personality: storyDetails.personality,
-          appearance: `A beautiful Yorkshire Terrier with ${storyDetails.colors.join(" and ").toLowerCase()} colors`
-        },
-        artStyle: {
-          style: storyDetails.artStyles[0] as "whimsical" | "studio-ghibli" | "watercolor" | "pixel-art" | "pop-art" | "pencil-sketch" | "3d-cartoon" | "storybook",
-          description: `A magical blend of ${storyDetails.artStyles.join(", ")}`
-        },
-        description: `Create an illustration of a Yorkshire Terrier character. The Yorkie has ${storyDetails.colors.join(" and ").toLowerCase()} colors and embodies ${storyDetails.personality.toLowerCase()} personality traits.`
-      };
-
-      console.log('Sending generation request with params:', params);
-
-      // Send request to generate character illustrations
-      const response = await apiRequest("/api/images/generate", {
-        method: "POST",
-        body: JSON.stringify(params)
-      });
-
-      if (!response) {
-        throw new Error('No response received from server');
+    toast({
+      title: "Success",
+      description: "Character illustrations are being generated!",
+    });
+  } catch (error) {
+    console.error('Character generation error:', error);
+    setGenerationState(prev => ({
+      ...prev,
+      characters: {
+        loading: false,
+        completed: false,
+        error: error instanceof Error ? error.message : 'Failed to generate characters'
       }
+    }));
 
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      setGenerationState(prev => ({
-        ...prev,
-        characters: { 
-          loading: false, 
-          completed: true,
-          imageIds: response.imageIds 
-        }
-      }));
-
-      toast({
-        title: "Success",
-        description: "Character illustrations are being generated!",
-      });
-    } catch (error) {
-      console.error('Character generation error:', error);
-      setGenerationState(prev => ({
-        ...prev,
-        characters: {
-          loading: false,
-          completed: false,
-          error: error instanceof Error ? error.message : 'Failed to generate characters'
-        }
-      }));
-
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate character illustrations. Please try again.",
-        variant: "destructive"
-      });
-    }
+    toast({
+      title: "Error",
+      description: error instanceof Error ? error.message : "Failed to generate character illustrations. Please try again.",
+      variant: "destructive"
+    });
   }
+}
 
   const handleGenerateStory = async () => {
     setGenerationState(prev => ({
