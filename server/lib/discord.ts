@@ -128,7 +128,8 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
       log.error('Discord API error:', {
         status: response.status,
         statusText: response.statusText,
-        error: errorData
+        error: errorData,
+        payload: payload // Log the payload that caused the error
       });
       throw new DiscordError(
         `Failed to send interaction: ${response.statusText}`,
