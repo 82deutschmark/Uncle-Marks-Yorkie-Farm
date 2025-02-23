@@ -19,6 +19,7 @@ import * as fs from 'fs/promises';
 import { sendMidJourneyPrompt } from "./lib/discord";
 import { DiscordError } from "./lib/errors";
 import { ZodError } from "zod";
+import { analyzeImage } from "./lib/openai";
 
 const upload = multer({
   storage: multer.memoryStorage()
