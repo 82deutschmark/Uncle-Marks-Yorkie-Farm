@@ -42,24 +42,23 @@ if (!botToken) {
 async function constructInteractionPayload(prompt: string) {
   const channelId = process.env.DISCORD_CHANNEL_ID;
   const guildId = process.env.DISCORD_GUILD_ID;
-  const midjourneyAppId = process.env.MIDJOURNEY_APP_ID;
+  const midjourneyAppId = "936929561302675456"; // Hardcoded Midjourney application ID
 
-  if (!channelId || !guildId || !midjourneyAppId) {
+  if (!channelId || !guildId) {
     throw new DiscordError('Missing required Discord configuration', 500, false);
   }
 
   // Generate a random nonce for the interaction
-  const nonce = crypto.randomBytes(16).toString('hex');
+  const nonce = crypto.randomBytes(8).toString('hex');
 
   return {
-    type: 2, // APPLICATION_COMMAND type
+    type: 2,
     application_id: midjourneyAppId,
     guild_id: guildId,
     channel_id: channelId,
-    session_id: `${Date.now()}`,
-    nonce,
+    session_id: crypto.randomBytes(16).toString('hex'),
     data: {
-      version: "1118961510123847772",
+      version: "1237876415471554623",
       id: "938956540159881230",
       name: "imagine",
       type: 1,
@@ -70,18 +69,30 @@ async function constructInteractionPayload(prompt: string) {
       }],
       application_command: {
         id: "938956540159881230",
+        type: 1,
         application_id: midjourneyAppId,
-        version: "1118961510123847772",
+        version: "1237876415471554623",
         name: "imagine",
         description: "Create images with Midjourney",
         options: [{
           type: 3,
           name: "prompt",
           description: "The prompt to imagine",
-          required: true
-        }]
-      }
-    }
+          required: true,
+          description_localized: "The prompt to imagine",
+          name_localized: "prompt"
+        }],
+        dm_permission: true,
+        contexts: [0, 1, 2],
+        integration_types: [0, 1],
+        global_popularity_rank: 1,
+        description_localized: "Create images with Midjourney",
+        name_localized: "imagine"
+      },
+      attachments: []
+    },
+    nonce: nonce,
+    analytics_location: "slash_ui"
   };
 }
 
