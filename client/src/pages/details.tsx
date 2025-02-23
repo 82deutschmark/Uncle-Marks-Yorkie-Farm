@@ -284,10 +284,10 @@ export default function DetailsPage() {
   const onSubmit = async (data: StoryParams) => {
     setIsSubmitting(true);
 
-    if (!data.protagonist.personality || !data.protagonist.appearance) {
+    if (!selectedColors.length || !data.protagonist.personality) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all character details before continuing.",
+        description: "Please select colors and personality for your Yorkie.",
         variant: "destructive"
       });
       setIsSubmitting(false);
@@ -295,24 +295,31 @@ export default function DetailsPage() {
     }
 
     try {
+      // Use the first selected art style as the primary style
+      const primaryArtStyle = selectedArtStyles[0] || "whimsical";
+      const selectedStyle = artStyles.find(s => s.value === primaryArtStyle);
+
       const storyParams: StoryParams = {
         protagonist: {
           name: "Yorkie Hero",
           personality: data.protagonist.personality,
-          appearance: data.protagonist.appearance || `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`
+          appearance: `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`
         },
         antagonist: {
           type: data.antagonist.type,
-          personality: "Evil and mischievous"
+          personality: "Evil and mischievous" // Required by schema
         },
         theme: data.theme,
         mood: "Lighthearted",
-        artStyle: data.artStyle,
+        artStyle: {
+          style: primaryArtStyle,
+          description: selectedStyle?.description || "A unique artistic style"
+        },
         farmElements: data.farmElements
       };
 
+      // Validate against schema before saving
       const validated = storyParamsSchema.parse(storyParams);
-
       localStorage.setItem("storyParams", JSON.stringify(validated));
       setLocation("/story-generation");
     } catch (error) {
@@ -322,7 +329,6 @@ export default function DetailsPage() {
         description: "Please ensure all required fields are filled correctly.",
         variant: "destructive"
       });
-      setIsSubmitting(false);
     } finally {
       setIsSubmitting(false);
     }

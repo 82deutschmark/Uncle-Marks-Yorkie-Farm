@@ -7,27 +7,13 @@ import { Progress } from "@/components/ui/progress";
 import { Loader2, Wand2, ChevronRight, ImagePlus, AlertCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
-import { ImageGallery } from "@/components/image-gallery";
+import { storyParamsSchema, type StoryParams, type StoryResponse } from "@shared/schema";
 
 enum GenerationStage {
   GENERATING_STORY,
   CHARACTER_APPROVAL,
   DRAWING_CHARACTER,
   CHAPTER_DISPLAY
-}
-
-interface StoryResponse {
-  id: number;
-  title: string;
-  content: string;
-  metadata: {
-    protagonist: {
-      name: string;
-      personality: string;
-    };
-    image_urls?: string[];
-  };
 }
 
 export default function StoryGenerationPage() {
@@ -40,23 +26,28 @@ export default function StoryGenerationPage() {
 
   // Get story generation parameters from localStorage
   const storedParams = localStorage.getItem("storyParams");
-  const parsedParams = storedParams ? JSON.parse(storedParams) : null;
 
   // Story generation query
   const { error, isError, isLoading } = useQuery({
     queryKey: ['/api/stories/generate', retryAttempt],
     queryFn: async () => {
       try {
-        if (!parsedParams) {
+        if (!storedParams) {
           throw new Error("Story parameters not found. Please return to the details page.");
         }
 
-        // Validate parameters before sending
-        if (!parsedParams.protagonist?.personality || !parsedParams.protagonist?.appearance) {
-          throw new Error("Invalid character details. Please complete all required fields.");
+        // Parse and validate parameters
+        let parsedParams: StoryParams;
+        try {
+          parsedParams = storyParamsSchema.parse(JSON.parse(storedParams));
+        } catch (e) {
+          console.error('Parameter validation error:', e);
+          throw new Error("Invalid story parameters. Please complete all details.");
         }
 
-        console.log('Starting story generation with params:', parsedParams);
+        // Log the validated parameters
+        console.log('Starting story generation with validated params:', parsedParams);
+
         const response = await apiRequest("/api/stories/generate", {
           method: "POST",
           body: JSON.stringify(parsedParams)
@@ -85,7 +76,7 @@ export default function StoryGenerationPage() {
         throw error;
       }
     },
-    enabled: Boolean(parsedParams),
+    enabled: Boolean(storedParams),
     retry: false
   });
 
@@ -114,11 +105,17 @@ export default function StoryGenerationPage() {
         throw new Error("No character data available");
       }
 
+      // Parse stored params again for art style
+      const params = storedParams ? JSON.parse(storedParams) : null;
+      if (!params?.artStyle) {
+        throw new Error("Art style configuration not found");
+      }
+
       const response = await apiRequest("/api/midjourney/generate", {
         method: "POST",
         body: JSON.stringify({
           characterDescription: storyData.metadata.protagonist,
-          artStyle: parsedParams?.artStyle
+          artStyle: params.artStyle
         })
       });
 
