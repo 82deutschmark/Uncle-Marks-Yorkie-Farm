@@ -10,6 +10,7 @@ import type { Request } from "express";
 import { storage } from "./storage";
 import { log } from "./lib/logger";
 import { generateStory } from "./lib/openai";
+import { findSimilarYorkieImage } from "./lib/discord";
 import {
   insertStorySchema,
   storyParamsSchema,
@@ -18,52 +19,6 @@ import {
   type StoryParams,
   type MidJourneyPrompt
 } from "@shared/schema";
-
-app.post("/api/images/search", async (req, res) => {
-  try {
-    const { description } = req.body;
-    log.info('Starting image search with description:', { description });
-    
-    await storage.addDebugLog("discord", "request", {
-      description,
-      timestamp: new Date().toISOString()
-    });
-
-    const result = await findSimilarYorkieImage(description);
-    
-    await storage.addDebugLog("discord", "response", {
-      result,
-      timestamp: new Date().toISOString()
-    });
-
-    log.info('Image search completed successfully:', { resultCount: result.images?.length });
-    res.json(result);
-  } catch (error) {
-    log.error('Image search failed:', { error: error.message, stack: error.stack });
-    await storage.addDebugLog("discord", "error", {
-      error: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    });
-    res.status(500).json({ error: "Failed to search for images" });
-  }
-});
-
-  import { OpenAIError } from "./lib/errors";
-import * as fs from 'fs/promises';
-import { sendMidJourneyPrompt } from "./lib/discord";
-import { DiscordError } from "./lib/errors";
-import { ZodError } from "zod";
-import { analyzeImage } from "./lib/openai";
-
-
-const upload = multer({
-  storage: multer.memoryStorage()
-});
-
-interface MulterRequest extends Request {
-  file?: Express.Multer.File
-}
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
@@ -81,6 +36,35 @@ export async function registerRoutes(app: Express) {
   app.post("/api/images/:id/analyze", analyzeImageHandler);
   app.post("/api/images/generate", generateImageHandler);
 
+  app.post("/api/images/search", async (req, res) => {
+    try {
+      const { description } = req.body;
+      log.info('Starting image search with description:', { description });
+
+      await storage.addDebugLog("discord", "request", {
+        description,
+        timestamp: new Date().toISOString()
+      });
+
+      const result = await findSimilarYorkieImage(description);
+
+      await storage.addDebugLog("discord", "response", {
+        result,
+        timestamp: new Date().toISOString()
+      });
+
+      log.info('Image search completed successfully:', { resultCount: result.images?.length });
+      res.json(result);
+    } catch (error) {
+      log.error('Image search failed:', { error: error.message, stack: error.stack });
+      await storage.addDebugLog("discord", "error", {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
+      res.status(500).json({ error: "Failed to search for images" });
+    }
+  });
 
   app.use(errorLogger);
   return httpServer;
