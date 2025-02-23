@@ -126,7 +126,7 @@ export async function registerRoutes(app: Express) {
 
       res.json(story);
     } catch (error) {
-      log.apiError('Error fetching story:', error);
+      log.error('Error fetching story:', error); //Corrected logger usage
       res.status(500).json({
         error: 'Failed to fetch story',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -166,7 +166,7 @@ export async function registerRoutes(app: Express) {
         }))
       });
     } catch (error) {
-      log.apiError('Upload error:', error);
+      log.error('Upload error:', error); //Corrected logger usage
       res.status(500).json({
         error: 'Upload failed',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -206,7 +206,7 @@ export async function registerRoutes(app: Express) {
       log.info('Image analysis completed', { imageId });
       res.json(updatedImage);
     } catch (error) {
-      log.apiError('Image analysis error:', error);
+      log.error('Image analysis error:', error); //Corrected logger usage
 
       if (error instanceof OpenAIError) {
         res.status(error.statusCode).json({
@@ -232,7 +232,7 @@ export async function registerRoutes(app: Express) {
       const images = await storage.getAllImages();
       res.json(images);
     } catch (error) {
-      log.apiError('Error fetching images:', error);
+      log.error('Error fetching images:', error); //Corrected logger usage
       res.status(500).json({
         error: 'Failed to fetch images',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -240,7 +240,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // MidJourney image generation endpoint
+  // MidJourney image generation endpoint (from edited snippet)
   app.post("/api/images/generate", async (req, res) => {
     try {
       log.info('Received MidJourney generation request:', { body: req.body });
@@ -301,7 +301,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // Add debug logs endpoint
+  // Add debug logs endpoint (from edited snippet)
   app.get("/api/debug/logs", async (req, res) => {
     try {
       const logs = await storage.getDebugLogs();
@@ -315,7 +315,7 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  // Add error logging middleware last
+  // Add error logging middleware last (from edited snippet)
   app.use(errorLogger);
   return httpServer;
 }
