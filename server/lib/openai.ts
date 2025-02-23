@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { OpenAIError } from "./errors";
 import { log } from "./logger";
+import type { StoryParams, StoryResponse } from "@shared/schema";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -23,7 +24,6 @@ async function withRetry<T>(
   delay = INITIAL_RETRY_DELAY
 ): Promise<T> {
   try {
-    // Add timeout to the operation
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('OpenAI request timeout')), REQUEST_TIMEOUT);
     });
@@ -44,40 +44,16 @@ async function withRetry<T>(
   }
 }
 
-interface StoryInput {
-  protagonist: {
-    appearance: string;
-    personality: string;
-  };
-  theme: string;
-  mood: string;
-  artStyle: {
-    style: string;
-    description: string;
-  };
-  antagonist: {
-    type: string;
-    personality: string;
-  };
-  farmElements: string[];
-}
+export async function generateStory(params: StoryParams): Promise<StoryResponse> {
+  return withRetry(async () => {
+    try {
+      log.info('Initiating story generation request to OpenAI', {
+        model: "gpt-4o",
+        theme: params.theme,
+        artStyle: params.artStyle.style
+      });
 
-interface StoryResponse {
-  title: string;
-  content: string;
-  metadata: {
-    wordCount: number;
-    chapters: number;
-    tone: string;
-    protagonist: {
-      name: string;
-      personality: string;
-    };
-  };
-}
-
-export async function generateStory(params: StoryInput): Promise<StoryResponse> {
-  const prompt = `Create a magical children's story about a Yorkshire terrier at Uncle Mark's Farm with these elements:
+      const prompt = `Create a magical children's story about a Yorkshire terrier at Uncle Mark's Farm with these elements:
 
 Story Elements:
 - Protagonist: A Yorkie who is ${params.protagonist.personality}
@@ -108,37 +84,43 @@ Response Format:
   }
 }`;
 
-  return withRetry(async () => {
-    log.info('Initiating story generation request to OpenAI', {
-      model: "gpt-4o",
-      theme: params.theme,
-      artStyle: params.artStyle.style
-    });
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a children's book author specializing in magical stories about Yorkshire terriers. Keep responses concise and engaging for young readers."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 2000
+      });
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: "You are a children's book author specializing in magical stories about Yorkshire terriers. Keep responses concise and engaging for young readers."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: 2000
-    });
+      const content = response.choices[0].message.content;
+      if (!content) {
+        throw new OpenAIError("No content received from OpenAI");
+      }
 
-    const content = response.choices[0].message.content;
-    if (!content) {
-      throw new OpenAIError("No content received from OpenAI");
+      // Parse and validate the response
+      const parsedResponse = JSON.parse(content);
+      if (!parsedResponse.title || !parsedResponse.content || !parsedResponse.metadata) {
+        throw new OpenAIError("Invalid response format from OpenAI");
+      }
+
+      log.info('Successfully received story from OpenAI');
+      // Add a placeholder ID for now, the actual ID will be set when saved to the database
+      return { id: 0, ...parsedResponse } as StoryResponse;
+    } catch (error) {
+      if (error instanceof OpenAIError) {
+        throw error;
+      }
+      throw new OpenAIError(`Failed to generate story: ${error.message}`);
     }
-
-    log.info('Successfully received story from OpenAI');
-    return JSON.parse(content) as StoryResponse;
   });
 }
 

@@ -49,58 +49,80 @@ export const insertCustomArtStyleSchema = createInsertSchema(customArtStyles).om
   createdAt: true
 });
 
-// Update existing art style schema to include custom styles
+// Update art style schema to match frontend options
 export const artStyleSchema = z.object({
-  style: z.union([
-    z.enum([
-      'abstract',
-      'pixelated',
-      'impressionist',
-      'cartoon',
-      'whimsical',
-      'realistic',
-      'watercolor',
-      'digital-art',
-      'studio-ghibli',
-      'pop-art'
-    ]),
-    z.string() // Allow custom style names
+  style: z.enum([
+    'whimsical',
+    'studio-ghibli',
+    'watercolor',
+    'pixel-art',
+    'pop-art',
+    'pencil-sketch',
+    '3d-cartoon',
+    'storybook'
   ]),
   description: z.string()
+});
+
+// MidJourney prompt schema
+export const midjourneyPromptSchema = z.object({
+  characterDescription: z.object({
+    name: z.string().optional(),
+    personality: z.string(),
+    appearance: z.string()
+  }),
+  artStyle: artStyleSchema
 });
 
 // Story parameters schema
 export const storyParamsSchema = z.object({
   protagonist: z.object({
     name: z.string().optional(),
-    personality: z.string(),
-    appearance: z.string()
+    personality: z.string().min(1, "Personality is required"),
+    appearance: z.string().min(1, "Appearance is required")
   }),
   antagonist: z.object({
-    type: z.string(),
-    personality: z.string()
+    type: z.enum([
+      "sorcerer-basic",
+      "sorcerer-squirrels", 
+      "squirrel-gang",
+      "dark-wizard"
+    ]),
+    personality: z.string().min(1, "Antagonist personality is required")
   }),
-  theme: z.string(),
-  mood: z.string(),
-  artStyle: artStyleSchema
+  theme: z.string().min(1, "Theme is required"),
+  mood: z.string().default("Lighthearted"),
+  artStyle: artStyleSchema,
+  farmElements: z.array(z.string()).min(1, "At least one farm element is required")
 });
 
-// MidJourney prompt schema
-export const midjourneyPromptSchema = z.object({
-  description: z.string(),
-  characteristics: z.array(z.string()).optional(),
-  setting: z.string().optional(),
-  artStyle: artStyleSchema.optional()
+// Story response schema
+export const storyResponseSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  content: z.string(),
+  metadata: z.object({
+    protagonist: z.object({
+      name: z.string(),
+      personality: z.string()
+    }),
+    image_urls: z.array(z.string()).optional(),
+    wordCount: z.number(),
+    chapters: z.number(),
+    tone: z.string()
+  })
 });
 
 // Types
 export type InsertImage = z.infer<typeof insertImageSchema>;
 export type Image = typeof images.$inferSelect;
-export type MidJourneyPrompt = z.infer<typeof midjourneyPromptSchema>;
-export type StoryParams = z.infer<typeof storyParamsSchema>;
-export type ArtStyle = z.infer<typeof artStyleSchema>;
 export type InsertCustomArtStyle = z.infer<typeof insertCustomArtStyleSchema>;
 export type CustomArtStyle = typeof customArtStyles.$inferSelect;
+export type StoryParams = z.infer<typeof storyParamsSchema>;
+export type StoryResponse = z.infer<typeof storyResponseSchema>;
+export type ArtStyle = z.infer<typeof artStyleSchema>;
+export type MidJourneyPrompt = z.infer<typeof midjourneyPromptSchema>;
+
 
 // Table for storing generated stories
 export const stories = pgTable("stories", {
