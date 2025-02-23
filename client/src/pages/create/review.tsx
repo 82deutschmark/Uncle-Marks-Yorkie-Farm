@@ -121,7 +121,11 @@ async function handleGenerateCharacters() {
     }
 
     if (response.error) {
-      throw new Error(response.error);
+      throw new Error(typeof response.error === 'string' ? response.error : response.error.message || 'Failed to generate image');
+    }
+
+    if (!response.imageIds || !Array.isArray(response.imageIds)) {
+      throw new Error('Invalid response format: missing image IDs');
     }
 
     setGenerationState(prev => ({

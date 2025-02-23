@@ -112,19 +112,18 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
 
     try {
       // Use Puppeteer to automate Discord interaction
-      await sendMidJourneyPromptViaPuppeteer(basePrompt);
+      const result = await sendMidJourneyPromptViaPuppeteer(basePrompt);
+      if (!result) {
+        throw new DiscordError('No response from Discord integration', 500, true);
+      }
       log.info('Successfully sent MidJourney prompt through Puppeteer');
-      return { status: 'success', imageIds: [1] }; // Temporary ID until image processing is complete
+      return { status: 'success', imageIds: [result.id || 1] };
     } catch (error) {
       log.error('Failed to send prompt via Puppeteer:', error);
       throw new DiscordError(
         error instanceof Error ? error.message : 'Failed to send prompt to Discord',
         500,
         true
-      );
-      throw new DiscordError(
-        `Failed to send prompt via Puppeteer: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        500,
         true
       );
     }
