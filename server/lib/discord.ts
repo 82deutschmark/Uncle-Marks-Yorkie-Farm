@@ -140,11 +140,19 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
       }
     };
 
-    // Use Puppeteer to automate Discord interaction
-    await sendMidJourneyPromptViaPuppeteer(basePrompt);
-      const errorData = await response.json().catch(() => ({}));
+    try {
+      // Use Puppeteer to automate Discord interaction
+      await sendMidJourneyPromptViaPuppeteer(basePrompt);
+      
+      log.info('Successfully sent MidJourney prompt through Puppeteer');
+    } catch (error) {
+      log.error('Failed to send prompt via Puppeteer:', error);
       throw new DiscordError(
-        `Failed to send Midjourney command: ${response.statusText}`,
+        `Failed to send prompt via Puppeteer: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        500,
+        true
+      );
+    }
         response.status,
         response.status === 429
       );
