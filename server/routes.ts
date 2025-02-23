@@ -256,10 +256,10 @@ export async function registerRoutes(app: Express) {
         order: 0,
         selected: false,
         analyzed: false,
-        analysis: null,
         midjourney: {
-          prompt: prompt.description,
-          status: 'pending'
+          prompt: prompt.description || `A Yorkshire Terrier ${prompt.protagonist.appearance} with ${prompt.protagonist.personality} personality`,
+          status: 'pending',
+          artStyle: prompt.artStyle.style
         }
       });
 
@@ -276,17 +276,11 @@ export async function registerRoutes(app: Express) {
       log.apiError('MidJourney prompt error:', error);
 
       if (error instanceof DiscordError) {
-        const errorResponse = {
+        return res.status(error.statusCode).json({
           error: 'Discord Integration Error',
           message: error.message,
-          retry: error.retryable,
-          details: error instanceof Error ? {
-            status: error.statusCode,
-            cause: error.cause
-          } : undefined
-        };
-        log.error('Sending error response:', errorResponse);
-        return res.status(error.statusCode).json(errorResponse);
+          retry: error.retryable
+        });
       }
 
       // Handle validation errors

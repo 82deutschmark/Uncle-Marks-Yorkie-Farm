@@ -82,7 +82,7 @@ export default function ReviewPage() {
     }
   }, []);
 
-  const handleGenerateCharacters = async () => {
+  async function handleGenerateCharacters() {
     setGenerationState(prev => ({
       ...prev,
       characters: { ...prev.characters, loading: true, error: undefined }
@@ -102,11 +102,17 @@ export default function ReviewPage() {
         description: `Create an illustration of a Yorkshire Terrier character. The Yorkie has ${storyDetails.colors.join(" and ").toLowerCase()} colors and embodies ${storyDetails.personality.toLowerCase()} personality traits.`
       };
 
+      console.log('Sending generation request with params:', params);
+
       // Send request to generate character illustrations
       const response = await apiRequest("/api/images/generate", {
         method: "POST",
         body: JSON.stringify(params)
       });
+
+      if (!response) {
+        throw new Error('No response received from server');
+      }
 
       if (response.error) {
         throw new Error(response.error);
@@ -138,11 +144,11 @@ export default function ReviewPage() {
 
       toast({
         title: "Error",
-        description: "Failed to generate character illustrations. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to generate character illustrations. Please try again.",
         variant: "destructive"
       });
     }
-  };
+  }
 
   const handleGenerateStory = async () => {
     setGenerationState(prev => ({
