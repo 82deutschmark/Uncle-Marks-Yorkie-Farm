@@ -249,6 +249,10 @@ export async function registerRoutes(app: Express) {
       const prompt: MidJourneyPrompt = midjourneyPromptSchema.parse(req.body);
       log.info('Starting MidJourney image generation', { prompt });
 
+      if (!prompt.protagonist || !prompt.artStyle) {
+        throw new Error('Invalid prompt parameters');
+      }
+
       // Create a new image record with pending status
       const newImage = await storage.createImage({
         bookId: 1, // Default book ID

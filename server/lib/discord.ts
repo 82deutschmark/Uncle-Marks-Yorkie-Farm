@@ -114,8 +114,14 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
       // Use Puppeteer to automate Discord interaction
       await sendMidJourneyPromptViaPuppeteer(basePrompt);
       log.info('Successfully sent MidJourney prompt through Puppeteer');
+      return { status: 'success', imageIds: [1] }; // Temporary ID until image processing is complete
     } catch (error) {
       log.error('Failed to send prompt via Puppeteer:', error);
+      throw new DiscordError(
+        error instanceof Error ? error.message : 'Failed to send prompt to Discord',
+        500,
+        true
+      );
       throw new DiscordError(
         `Failed to send prompt via Puppeteer: ${error instanceof Error ? error.message : 'Unknown error'}`,
         500,
