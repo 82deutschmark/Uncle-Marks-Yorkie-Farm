@@ -140,7 +140,10 @@ export default function ReviewPage() {
     try {
       const response = await fetch('/api/images/random', {method: 'GET'});
       const data = await response.json();
-      const imageOptions = data.images.map((url, index) => ({id: index.toString(), url}));
+      const imageOptions = data.images.map((img) => ({
+        id: img.id.toString(),
+        url: img.url
+      }));
       setGenerationState((prev) => ({
         ...prev,
         images: {

@@ -49,8 +49,8 @@ export async function registerRoutes(app: Express) {
       const shuffled = images.sort(() => 0.5 - Math.random());
       const selected = shuffled.slice(0, 3);
       const imagesFormatted = selected.map(img => ({
-        id: img.id.toString(),
-        url: img.path.startsWith('/uploads/') ? img.path : `/uploads/${img.path}`
+        id: img.id,
+        url: img.path.startsWith('/') ? img.path : `/${img.path}`
       }));
       res.json({ images: imagesFormatted });
     } catch (error) {
