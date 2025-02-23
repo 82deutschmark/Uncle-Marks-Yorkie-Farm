@@ -219,11 +219,19 @@ export default function DetailsPage() {
         toast({
           title: "Maximum Styles Selected",
           description: "You can select up to 3 art styles.",
-          variant: "warning"
+          variant: "destructive"
         });
         return prev;
       }
-      return [...prev, style];
+      const newStyles = [...prev, style];
+
+      // Update the form's artStyle field
+      form.setValue("artStyle", {
+        style: newStyles.join(", "),
+        description: "A unique blend of artistic styles"
+      });
+
+      return newStyles;
     });
   };
 
@@ -274,13 +282,39 @@ export default function DetailsPage() {
 
   const onSubmit = async (data: StoryParams) => {
     setIsSubmitting(true);
+
+    // Validate required fields
+    if (!data.protagonist.personality || !data.protagonist.appearance || !data.artStyle.style) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields before continuing.",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     toast({
       title: "Creating Your Story",
       description: "Please wait while we craft your tale...",
     });
 
     try {
-      localStorage.setItem("storyParams", JSON.stringify(data));
+      // Store complete story parameters
+      const storyParams = {
+        ...data,
+        mood: "Lighthearted", // Default mood
+        protagonist: {
+          ...data.protagonist,
+          appearance: data.protagonist.appearance || `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`,
+        },
+        artStyle: {
+          style: data.artStyle.style || selectedArtStyles.join(", "),
+          description: "A unique blend of artistic styles"
+        }
+      };
+
+      localStorage.setItem("storyParams", JSON.stringify(storyParams));
       setLocation("/story-generation");
     } catch (error) {
       toast({
