@@ -64,13 +64,16 @@ export const artStyleSchema = z.object({
   description: z.string()
 });
 
-// MidJourney prompt schema
+// Update MidJourney prompt schema to match implementation
 export const midjourneyPromptSchema = z.object({
   characterDescription: z.object({
     name: z.string().optional(),
     personality: z.string(),
     appearance: z.string()
   }),
+  setting: z.string().optional(),
+  characteristics: z.array(z.string()).optional(),
+  description: z.string(),
   artStyle: artStyleSchema
 });
 
