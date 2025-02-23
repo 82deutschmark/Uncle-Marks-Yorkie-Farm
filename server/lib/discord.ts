@@ -32,7 +32,11 @@ client.on('error', (error) => {
 if (!botToken) {
   log.error('Discord bot token is missing');
 } else {
-  client.login(botToken).catch((error) => {
+  client.login(botToken)
+  .then(() => {
+    log.info('Successfully logged in to Discord.');
+  })
+  .catch((error) => {
     log.error('Failed to login to Discord:', error);
   });
 }
