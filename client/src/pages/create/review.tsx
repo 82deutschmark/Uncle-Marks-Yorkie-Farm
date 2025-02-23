@@ -96,7 +96,7 @@ export default function ReviewPage() {
           appearance: `A beautiful Yorkshire Terrier with ${storyDetails.colors.join(" and ").toLowerCase()} colors`
         },
         artStyle: {
-          style: storyDetails.artStyles[0],
+          style: storyDetails.artStyles[0] as "whimsical" | "studio-ghibli" | "watercolor" | "pixel-art" | "pop-art" | "pencil-sketch" | "3d-cartoon" | "storybook",
           description: `A magical blend of ${storyDetails.artStyles.join(", ")}`
         }
       };
