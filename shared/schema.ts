@@ -66,15 +66,12 @@ export const artStyleSchema = z.object({
 
 // Update MidJourney prompt schema to match implementation
 export const midjourneyPromptSchema = z.object({
-  characterDescription: z.object({
-    name: z.string().optional(),
+  protagonist: z.object({
     personality: z.string(),
     appearance: z.string()
   }),
-  setting: z.string().optional(),
-  characteristics: z.array(z.string()).optional(),
-  description: z.string(),
-  artStyle: artStyleSchema
+  artStyle: artStyleSchema,
+  description: z.string().optional()
 });
 
 // Story parameters schema
@@ -87,7 +84,7 @@ export const storyParamsSchema = z.object({
   antagonist: z.object({
     type: z.enum([
       "sorcerer-basic",
-      "sorcerer-squirrels", 
+      "sorcerer-squirrels",
       "squirrel-gang",
       "dark-wizard"
     ]),

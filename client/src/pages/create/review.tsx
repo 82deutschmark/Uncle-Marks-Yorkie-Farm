@@ -98,7 +98,8 @@ export default function ReviewPage() {
         artStyle: {
           style: storyDetails.artStyles[0] as "whimsical" | "studio-ghibli" | "watercolor" | "pixel-art" | "pop-art" | "pencil-sketch" | "3d-cartoon" | "storybook",
           description: `A magical blend of ${storyDetails.artStyles.join(", ")}`
-        }
+        },
+        description: `Create an illustration of a Yorkshire Terrier character. The Yorkie has ${storyDetails.colors.join(" and ").toLowerCase()} colors and embodies ${storyDetails.personality.toLowerCase()} personality traits.`
       };
 
       // Send request to generate character illustrations
