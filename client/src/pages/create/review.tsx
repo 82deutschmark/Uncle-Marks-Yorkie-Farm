@@ -120,8 +120,9 @@ export default function ReviewPage() {
         ${storyDetails.personality.toLowerCase()} expression, in a magical farm setting. 
         Art style: ${storyDetails.artStyles.join(", ")}. Detailed illustration, vibrant colors, 
         charming children's book style --v 6.0 --style raw`,
-      channelId: process.env.DISCORD_CHANNEL_ID,
-      botId: process.env.MIDJOURNEY_BOT_ID
+      // Use import.meta.env instead of process.env
+      channelId: import.meta.env.VITE_DISCORD_CHANNEL_ID,
+      botId: import.meta.env.VITE_MIDJOURNEY_BOT_ID
     };
   };
 
