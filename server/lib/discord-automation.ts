@@ -1,49 +1,62 @@
 
-import puppeteer from 'puppeteer';
 import { log } from './logger';
 
+const DISCORD_API_VERSION = '10';
+const BASE_URL = `https://discord.com/api/v${DISCORD_API_VERSION}`;
+
 export async function sendMidJourneyPromptViaPuppeteer(prompt: string) {
-  const browser = await puppeteer.launch({ 
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    timeout: 30000
-  });
-  
   try {
-    const page = await browser.newPage();
-    
-    // Login to Discord
-    await page.goto('https://discord.com/login', { waitUntil: 'networkidle0' });
-    await page.waitForSelector('input[name="email"]');
-    await page.type('input[name="email"]', process.env.DISCORD_EMAIL || '', { delay: 50 });
-    await page.type('input[name="password"]', process.env.DISCORD_PASSWORD || '', { delay: 50 });
-    
-    await Promise.all([
-      page.click('button[type="submit"]'),
-      page.waitForNavigation({ waitUntil: 'networkidle0' })
-    ]);
+    const headers = {
+      'Authorization': process.env.DISCORD_USER_TOKEN,
+      'Content-Type': 'application/json'
+    };
 
-    // Navigate to specific channel
-    const channelUrl = `https://discord.com/channels/${process.env.DISCORD_GUILD_ID}/${process.env.DISCORD_CHANNEL_ID}`;
-    await page.goto(channelUrl, { waitUntil: 'networkidle0' });
+    const data = {
+      type: 2,
+      application_id: process.env.MIDJOURNEY_APP_ID,
+      guild_id: process.env.DISCORD_GUILD_ID,
+      channel_id: process.env.DISCORD_CHANNEL_ID,
+      session_id: Math.random().toString(36).substring(2),
+      data: {
+        version: "1237876415471554623",
+        id: "938956540159881230",
+        name: "imagine",
+        type: 1,
+        options: [{ type: 3, name: "prompt", value: prompt }],
+        application_command: {
+          id: "938956540159881230",
+          application_id: process.env.MIDJOURNEY_APP_ID,
+          version: "1237876415471554623",
+          default_permission: true,
+          default_member_permissions: null,
+          type: 1,
+          name: "imagine",
+          description: "Create images with Midjourney",
+          dm_permission: true,
+          options: [{
+            type: 3,
+            name: "prompt",
+            description: "The prompt to imagine",
+            required: true
+          }]
+        }
+      }
+    };
 
-    // Send command
-    await page.waitForSelector('[role="textbox"]');
-    const textbox = await page.$('[role="textbox"]');
-    if (!textbox) throw new Error('Could not find message input');
-    
-    await textbox.click();
-    await page.keyboard.type(`/imagine prompt: ${prompt}`, { delay: 50 });
-    await page.keyboard.press('Enter');
+    const response = await fetch(`${BASE_URL}/interactions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data)
+    });
 
-    // Wait for command to be sent
-    await page.waitForTimeout(5000);
+    if (!response.ok) {
+      throw new Error(`Discord API error: ${response.status}`);
+    }
 
-    log.info('Successfully sent MidJourney prompt via Puppeteer');
+    log.info('Successfully sent MidJourney prompt via Discord API');
+    return { id: Math.random().toString(36).substring(2) };
   } catch (error) {
-    log.error('Failed to send prompt via Puppeteer:', error);
+    log.error('Failed to send prompt via Discord API:', error);
     throw error;
-  } finally {
-    await browser.close();
   }
 }
