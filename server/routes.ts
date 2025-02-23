@@ -18,7 +18,11 @@ import { sendMidJourneyPrompt } from "./lib/discord";
 import { DiscordError } from "./lib/errors";
 import { ZodError } from "zod";
 
-// Add multer request type
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage()
+});
+
 interface MulterRequest extends Request {
   file?: Express.Multer.File
 }
@@ -28,59 +32,64 @@ export async function registerRoutes(app: Express) {
 
   // Add request logging middleware
   app.use(requestLogger);
-
-  // Add JSON body parsing middleware
   app.use(express.json());
-
-  // Serve static files from uploads directory
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
-
-  // Configure multer without restrictions
-  const upload = multer({
-    storage: multer.memoryStorage()
-  });
 
   // Generate story endpoint
   app.post("/api/stories/generate", async (req, res) => {
     try {
-      log.info('Received story generation request:', req.body);
+      log.info('Story generation request received:', req.body);
 
-      // Extract and validate art style
-      let artStyle = "whimsical"; // Default style
-      if (req.body.artStyle?.style) {
-        const requestedStyle = req.body.artStyle.style.split(',')[0].trim().toLowerCase();
-        // Only accept if it matches one of our valid styles
-        if (artStyleSchema.shape.style.options.includes(requestedStyle)) {
-          artStyle = requestedStyle;
-        }
+      // Basic validation of required fields
+      if (!req.body.characteristics || !req.body.colors || !req.body.theme) {
+        return res.status(400).json({
+          error: 'Missing Required Fields',
+          message: 'Please provide characteristics, colors, and theme'
+        });
       }
 
-      // Validate and parse the request body with properly structured data
-      const storyParams = storyParamsSchema.parse({
+      // Build story parameters with required fields and defaults
+      const params = {
         protagonist: {
           name: req.body.name || undefined,
-          personality: req.body.characteristics || "",
-          appearance: req.body.colors || ""
+          personality: req.body.characteristics,
+          appearance: req.body.colors
         },
         antagonist: {
-          type: req.body.antagonist?.type || "squirrel-gang",
-          personality: "playful and mischievous" // Explicit default for required field
+          type: "squirrel-gang",
+          personality: "playful and mischievous"
         },
-        theme: req.body.theme || "",
+        theme: req.body.theme,
         mood: "Lighthearted",
         artStyle: {
-          style: artStyle,
+          style: "whimsical",
           description: "A playful and enchanting style perfect for children's stories"
         },
         farmElements: ["barn", "tractor", "chickens", "garden"]
-      });
+      };
+
+      // Update antagonist if provided
+      if (req.body.antagonist?.type) {
+        params.antagonist.type = req.body.antagonist.type;
+      }
+
+      // Update art style if provided and valid
+      if (req.body.artStyle?.style) {
+        const requestedStyle = req.body.artStyle.style.split(',')[0].trim();
+        if (artStyleSchema.shape.style.options.includes(requestedStyle)) {
+          params.artStyle.style = requestedStyle;
+        }
+      }
+
+      // Validate the complete parameters object
+      const storyParams = storyParamsSchema.parse(params);
 
       log.info('Validated story parameters:', storyParams);
 
-      // Generate story with validated parameters
+      // Generate story
       const response = await generateStory(storyParams);
 
-      // Create the story record
+      // Prepare story for database
       const story = {
         title: response.title,
         protagonist: storyParams.protagonist.appearance,
@@ -96,12 +105,12 @@ export async function registerRoutes(app: Express) {
         artStyle: storyParams.artStyle
       };
 
-      // Validate and save the story
+      // Save to database
       const parsedStory = insertStorySchema.parse(story);
       const savedStory = await storage.createStory(parsedStory);
 
-      log.info('Story generated and saved successfully', {
-        storyId: savedStory.id,
+      log.info('Story generated and saved:', {
+        id: savedStory.id,
         title: savedStory.title
       });
 
