@@ -50,24 +50,27 @@ export async function registerRoutes(app: Express) {
 
       log.info('Generating story', { characteristics, colors, theme });
 
-      // Generate story with proper parameter structure
-      const response = await generateStory({
+      // Properly structure story parameters according to schema
+      const storyParams: StoryParams = {
         protagonist: {
           personality: characteristics,
           appearance: colors
         },
         antagonist: {
           type: antagonist?.type || "squirrel-gang",
-          personality: antagonist?.personality || "mischievous"
+          personality: antagonist?.personality || "mischievous and playful"  // Add default personality
         },
         theme,
-        mood: "whimsical",
+        mood: "Lighthearted",  // Default mood
         artStyle: {
-          style: "whimsical",
+          style: "whimsical",  // Use a single valid style
           description: "A playful and enchanting style perfect for children's stories"
         },
         farmElements: ["barn", "tractor", "chickens", "garden"]
-      });
+      };
+
+      // Generate story with proper parameter structure
+      const response = await generateStory(storyParams);
 
       const story = {
         title: response.title,
@@ -80,12 +83,7 @@ export async function registerRoutes(app: Express) {
           slot2: 2,
           slot3: 3
         },
-        metadata: {
-          wordCount: response.metadata.wordCount,
-          chapters: response.metadata.chapters,
-          tone: response.metadata.tone,
-          protagonist: response.metadata.protagonist
-        },
+        metadata: response.metadata,
         artStyle: {
           style: "whimsical",
           description: "A playful and enchanting style perfect for children's stories"
@@ -115,6 +113,14 @@ export async function registerRoutes(app: Express) {
           error: 'AI Generation Error',
           message: error.message,
           retry: error.statusCode === 429
+        });
+      }
+
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          error: 'Invalid Parameters',
+          message: 'Story parameters validation failed',
+          details: error.errors
         });
       }
 
