@@ -5,6 +5,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as unzipper from 'unzipper';
 import { log } from "./lib/logger";
+import { customArtStyles, type CustomArtStyle, type InsertCustomArtStyle } from "@shared/schema";
 
 export interface IStorage {
   createImage(image: InsertImage): Promise<Image>;
@@ -15,6 +16,10 @@ export interface IStorage {
   saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]>;
   createStory(story: InsertStory): Promise<Story>;
   getStory(id: number): Promise<Story | undefined>;
+  createCustomArtStyle(style: InsertCustomArtStyle): Promise<CustomArtStyle>;
+  getCustomArtStyle(id: number): Promise<CustomArtStyle | undefined>;
+  listCustomArtStyles(): Promise<CustomArtStyle[]>;
+  updateCustomArtStyle(id: number, style: Partial<InsertCustomArtStyle>): Promise<CustomArtStyle>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -199,6 +204,51 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       log(`Failed to get story ${id}: ${error}`);
       throw new Error(`Failed to get story: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async createCustomArtStyle(style: InsertCustomArtStyle): Promise<CustomArtStyle> {
+    try {
+      const [newStyle] = await db.insert(customArtStyles)
+        .values(style)
+        .returning();
+      log(`Created new custom art style: ${newStyle.id}`);
+      return newStyle;
+    } catch (error) {
+      log(`Failed to create custom art style: ${error}`);
+      throw new Error(`Failed to create custom art style: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async getCustomArtStyle(id: number): Promise<CustomArtStyle | undefined> {
+    try {
+      const [style] = await db.select().from(customArtStyles).where(eq(customArtStyles.id, id));
+      return style;
+    } catch (error) {
+      log(`Failed to get custom art style ${id}: ${error}`);
+      throw new Error(`Failed to get custom art style: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async listCustomArtStyles(): Promise<CustomArtStyle[]> {
+    try {
+      return await db.select().from(customArtStyles);
+    } catch (error) {
+      log(`Failed to list custom art styles: ${error}`);
+      throw new Error(`Failed to list custom art styles: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async updateCustomArtStyle(id: number, style: Partial<InsertCustomArtStyle>): Promise<CustomArtStyle> {
+    try {
+      const [updatedStyle] = await db.update(customArtStyles)
+        .set(style)
+        .where(eq(customArtStyles.id, id))
+        .returning();
+      return updatedStyle;
+    } catch (error) {
+      log(`Failed to update custom art style ${id}: ${error}`);
+      throw new Error(`Failed to update custom art style: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

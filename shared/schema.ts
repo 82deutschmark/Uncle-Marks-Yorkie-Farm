@@ -34,19 +34,37 @@ export const insertImageSchema = createInsertSchema(images).omit({
   createdAt: true
 });
 
-// Art style schema
+// Custom art styles table
+export const customArtStyles = pgTable("custom_art_styles", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  examplePrompt: text("example_prompt"),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+// Insert schemas for custom art styles
+export const insertCustomArtStyleSchema = createInsertSchema(customArtStyles).omit({
+  id: true,
+  createdAt: true
+});
+
+// Update existing art style schema to include custom styles
 export const artStyleSchema = z.object({
-  style: z.enum([
-    'abstract',
-    'pixelated',
-    'impressionist',
-    'cartoon',
-    'whimsical',
-    'realistic',
-    'watercolor',
-    'digital-art',
-    'studio-ghibli',
-    'pop-art'
+  style: z.union([
+    z.enum([
+      'abstract',
+      'pixelated',
+      'impressionist',
+      'cartoon',
+      'whimsical',
+      'realistic',
+      'watercolor',
+      'digital-art',
+      'studio-ghibli',
+      'pop-art'
+    ]),
+    z.string() // Allow custom style names
   ]),
   description: z.string()
 });
@@ -81,6 +99,8 @@ export type Image = typeof images.$inferSelect;
 export type MidJourneyPrompt = z.infer<typeof midjourneyPromptSchema>;
 export type StoryParams = z.infer<typeof storyParamsSchema>;
 export type ArtStyle = z.infer<typeof artStyleSchema>;
+export type InsertCustomArtStyle = z.infer<typeof insertCustomArtStyleSchema>;
+export type CustomArtStyle = typeof customArtStyles.$inferSelect;
 
 // Table for storing generated stories
 export const stories = pgTable("stories", {
