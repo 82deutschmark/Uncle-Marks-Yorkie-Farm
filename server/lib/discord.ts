@@ -125,17 +125,18 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
 
     const channelId = process.env.DISCORD_CHANNEL_ID;
     // Send message to Discord channel
-    const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bot ${token}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'DiscordBot (https://github.com/discord/discord-api-docs, 10)'
-      },
-      body: JSON.stringify({
-        content: `/imagine ${basePrompt}`
-      })
-    });
+    // Get the channel
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) {
+      throw new DiscordError('Invalid channel configuration', 500, false);
+    }
+
+    // Send the command as a message
+    const response = await channel.send(`/imagine prompt:${basePrompt}`);
+    
+    if (!response) {
+      throw new DiscordError('Failed to send message to Discord', 500, true);
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
