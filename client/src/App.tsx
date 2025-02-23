@@ -4,14 +4,9 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
-import StoryViewer from "@/pages/story-viewer";
-import AppearancePage from "@/pages/create/appearance";
-import CharacterPage from "@/pages/create/character";
-import StoryPage from "@/pages/create/story";
-import ArtStylePage from "@/pages/create/art-style";
 import ReviewPage from "@/pages/create/review";
-import StoryGenerationPage from "@/pages/story-generation";
-import YorkieSelector from "@/pages/yorkie-selector";
+import StoryGenerationPage from "@/pages/create/story-generation";
+import YorkieSelector from "@/pages/create/yorkie-selector";
 import DebugPage from "@/pages/debug";
 
 function Router() {
@@ -19,12 +14,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/home" component={Home} />
-      <Route path="/create/appearance" component={AppearancePage} />
-      <Route path="/create/character" component={CharacterPage} />
-      <Route path="/create/story" component={StoryPage} />
-      <Route path="/create/art-style" component={ArtStylePage} />
       <Route path="/create/review" component={ReviewPage} />
-      <Route path="/story/:id" component={StoryViewer} />
       <Route path="/story-generation" component={StoryGenerationPage} />
       <Route path="/select-yorkie" component={YorkieSelector} />
       <Route path="/debug" component={DebugPage} />
