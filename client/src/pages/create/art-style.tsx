@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FormItem, FormLabel, FormDescription } from "@/components/ui/form";
 import { Progress } from "@/components/ui/progress";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -72,20 +71,25 @@ export default function ArtStylePage() {
   }, []);
 
   const handleStyleSelect = (style: string) => {
-    setSelectedStyles(prev => {
-      if (prev.includes(style)) {
-        return prev.filter(s => s !== style);
-      }
-      if (prev.length >= 3) {
-        toast({
-          title: "Maximum Styles Selected",
-          description: "You can select up to 3 art styles.",
-          variant: "destructive"
-        });
-        return prev;
-      }
-      return [...prev, style];
-    });
+    if (selectedStyles.includes(style)) {
+      const newStyles = selectedStyles.filter(s => s !== style);
+      setSelectedStyles(newStyles);
+      localStorage.setItem("yorkieArtStyles", JSON.stringify(newStyles));
+      return;
+    }
+
+    if (selectedStyles.length >= 3) {
+      toast({
+        title: "Maximum Styles Selected",
+        description: "You can select up to 3 art styles.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newStyles = [...selectedStyles, style];
+    setSelectedStyles(newStyles);
+    localStorage.setItem("yorkieArtStyles", JSON.stringify(newStyles));
   };
 
   const handleNext = () => {
@@ -98,7 +102,6 @@ export default function ArtStylePage() {
       return;
     }
 
-    localStorage.setItem("yorkieArtStyles", JSON.stringify(selectedStyles));
     setLocation("/create/review");
   };
 
@@ -122,11 +125,11 @@ export default function ArtStylePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <FormItem>
-              <FormLabel>Art Styles (Select up to 3)</FormLabel>
-              <FormDescription>
+            <div>
+              <h3 className="text-base font-semibold mb-2">Art Styles (Select up to 3)</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 Mix different styles to create unique illustrations
-              </FormDescription>
+              </p>
               <div className="grid grid-cols-2 gap-4">
                 {artStyles.map((style) => (
                   <div
@@ -177,7 +180,7 @@ export default function ArtStylePage() {
                   </div>
                 </div>
               )}
-            </FormItem>
+            </div>
 
             <div className="flex justify-between mt-6">
               <Button

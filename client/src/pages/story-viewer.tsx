@@ -3,6 +3,12 @@ import { StoryDisplay } from "@/components/story-display";
 import { type Story } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 
+interface StoryMetadata {
+  wordCount: number;
+  chapters: number;
+  tone: string;
+}
+
 export default function StoryViewer({ params }: { params: { id: string } }) {
   const { data: story, isLoading } = useQuery<Story>({
     queryKey: [`/api/stories/${params.id}`]
@@ -20,12 +26,14 @@ export default function StoryViewer({ params }: { params: { id: string } }) {
     return <div>Story not found</div>;
   }
 
+  const metadata = story.metadata as StoryMetadata;
+
   return (
     <div className="min-h-screen bg-background p-4">
       <StoryDisplay
         title={story.title}
         content={story.content}
-        metadata={story.metadata}
+        metadata={metadata}
       />
     </div>
   );
