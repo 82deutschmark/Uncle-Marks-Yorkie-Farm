@@ -26,7 +26,7 @@ client.once('ready', () => {
     event: "ready",
     status: "Bot successfully connected",
     botUsername: client.user?.tag
-  }).catch(console.error);
+  }).catch(error => log.error('Failed to log bot ready status:', error));
 });
 
 client.on('error', (error) => {
@@ -36,7 +36,7 @@ client.on('error', (error) => {
     event: "client_error",
     error: error.message,
     stack: error.stack
-  }).catch(console.error);
+  }).catch(error => log.error('Failed to log bot error:', error));
 });
 
 // Start bot if token is available
@@ -46,7 +46,7 @@ if (!botToken) {
   storage.addDebugLog("midjourney", "error", {
     event: "missing_token",
     error: "DISCORD_BOT_TOKEN is not configured"
-  }).catch(console.error);
+  }).catch(error => log.error('Failed to log missing token:', error));
 } else {
   client.login(botToken).catch((error) => {
     log.error('Failed to login to Discord:', error);
@@ -54,7 +54,7 @@ if (!botToken) {
       event: "login_failed",
       error: error.message,
       stack: error.stack
-    }).catch(console.error);
+    }).catch(error => log.error('Failed to log login error:', error));
   });
 }
 
@@ -145,7 +145,7 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
   }
 }
 
-// Update the message handler to use Array.from() for proper iteration
+// Handle incoming messages from MidJourney bot
 client.on('messageCreate', async (message) => {
   // Only process messages from MidJourney bot
   if (message.author.id !== process.env.MIDJOURNEY_BOT_ID) return;
