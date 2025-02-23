@@ -245,19 +245,41 @@ export async function findSimilarYorkieImage(description: string) {
       throw new DiscordError('Invalid channel configuration', 500, false);
     }
 
-    const messages = await channel.messages.fetch({ limit: 100 });
-    const imageMessages = messages.filter(msg => msg.attachments.size > 0);
-    
-    // Filter for upscaled images only
-    const yorkieImages = imageMessages.map(msg => ({
-      url: msg.attachments.first()?.url,
-      id: msg.id,
-      timestamp: msg.createdTimestamp
-    })).filter(img => img.url);
+    const allImages = [];
+    let lastMessageId = null;
+    let hasMore = true;
+
+    while (hasMore) {
+      const options: any = { limit: 100 };
+      if (lastMessageId) {
+        options.before = lastMessageId;
+      }
+
+      const messages = await channel.messages.fetch(options);
+      if (messages.size === 0) {
+        hasMore = false;
+        break;
+      }
+
+      const imageMessages = messages.filter(msg => msg.attachments.size > 0);
+      const yorkieImages = imageMessages.map(msg => ({
+        url: msg.attachments.first()?.url,
+        id: msg.id,
+        timestamp: msg.createdTimestamp
+      })).filter(img => img.url);
+
+      allImages.push(...yorkieImages);
+      lastMessageId = messages.last()?.id;
+
+      // Stop after collecting 500 images or if we got less than 100 messages
+      if (allImages.length >= 500 || messages.size < 100) {
+        hasMore = false;
+      }
+    }
 
     return {
-      images: yorkieImages,
-      count: yorkieImages.length
+      images: allImages,
+      count: allImages.length
     };
   } catch (error) {
     throw new DiscordError(`Failed to search images: ${error instanceof Error ? error.message : 'Unknown error'}`, 500, false);
