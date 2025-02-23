@@ -15,6 +15,18 @@ import {
   storyParamsSchema,
   artStyleSchema,
   midjourneyPromptSchema,
+
+app.post("/api/images/search", async (req, res) => {
+  try {
+    const { description } = req.body;
+    const result = await findSimilarYorkieImage(description);
+    res.json(result);
+  } catch (error) {
+    console.error("Image search error:", error);
+    res.status(500).json({ error: "Failed to search for images" });
+  }
+});
+
   type StoryParams,
   type MidJourneyPrompt
 } from "@shared/schema";
