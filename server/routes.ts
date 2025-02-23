@@ -18,7 +18,6 @@ import { sendMidJourneyPrompt } from "./lib/discord";
 import { DiscordError } from "./lib/errors";
 import { ZodError } from "zod";
 
-// Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage()
 });
@@ -30,7 +29,6 @@ interface MulterRequest extends Request {
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
 
-  // Add request logging middleware
   app.use(requestLogger);
   app.use(express.json());
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
@@ -38,96 +36,101 @@ export async function registerRoutes(app: Express) {
   // Generate story endpoint
   app.post("/api/stories/generate", async (req, res) => {
     try {
-      log.info('Story generation request received:', req.body);
+      // Log the raw request body for debugging
+      log.info('Raw request body:', req.body);
 
-      // Basic validation of required fields
+      // Ensure required fields exist
       if (!req.body.characteristics || !req.body.colors || !req.body.theme) {
-        return res.status(400).json({
+        const error = {
           error: 'Missing Required Fields',
-          message: 'Please provide characteristics, colors, and theme'
-        });
+          message: 'Please provide characteristics, colors, and theme',
+          details: {
+            characteristics: !req.body.characteristics,
+            colors: !req.body.colors,
+            theme: !req.body.theme
+          }
+        };
+        log.warn('Missing required fields:', error);
+        return res.status(400).json(error);
       }
 
-      // Build story parameters with required fields and defaults
+      // Prepare parameters exactly matching schema requirements
       const params = {
         protagonist: {
           name: req.body.name || undefined,
-          personality: req.body.characteristics,
-          appearance: req.body.colors
+          personality: String(req.body.characteristics).trim(),
+          appearance: String(req.body.colors).trim()
         },
         antagonist: {
-          type: "squirrel-gang",
+          type: "squirrel-gang" as const,
           personality: "playful and mischievous"
         },
-        theme: req.body.theme,
+        theme: String(req.body.theme).trim(),
         mood: "Lighthearted",
         artStyle: {
-          style: "whimsical",
+          style: "whimsical" as const,
           description: "A playful and enchanting style perfect for children's stories"
         },
         farmElements: ["barn", "tractor", "chickens", "garden"]
       };
 
-      // Update antagonist if provided
-      if (req.body.antagonist?.type) {
-        params.antagonist.type = req.body.antagonist.type;
-      }
+      // Log prepared parameters before validation
+      log.info('Prepared parameters before validation:', params);
 
-      // Update art style if provided and valid
-      if (req.body.artStyle?.style) {
-        const requestedStyle = req.body.artStyle.style.split(',')[0].trim();
-        if (artStyleSchema.shape.style.options.includes(requestedStyle)) {
-          params.artStyle.style = requestedStyle;
+      try {
+        // Validate parameters against schema
+        const storyParams = storyParamsSchema.parse(params);
+        log.info('Parameters validated successfully:', storyParams);
+
+        // Generate story
+        const response = await generateStory(storyParams);
+
+        // Prepare story for database
+        const story = {
+          title: response.title,
+          protagonist: storyParams.protagonist.appearance,
+          setting: "Uncle Mark's Farm",
+          theme: storyParams.theme,
+          content: response.content,
+          selectedImages: {
+            slot1: 1,
+            slot2: 2,
+            slot3: 3
+          },
+          metadata: response.metadata,
+          artStyle: storyParams.artStyle
+        };
+
+        // Validate story data
+        const parsedStory = insertStorySchema.parse(story);
+        const savedStory = await storage.createStory(parsedStory);
+
+        log.info('Story saved successfully:', {
+          id: savedStory.id,
+          title: savedStory.title
+        });
+
+        res.json(savedStory);
+      } catch (validationError) {
+        if (validationError instanceof ZodError) {
+          log.error('Validation error details:', {
+            errors: validationError.errors,
+            params: params
+          });
+          return res.status(400).json({
+            error: 'Invalid Parameters',
+            message: 'Story parameters validation failed',
+            details: validationError.errors.map(e => ({
+              path: e.path.join('.'),
+              message: e.message,
+              received: e.received
+            }))
+          });
         }
+        throw validationError;
       }
-
-      // Validate the complete parameters object
-      const storyParams = storyParamsSchema.parse(params);
-
-      log.info('Validated story parameters:', storyParams);
-
-      // Generate story
-      const response = await generateStory(storyParams);
-
-      // Prepare story for database
-      const story = {
-        title: response.title,
-        protagonist: storyParams.protagonist.appearance,
-        setting: "Uncle Mark's Farm",
-        theme: storyParams.theme,
-        content: response.content,
-        selectedImages: {
-          slot1: 1,
-          slot2: 2,
-          slot3: 3
-        },
-        metadata: response.metadata,
-        artStyle: storyParams.artStyle
-      };
-
-      // Save to database
-      const parsedStory = insertStorySchema.parse(story);
-      const savedStory = await storage.createStory(parsedStory);
-
-      log.info('Story generated and saved:', {
-        id: savedStory.id,
-        title: savedStory.title
-      });
-
-      res.json(savedStory);
     } catch (error) {
       log.error('Story generation error:', error);
-
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          error: 'Invalid Parameters',
-          message: 'Story parameters validation failed',
-          details: error.errors.map(e => ({
-            path: e.path.join('.'),
-            message: e.message
-          }))
-        });
-      }
 
       if (error instanceof OpenAIError) {
         return res.status(error.statusCode).json({
@@ -355,6 +358,5 @@ export async function registerRoutes(app: Express) {
 
   // Add error logging middleware last
   app.use(errorLogger);
-
   return httpServer;
 }
