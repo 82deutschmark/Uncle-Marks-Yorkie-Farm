@@ -15,14 +15,36 @@ import {
   storyParamsSchema,
   artStyleSchema,
   midjourneyPromptSchema,
+  type StoryParams,
+  type MidJourneyPrompt
+} from "@shared/schema";
 
 app.post("/api/images/search", async (req, res) => {
   try {
     const { description } = req.body;
+    log.info('Starting image search with description:', { description });
+    
+    await storage.addDebugLog("discord", "request", {
+      description,
+      timestamp: new Date().toISOString()
+    });
+
     const result = await findSimilarYorkieImage(description);
+    
+    await storage.addDebugLog("discord", "response", {
+      result,
+      timestamp: new Date().toISOString()
+    });
+
+    log.info('Image search completed successfully:', { resultCount: result.images?.length });
     res.json(result);
   } catch (error) {
-    console.error("Image search error:", error);
+    log.error('Image search failed:', { error: error.message, stack: error.stack });
+    await storage.addDebugLog("discord", "error", {
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
     res.status(500).json({ error: "Failed to search for images" });
   }
 });
