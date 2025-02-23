@@ -3,7 +3,8 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Wand2, ChevronRight, ImagePlus } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Loader2, Wand2, ChevronRight, ImagePlus, AlertCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -32,13 +33,36 @@ export default function StoryGenerationPage() {
   const { toast } = useToast();
   const [currentStage, setCurrentStage] = useState<GenerationStage>(GenerationStage.GENERATING_STORY);
   const [storyData, setStoryData] = useState<StoryResponse | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [timeElapsed, setTimeElapsed] = useState(0);
 
   // Get story generation parameters from localStorage
   const storyParams = JSON.parse(localStorage.getItem("storyParams") || "{}");
 
+  // Timer effect for progress indication
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (currentStage === GenerationStage.GENERATING_STORY) {
+      // Start progress timer
+      interval = setInterval(() => {
+        setTimeElapsed(prev => prev + 1);
+        setProgress(prev => {
+          // Estimated time: 20 seconds
+          const newProgress = Math.min((prev + 5), 95);
+          return newProgress;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [currentStage]);
+
   // Query to generate the story
-  const { data: story, isLoading, error } = useQuery({
-    queryKey: ['/api/stories/generate', Date.now()], // Add timestamp to force fresh request
+  const { error } = useQuery({
+    queryKey: ['/api/stories/generate', Date.now()],
     queryFn: async () => {
       const response = await apiRequest("/api/stories/generate", {
         method: "POST",
@@ -46,11 +70,12 @@ export default function StoryGenerationPage() {
       });
       return response as StoryResponse;
     },
-    enabled: Boolean(storyParams), // Only run if we have parameters
-    staleTime: 0, // Consider data immediately stale
-    cacheTime: 0, // Don't cache the response
+    enabled: Boolean(storyParams),
+    staleTime: 0,
+    gcTime: 0,
     onSuccess: (data) => {
       setStoryData(data);
+      setProgress(100);
       setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
       queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
     },
@@ -77,10 +102,17 @@ export default function StoryGenerationPage() {
     },
     onSuccess: () => {
       setCurrentStage(GenerationStage.DRAWING_CHARACTER);
-      // We'll implement the transition to chapter display in the next step
+      // Transition to chapter display after character is drawn
       setTimeout(() => {
         setCurrentStage(GenerationStage.CHAPTER_DISPLAY);
       }, 2000);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to generate character illustration. Please try again.",
+        variant: "destructive"
+      });
     }
   });
 
@@ -88,17 +120,56 @@ export default function StoryGenerationPage() {
     drawCharacterMutation.mutate();
   };
 
+  const getStageMessage = () => {
+    switch (currentStage) {
+      case GenerationStage.GENERATING_STORY:
+        return {
+          title: "Creating Your Magical Story",
+          description: `Our AI is crafting a unique tale just for you... (${timeElapsed}s)`,
+          subtext: "This usually takes about 20 seconds"
+        };
+      case GenerationStage.CHARACTER_APPROVAL:
+        return {
+          title: "Meet Your Story's Hero",
+          description: "Here's the character we've created. Ready to bring them to life?",
+          subtext: "Click 'Draw Character' when you're ready to see them illustrated"
+        };
+      case GenerationStage.DRAWING_CHARACTER:
+        return {
+          title: "Drawing Your Character",
+          description: "MidJourney is bringing your character to life...",
+          subtext: "This process takes about 30-60 seconds"
+        };
+      case GenerationStage.CHAPTER_DISPLAY:
+        return {
+          title: "Your Story Begins",
+          description: "Everything is ready! Let's start reading.",
+          subtext: "Click 'Start Reading' to begin your adventure"
+        };
+    }
+  };
+
   const renderContent = () => {
+    const message = getStageMessage();
+
     switch (currentStage) {
       case GenerationStage.GENERATING_STORY:
         return (
           <Card className="w-full max-w-2xl mx-auto">
-            <CardContent className="p-6 text-center space-y-4">
-              <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-              <h2 className="text-2xl font-serif">Creating Your Magical Story</h2>
-              <p className="text-muted-foreground">
-                Our AI is crafting a unique tale just for you...
-              </p>
+            <CardContent className="p-6 space-y-6">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <h2 className="text-2xl font-serif text-center">{message.title}</h2>
+                <p className="text-muted-foreground text-center">{message.description}</p>
+                <Progress value={progress} className="w-full" />
+                <p className="text-sm text-muted-foreground">{message.subtext}</p>
+              </div>
+              {error && (
+                <div className="mt-4 p-4 bg-destructive/10 rounded-lg flex items-center gap-2 text-destructive">
+                  <AlertCircle className="h-5 w-5" />
+                  <p>Something went wrong. Please try again.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         );
@@ -107,10 +178,8 @@ export default function StoryGenerationPage() {
         return (
           <Card className="w-full max-w-2xl mx-auto">
             <CardHeader>
-              <CardTitle>Meet Your Story's Hero</CardTitle>
-              <CardDescription>
-                Here's the character we've created for your story. Would you like to bring them to life?
-              </CardDescription>
+              <CardTitle>{message.title}</CardTitle>
+              <CardDescription>{message.description}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4 bg-muted/50 rounded-lg p-4">
@@ -134,6 +203,7 @@ export default function StoryGenerationPage() {
                   </>
                 )}
               </Button>
+              <p className="text-sm text-center text-muted-foreground">{message.subtext}</p>
             </CardContent>
           </Card>
         );
@@ -141,12 +211,14 @@ export default function StoryGenerationPage() {
       case GenerationStage.DRAWING_CHARACTER:
         return (
           <Card className="w-full max-w-2xl mx-auto">
-            <CardContent className="p-6 text-center space-y-4">
-              <ImagePlus className="h-12 w-12 animate-pulse mx-auto text-primary" />
-              <h2 className="text-2xl font-serif">Drawing Your Character</h2>
-              <p className="text-muted-foreground">
-                MidJourney is bringing your character to life...
-              </p>
+            <CardContent className="p-6 space-y-6">
+              <div className="flex flex-col items-center gap-4">
+                <ImagePlus className="h-12 w-12 animate-pulse text-primary" />
+                <h2 className="text-2xl font-serif">{message.title}</h2>
+                <p className="text-muted-foreground text-center">{message.description}</p>
+                <Progress value={progress} className="w-full" />
+                <p className="text-sm text-muted-foreground">{message.subtext}</p>
+              </div>
             </CardContent>
           </Card>
         );
@@ -154,8 +226,9 @@ export default function StoryGenerationPage() {
       case GenerationStage.CHAPTER_DISPLAY:
         return (
           <Card className="w-full max-w-2xl mx-auto">
-            <CardContent className="p-6 text-center space-y-4">
-              <h2 className="text-2xl font-serif">Your Story Begins</h2>
+            <CardContent className="p-6 text-center space-y-6">
+              <h2 className="text-2xl font-serif">{message.title}</h2>
+              <p className="text-muted-foreground">{message.description}</p>
               <Button 
                 onClick={() => setLocation(`/story/${storyData?.id}`)}
                 className="mx-auto"
@@ -163,6 +236,7 @@ export default function StoryGenerationPage() {
                 Start Reading
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
+              <p className="text-sm text-muted-foreground">{message.subtext}</p>
             </CardContent>
           </Card>
         );
