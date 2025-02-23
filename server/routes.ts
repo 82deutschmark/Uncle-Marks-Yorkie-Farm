@@ -64,12 +64,11 @@ export async function registerRoutes(app: Express) {
       res.json(result);
     } catch (error) {
       log.error('Image search failed:', { error: error.message, stack: error.stack });
-      await storage.addDebugLog("discord", "error", {
-        error: error.message,
-        stack: error.stack,
-        timestamp: new Date().toISOString()
+      console.error('Search error:', error);
+      res.status(500).json({ 
+        error: "Failed to search for images",
+        details: error instanceof Error ? error.message : String(error)
       });
-      res.status(500).json({ error: "Failed to search for images" });
     }
   });
 
