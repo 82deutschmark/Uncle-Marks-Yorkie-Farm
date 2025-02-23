@@ -246,7 +246,7 @@ export async function registerRoutes(app: Express) {
       log.info('Received MidJourney generation request:', { body: req.body });
 
       // Parse and validate the request body
-      const prompt: MidJourneyPrompt = midjourneyPromptSchema.parse(req.body);
+      const prompt: MidJourneyPrompt = midJourneyPromptSchema.parse(req.body);
       log.info('Starting MidJourney image generation', { prompt });
 
       if (!prompt.protagonist || !prompt.artStyle) {

@@ -115,7 +115,7 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
     }
 
     // Format the prompt with required elements
-    const basePrompt = `${prompt.protagonist.appearance} Yorkshire Terrier with ${prompt.protagonist.personality} personality, ${prompt.artStyle.style} art style with ${prompt.artStyle.description} elements, "Uncle Mark's Yorkie Farm" --s 550 --p --c 50 --w 1000`;
+    const basePrompt = `${prompt.protagonist.appearance} Yorkshire Terrier with ${prompt.protagonist.personality} personality, ${prompt.artStyle.style} art style with ${prompt.artStyle.description} elements`;
 
     try {
       // Use Puppeteer to automate Discord interaction
