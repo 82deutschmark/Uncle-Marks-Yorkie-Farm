@@ -43,6 +43,60 @@ export default function StoryGenerationPage() {
   // Get story generation parameters from localStorage
   const storyParams = JSON.parse(localStorage.getItem("storyParams") || "{}");
 
+  // Query to generate the story
+  const { error, isError } = useQuery({
+    queryKey: ['/api/stories/generate', retryAttempt],
+    queryFn: async () => {
+      try {
+        console.log('Sending story generation request with params:', storyParams);
+
+        const response = await apiRequest("/api/stories/generate", {
+          method: "POST",
+          body: JSON.stringify(storyParams)
+        });
+
+        if (!response || response.error) {
+          throw new Error(response?.error || 'Failed to generate story');
+        }
+
+        setStoryData(response);
+        setProgress(100);
+
+        // If we have image URLs, skip character approval
+        if (response.metadata.image_urls?.length) {
+          setCurrentStage(GenerationStage.CHAPTER_DISPLAY);
+        } else {
+          setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
+        }
+
+        return response;
+      } catch (error: any) {
+        console.error('Story generation error:', error);
+        const errorMessage = error.message || 'Unknown error occurred';
+
+        // Check for rate limiting
+        if (errorMessage.toLowerCase().includes('rate limit')) {
+          const retryAfter = error.retryAfter || 30;
+          setRetryTimeout(retryAfter * 1000);
+          toast({
+            title: "Generation Paused",
+            description: `Rate limit reached. Retrying in ${Math.ceil(retryAfter)} seconds...`,
+            variant: "default"
+          });
+        } else {
+          toast({
+            title: "Generation Error",
+            description: errorMessage,
+            variant: "destructive"
+          });
+        }
+        throw error;
+      }
+    },
+    enabled: Boolean(storyParams) && retryTimeout === null,
+    retry: false // Handle retries manually
+  });
+
   // Timer effect for progress indication
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -74,82 +128,6 @@ export default function StoryGenerationPage() {
     }
   }, [retryTimeout]);
 
-  // Query to generate the story and character image concurrently
-  const { error } = useQuery({
-    queryKey: ['/api/stories/generate', retryAttempt],
-    queryFn: async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for both generations
-
-      try {
-        const response = await apiRequest("/api/stories/generate", {
-          method: "POST",
-          body: JSON.stringify({
-            ...storyParams,
-            generate_image: true // Flag to trigger concurrent image generation
-          }),
-          signal: controller.signal
-        });
-
-        if (response.error) {
-          throw new Error(response.error);
-        }
-
-        return response;
-      } catch (error: any) {
-        if (error.name === 'AbortError') {
-          throw new Error('Generation timed out. The AI might be experiencing high load.');
-        }
-        throw error;
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    },
-    enabled: Boolean(storyParams) && retryTimeout === null,
-    retry: 3,
-    staleTime: 0,
-    gcTime: 0,
-    onSuccess: (data) => {
-      setStoryData(data);
-      setProgress(100);
-
-      // If we have image URLs, skip character approval
-      if (data.metadata.image_urls?.length) {
-        setCurrentStage(GenerationStage.CHAPTER_DISPLAY);
-      } else {
-        setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
-    },
-    onError: (error: any) => {
-      const isRateLimit = error.message?.includes('rate limit');
-      const isTimeout = error.message?.includes('timed out');
-
-      if (isRateLimit && error.retryAfter) {
-        setRetryTimeout(error.retryAfter * 1000);
-        toast({
-          title: "Generation Paused",
-          description: `Rate limit reached. Retrying in ${Math.ceil(error.retryAfter)} seconds...`,
-          variant: "default"
-        });
-      } else if (isTimeout) {
-        toast({
-          title: "Generation Timeout",
-          description: "The story is taking longer than expected. We'll try again.",
-          variant: "default"
-        });
-        setRetryAttempt(prev => prev + 1);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to generate story. Please try again.",
-          variant: "destructive"
-        });
-        setLocation("/");
-      }
-    }
-  });
 
   // Mutation to trigger character drawing separately if needed
   const drawCharacterMutation = useMutation({
@@ -231,6 +209,28 @@ export default function StoryGenerationPage() {
 
   const renderContent = () => {
     const message = getStageMessage();
+
+    if (isError && !retryTimeout) {
+      return (
+        <Card className="w-full max-w-2xl mx-auto">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex flex-col items-center gap-4">
+              <AlertCircle className="h-12 w-12 text-destructive" />
+              <h2 className="text-2xl font-serif text-center">Generation Error</h2>
+              <p className="text-muted-foreground text-center">
+                {error instanceof Error ? error.message : 'Failed to generate story. Please try again.'}
+              </p>
+              <Button
+                onClick={() => setRetryAttempt(prev => prev + 1)}
+                variant="outline"
+              >
+                Retry Generation
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
 
     switch (currentStage) {
       case GenerationStage.GENERATING_STORY:
