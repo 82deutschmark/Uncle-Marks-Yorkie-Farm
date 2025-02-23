@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer } from "http";
 import multer from "multer";
 import path from "path";
@@ -6,11 +6,16 @@ import express from "express";
 import { storage } from "./storage";
 import { log } from "./lib/logger";
 import { generateStory, analyzeImage } from "./lib/openai";
-import { insertStorySchema, midjourneyPromptSchema } from "@shared/schema";
+import { insertStorySchema, midjourneyPromptSchema, type StoryParams } from "@shared/schema";
 import { OpenAIError } from "./lib/errors";
 import * as fs from 'fs/promises';
 import { sendMidJourneyPrompt } from "./lib/discord";
-import { DiscordError } from "./lib/errors"; // Assuming DiscordError is defined here
+import { DiscordError } from "./lib/errors";
+
+// Add multer request type
+interface MulterRequest extends Request {
+  file?: Express.Multer.File
+}
 
 export async function registerRoutes(app: Express) {
   const httpServer = createServer(app);
@@ -29,21 +34,31 @@ export async function registerRoutes(app: Express) {
   // Generate story endpoint
   app.post("/api/stories/generate", async (req, res) => {
     try {
-      const { characteristics, colors, setting, theme, antagonist } = req.body;
+      const storyParams: StoryParams = {
+        protagonist: {
+          name: req.body.name,
+          personality: req.body.characteristics,
+          appearance: req.body.colors
+        },
+        antagonist: {
+          type: req.body.antagonist,
+          personality: req.body.antagonist
+        },
+        theme: req.body.theme,
+        mood: req.body.theme,
+        artStyle: req.body.artStyle || {
+          style: "whimsical",
+          description: "A playful and enchanting style perfect for children's stories"
+        }
+      };
 
-      const storyResponse = await generateStory({
-        characteristics,
-        colors,
-        setting,
-        theme,
-        antagonist
-      });
+      const storyResponse = await generateStory(storyParams);
 
       const story = {
         title: storyResponse.title,
-        protagonist: `${colors} Yorkshire Terrier`,
-        setting,
-        theme,
+        protagonist: `${req.body.colors} Yorkshire Terrier`,
+        setting: req.body.setting,
+        theme: req.body.theme,
         content: storyResponse.content,
         selectedImages: {
           slot1: 1,
@@ -51,12 +66,12 @@ export async function registerRoutes(app: Express) {
           slot3: 3
         },
         metadata: {
-          characteristics,
-          colors,
-          antagonist,
-          artStyle: storyResponse.artStyle, // Move artStyle into metadata
+          characteristics: req.body.characteristics,
+          colors: req.body.colors,
+          antagonist: req.body.antagonist,
           ...storyResponse.metadata
-        }
+        },
+        artStyle: storyResponse.artStyle
       };
 
       const parsedStory = insertStorySchema.parse(story);
@@ -69,7 +84,7 @@ export async function registerRoutes(app: Express) {
         return res.status(error.statusCode).json({
           error: 'AI Generation Error',
           message: error.message,
-          retry: error.statusCode === 429 // Indicate if the client should retry
+          retry: error.statusCode === 429
         });
       }
 
@@ -101,7 +116,8 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.post("/api/upload", upload.single('file'), async (req, res) => {
+  // File upload endpoint with proper typing
+  app.post("/api/upload", upload.single('file'), async (req: MulterRequest, res) => {
     try {
       if (!req.file) {
         log('Upload failed: No file provided');
@@ -131,7 +147,6 @@ export async function registerRoutes(app: Express) {
           order: img.order
         }))
       });
-
     } catch (error) {
       log('Upload error:', error);
       res.status(500).json({
@@ -148,7 +163,7 @@ export async function registerRoutes(app: Express) {
       const image = await storage.getImage(imageId);
 
       if (!image) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           error: 'Not Found',
           message: 'Image not found'
         });

@@ -78,7 +78,13 @@ export class DatabaseStorage implements IStorage {
   async updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image> {
     try {
       const [updatedImage] = await db.update(images)
-        .set(metadata)
+        .set({
+          ...metadata,
+          analysis: metadata.analysis ? {
+            description: metadata.analysis.description,
+            characterProfile: metadata.analysis.characterProfile
+          } : undefined
+        })
         .where(eq(images.id, id))
         .returning();
       return updatedImage;
