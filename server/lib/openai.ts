@@ -4,69 +4,31 @@ import { log } from "./logger";
 import type { StoryParams, StoryResponse } from "@shared/schema";
 import { storage } from "../storage";
 
-// Use gpt-4-turbo-preview for optimal performance in chat completions
+// Use gpt-4o for optimal performance in chat completions
+// The newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY = 2000; // 2 seconds
-const MAX_RETRY_DELAY = 10000; // 10 seconds
-const REQUEST_TIMEOUT = 60000; // 60 seconds timeout
-
-// Exponential backoff with jitter
-function calculateBackoff(attempt: number, initialDelay: number): number {
-  const exponentialDelay = initialDelay * Math.pow(2, attempt);
-  const maxDelay = Math.min(exponentialDelay, MAX_RETRY_DELAY);
-  return maxDelay * (0.75 + Math.random() * 0.5); // Add jitter
-}
-
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  retries = MAX_RETRIES,
-  delay = INITIAL_RETRY_DELAY
-): Promise<T> {
+export async function generateStory(params: StoryParams): Promise<StoryResponse> {
   try {
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('OpenAI request timeout')), REQUEST_TIMEOUT);
+    log.info('Starting story generation with params:', {
+      theme: params.theme,
+      artStyle: params.artStyle.style,
+      mood: params.mood
     });
 
-    return await Promise.race([operation(), timeoutPromise]) as T;
-  } catch (error) {
-    log.apiError('OpenAI API Error:', error);
-    const openAIError = OpenAIError.fromError(error);
+    await storage.addDebugLog("openai", "request", {
+      model: "gpt-4o",
+      params
+    });
 
-    if (openAIError.retryable && retries > 0) {
-      const backoffDelay = calculateBackoff(MAX_RETRIES - retries, delay);
-      log.info(`Retrying OpenAI request after ${backoffDelay}ms. Attempts remaining: ${retries}`);
-      await new Promise(resolve => setTimeout(resolve, backoffDelay));
-      return withRetry(operation, retries - 1, delay);
-    }
-
-    throw openAIError;
-  }
-}
-
-export async function generateStory(params: StoryParams): Promise<StoryResponse> {
-  return withRetry(async () => {
-    try {
-      await storage.addDebugLog("openai", "request", {
-        model: "gpt-4-turbo-preview",
-        params
-      });
-
-      log.info('Initiating story generation request to OpenAI', {
-        model: "gpt-4-turbo-preview",
-        theme: params.theme,
-        artStyle: params.artStyle.style
-      });
-
-      const prompt = `Create a magical children's story about a Yorkshire terrier at Uncle Mark's Farm with these elements:
+    const prompt = `Create a magical children's story about a Yorkshire terrier at Uncle Mark's Farm with these elements:
 
 Story Elements:
 - Protagonist: A Yorkie who is ${params.protagonist.personality}
 - Appearance: ${params.protagonist.appearance}
 - Theme: ${params.theme}
 - Mood: ${params.mood}
-- Antagonist: ${params.antagonist.type} - ${params.antagonist.personality}
+- Antagonist: ${params.antagonist.type}
 - Farm Elements: ${params.farmElements.join(', ')}
 
 Style Guidelines:
@@ -90,53 +52,61 @@ Response Format:
   }
 }`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4-turbo-preview",
-        messages: [
-          {
-            role: "system",
-            content: "You are a children's book author specializing in magical stories about Yorkshire terriers. Keep responses concise and engaging for young readers."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-        max_tokens: 2000
-      });
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a children's book author specializing in magical stories about Yorkshire terriers. Keep responses concise and engaging for young readers."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 2000
+    });
 
-      const content = response.choices[0].message.content;
-      if (!content) {
-        throw new OpenAIError("No content received from OpenAI");
-      }
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new OpenAIError("No content received from OpenAI");
+    }
 
-      await storage.addDebugLog("openai", "response", {
-        content,
-        usage: response.usage
-      });
+    log.info('Successfully received story from OpenAI');
 
-      // Parse and validate the response
+    await storage.addDebugLog("openai", "response", {
+      content,
+      usage: response.usage,
+      timestamp: new Date().toISOString()
+    });
+
+    // Parse and validate the response
+    try {
       const parsedResponse = JSON.parse(content);
       if (!parsedResponse.title || !parsedResponse.content || !parsedResponse.metadata) {
         throw new OpenAIError("Invalid response format from OpenAI");
       }
-
-      log.info('Successfully received story from OpenAI');
       return { id: 0, ...parsedResponse } as StoryResponse;
     } catch (error) {
-      await storage.addDebugLog("openai", "error", {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        params
-      });
-
-      if (error instanceof OpenAIError) {
-        throw error;
-      }
-      throw new OpenAIError(`Failed to generate story: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
+      log.error('Failed to parse OpenAI response:', error);
+      throw new OpenAIError("Failed to parse story response");
     }
-  });
+  } catch (error) {
+    log.error('Story generation error:', error);
+    await storage.addDebugLog("openai", "error", {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      params,
+      timestamp: new Date().toISOString()
+    });
+
+    if (error instanceof OpenAIError) {
+      throw error;
+    }
+    throw new OpenAIError(`Failed to generate story: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
+  }
 }
 
 interface CharacterImagePrompt {
@@ -233,4 +203,42 @@ Format your response as JSON with:
     log.info('Successfully received character profile from OpenAI');
     return JSON.parse(content) as CharacterProfile;
   });
+}
+
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 2000; // 2 seconds
+const MAX_RETRY_DELAY = 10000; // 10 seconds
+const REQUEST_TIMEOUT = 60000; // 60 seconds timeout
+
+// Exponential backoff with jitter
+function calculateBackoff(attempt: number, initialDelay: number): number {
+  const exponentialDelay = initialDelay * Math.pow(2, attempt);
+  const maxDelay = Math.min(exponentialDelay, MAX_RETRY_DELAY);
+  return maxDelay * (0.75 + Math.random() * 0.5); // Add jitter
+}
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  retries = MAX_RETRIES,
+  delay = INITIAL_RETRY_DELAY
+): Promise<T> {
+  try {
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('OpenAI request timeout')), REQUEST_TIMEOUT);
+    });
+
+    return await Promise.race([operation(), timeoutPromise]) as T;
+  } catch (error) {
+    log.apiError('OpenAI API Error:', error);
+    const openAIError = OpenAIError.fromError(error);
+
+    if (openAIError.retryable && retries > 0) {
+      const backoffDelay = calculateBackoff(MAX_RETRIES - retries, delay);
+      log.info(`Retrying OpenAI request after ${backoffDelay}ms. Attempts remaining: ${retries}`);
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      return withRetry(operation, retries - 1, delay);
+    }
+
+    throw openAIError;
+  }
 }

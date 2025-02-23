@@ -36,76 +36,62 @@ export default function StoryGenerationPage() {
   const [currentStage, setCurrentStage] = useState<GenerationStage>(GenerationStage.GENERATING_STORY);
   const [storyData, setStoryData] = useState<StoryResponse | null>(null);
   const [progress, setProgress] = useState(0);
-  const [timeElapsed, setTimeElapsed] = useState(0);
   const [retryAttempt, setRetryAttempt] = useState(0);
-  const [retryTimeout, setRetryTimeout] = useState<number | null>(null);
 
   // Get story generation parameters from localStorage
-  const storyParams = JSON.parse(localStorage.getItem("storyParams") || "{}");
+  const storyParams = localStorage.getItem("storyParams");
+  const parsedParams = storyParams ? JSON.parse(storyParams) : null;
 
-  // Query to generate the story
-  const { error, isError } = useQuery({
+  // Story generation query
+  const { error, isError, isLoading } = useQuery({
     queryKey: ['/api/stories/generate', retryAttempt],
     queryFn: async () => {
       try {
-        console.log('Sending story generation request with params:', storyParams);
+        if (!parsedParams) {
+          throw new Error("No story parameters found");
+        }
 
+        console.log('Starting story generation with params:', parsedParams);
         const response = await apiRequest("/api/stories/generate", {
           method: "POST",
-          body: JSON.stringify(storyParams)
+          body: JSON.stringify(parsedParams)
         });
 
         if (!response || response.error) {
           throw new Error(response?.error || 'Failed to generate story');
         }
 
+        console.log('Story generation successful:', response);
         setStoryData(response);
         setProgress(100);
-
-        // If we have image URLs, skip character approval
-        if (response.metadata.image_urls?.length) {
-          setCurrentStage(GenerationStage.CHAPTER_DISPLAY);
-        } else {
-          setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
-        }
-
+        setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
         return response;
+
       } catch (error: any) {
         console.error('Story generation error:', error);
         const errorMessage = error.message || 'Unknown error occurred';
 
-        // Check for rate limiting
-        if (errorMessage.toLowerCase().includes('rate limit')) {
-          const retryAfter = error.retryAfter || 30;
-          setRetryTimeout(retryAfter * 1000);
-          toast({
-            title: "Generation Paused",
-            description: `Rate limit reached. Retrying in ${Math.ceil(retryAfter)} seconds...`,
-            variant: "default"
-          });
-        } else {
-          toast({
-            title: "Generation Error",
-            description: errorMessage,
-            variant: "destructive"
-          });
-        }
+        toast({
+          title: "Generation Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+
         throw error;
       }
     },
-    enabled: Boolean(storyParams) && retryTimeout === null,
-    retry: false // Handle retries manually
+    enabled: Boolean(parsedParams),
+    retry: false
   });
 
-  // Timer effect for progress indication
+  // Progress indication
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
-    if (currentStage === GenerationStage.GENERATING_STORY) {
+    if (currentStage === GenerationStage.GENERATING_STORY && isLoading) {
       interval = setInterval(() => {
-        setTimeElapsed(prev => prev + 1);
         setProgress(prev => {
-          const newProgress = Math.min((prev + 2), 95); // Slower progress for concurrent generation
+          const newProgress = Math.min(prev + 2, 95);
           return newProgress;
         });
       }, 1000);
@@ -114,118 +100,63 @@ export default function StoryGenerationPage() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [currentStage]);
+  }, [currentStage, isLoading]);
 
-  // Handle API rate limiting
-  useEffect(() => {
-    if (retryTimeout !== null) {
-      const timer = setTimeout(() => {
-        setRetryTimeout(null);
-        setRetryAttempt(prev => prev + 1);
-      }, retryTimeout);
-
-      return () => clearTimeout(timer);
-    }
-  }, [retryTimeout]);
-
-
-  // Mutation to trigger character drawing separately if needed
+  // Character illustration mutation
   const drawCharacterMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/midjourney/generate", {
+      if (!storyData?.metadata.protagonist) {
+        throw new Error("No character data available");
+      }
+
+      const response = await apiRequest("/api/midjourney/generate", {
         method: "POST",
         body: JSON.stringify({
-          characterDescription: storyData?.metadata.protagonist,
-          artStyle: storyParams.artStyle
+          characterDescription: storyData.metadata.protagonist,
+          artStyle: parsedParams?.artStyle
         })
       });
+
+      return response;
     },
     onSuccess: () => {
       setCurrentStage(GenerationStage.DRAWING_CHARACTER);
-      // Transition to chapter display after character is drawn
-      setTimeout(() => {
-        setCurrentStage(GenerationStage.CHAPTER_DISPLAY);
-      }, 2000);
+      setTimeout(() => setCurrentStage(GenerationStage.CHAPTER_DISPLAY), 2000);
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: "Failed to generate character illustration. Please try again.",
+        title: "Illustration Error",
+        description: error.message || "Failed to generate character illustration",
         variant: "destructive"
       });
     }
   });
 
-  const handleDrawCharacter = () => {
-    drawCharacterMutation.mutate();
-  };
-
-  const getStageMessage = () => {
-    if (retryTimeout !== null) {
-      return {
-        title: "Generation Paused",
-        description: `Waiting to retry... (${Math.ceil(retryTimeout / 1000)}s)`,
-        subtext: "The AI needs a short break. We'll continue automatically."
-      };
-    }
-
-    switch (currentStage) {
-      case GenerationStage.GENERATING_STORY:
-        return {
-          title: "Creating Your Magical Story",
-          description: `Our AI is crafting your tale and illustrations... (${timeElapsed}s)`,
-          subtext: retryAttempt > 0
-            ? `Attempt ${retryAttempt + 1} - This usually takes about a minute`
-            : "This usually takes about a minute"
-        };
-      case GenerationStage.CHARACTER_APPROVAL:
-        return {
-          title: "Meet Your Story's Hero",
-          description: "Here's the character we've created. Ready to bring them to life?",
-          subtext: "Click 'Draw Character' when you're ready to see them illustrated"
-        };
-      case GenerationStage.DRAWING_CHARACTER:
-        return {
-          title: "Drawing Your Character",
-          description: "MidJourney is bringing your character to life...",
-          subtext: "This process takes about 30-60 seconds"
-        };
-      case GenerationStage.CHAPTER_DISPLAY:
-        return {
-          title: "Your Story Begins",
-          description: "Everything is ready! Let's start reading.",
-          subtext: "Click 'Start Reading' to begin your adventure"
-        };
-    }
-  };
-
-  // Placeholder images array
-  const placeholderImages = [
-    "/placeholder/yorkie1.svg",
-    "/placeholder/yorkie2.svg",
-    "/placeholder/yorkie3.svg",
-    "/placeholder/yorkie4.svg",
-  ];
-
+  // Content rendering based on stage
   const renderContent = () => {
-    const message = getStageMessage();
-
-    if (isError && !retryTimeout) {
+    if (isError) {
       return (
         <Card className="w-full max-w-2xl mx-auto">
-          <CardContent className="p-6 space-y-6">
+          <CardContent className="p-6">
             <div className="flex flex-col items-center gap-4">
               <AlertCircle className="h-12 w-12 text-destructive" />
               <h2 className="text-2xl font-serif text-center">Generation Error</h2>
               <p className="text-muted-foreground text-center">
-                {error instanceof Error ? error.message : 'Failed to generate story. Please try again.'}
+                {error instanceof Error ? error.message : 'Failed to generate story'}
               </p>
-              <Button
-                onClick={() => setRetryAttempt(prev => prev + 1)}
-                variant="outline"
-              >
-                Retry Generation
-              </Button>
+              <div className="flex gap-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setLocation("/details")}
+                >
+                  Back to Story Details
+                </Button>
+                <Button
+                  onClick={() => setRetryAttempt(prev => prev + 1)}
+                >
+                  Retry Generation
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -236,27 +167,15 @@ export default function StoryGenerationPage() {
       case GenerationStage.GENERATING_STORY:
         return (
           <Card className="w-full max-w-2xl mx-auto">
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-6">
               <div className="flex flex-col items-center gap-4">
-                {retryTimeout !== null ? (
-                  <AlertCircle className="h-12 w-12 text-warning animate-pulse" />
-                ) : (
-                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                )}
-                <h2 className="text-2xl font-serif text-center">{message.title}</h2>
-                <p className="text-muted-foreground text-center">{message.description}</p>
-
-                <ImageGallery images={placeholderImages} />
-
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <h2 className="text-2xl font-serif">Creating Your Story</h2>
+                <p className="text-muted-foreground text-center">
+                  Our AI is crafting your magical tale...
+                </p>
                 <Progress value={progress} className="w-full" />
-                <p className="text-sm text-muted-foreground">{message.subtext}</p>
               </div>
-              {error && !retryTimeout && (
-                <div className="mt-4 p-4 bg-destructive/10 rounded-lg flex items-center gap-2 text-destructive">
-                  <AlertCircle className="h-5 w-5" />
-                  <p>Something went wrong. Please try again.</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         );
@@ -265,32 +184,31 @@ export default function StoryGenerationPage() {
         return (
           <Card className="w-full max-w-2xl mx-auto">
             <CardHeader>
-              <CardTitle>{message.title}</CardTitle>
-              <CardDescription>{message.description}</CardDescription>
+              <CardTitle>Meet Your Story's Hero</CardTitle>
+              <CardDescription>Ready to bring your character to life?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4 bg-muted/50 rounded-lg p-4">
+              <div className="bg-muted/50 rounded-lg p-4">
                 <h3 className="font-semibold text-xl">{storyData?.metadata.protagonist.name}</h3>
                 <p className="text-muted-foreground">{storyData?.metadata.protagonist.personality}</p>
               </div>
               <Button
-                onClick={handleDrawCharacter}
+                onClick={() => drawCharacterMutation.mutate()}
                 disabled={drawCharacterMutation.isPending}
                 className="w-full"
               >
                 {drawCharacterMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Drawing Character...
+                    Creating Illustration...
                   </>
                 ) : (
                   <>
                     <Wand2 className="mr-2 h-4 w-4" />
-                    Draw Character
+                    Create Illustration
                   </>
                 )}
               </Button>
-              <p className="text-sm text-center text-muted-foreground">{message.subtext}</p>
             </CardContent>
           </Card>
         );
@@ -298,13 +216,14 @@ export default function StoryGenerationPage() {
       case GenerationStage.DRAWING_CHARACTER:
         return (
           <Card className="w-full max-w-2xl mx-auto">
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-6">
               <div className="flex flex-col items-center gap-4">
                 <ImagePlus className="h-12 w-12 animate-pulse text-primary" />
-                <h2 className="text-2xl font-serif">{message.title}</h2>
-                <p className="text-muted-foreground text-center">{message.description}</p>
+                <h2 className="text-2xl font-serif">Creating Illustration</h2>
+                <p className="text-muted-foreground text-center">
+                  Bringing your character to life...
+                </p>
                 <Progress value={progress} className="w-full" />
-                <p className="text-sm text-muted-foreground">{message.subtext}</p>
               </div>
             </CardContent>
           </Card>
@@ -313,21 +232,22 @@ export default function StoryGenerationPage() {
       case GenerationStage.CHAPTER_DISPLAY:
         return (
           <Card className="w-full max-w-2xl mx-auto">
-            <CardContent className="p-6 text-center space-y-6">
-              <h2 className="text-2xl font-serif">{message.title}</h2>
-              <p className="text-muted-foreground">{message.description}</p>
-              {storyData?.metadata.image_urls && (
-                <div className="grid grid-cols-2 gap-4">
-                  {storyData.metadata.image_urls.map((url, index) => (
-                    <img
-                      key={index}
-                      src={url}
-                      alt={`Story illustration ${index + 1}`}
-                      className="rounded-lg shadow-lg"
-                    />
-                  ))}
-                </div>
-              )}
+            <CardContent className="p-6 text-center">
+              <h2 className="text-2xl font-serif">Your Story is Ready!</h2>
+              <div className="my-6">
+                {storyData?.metadata.image_urls && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {storyData.metadata.image_urls.map((url, index) => (
+                      <img
+                        key={index}
+                        src={url}
+                        alt={`Story illustration ${index + 1}`}
+                        className="rounded-lg shadow-lg"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
               <Button
                 onClick={() => setLocation(`/story/${storyData?.id}`)}
                 className="mx-auto"
@@ -335,7 +255,6 @@ export default function StoryGenerationPage() {
                 Start Reading
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
-              <p className="text-sm text-muted-foreground">{message.subtext}</p>
             </CardContent>
           </Card>
         );
