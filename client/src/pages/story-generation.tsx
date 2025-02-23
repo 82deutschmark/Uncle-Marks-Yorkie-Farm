@@ -75,15 +75,28 @@ export default function StoryGenerationPage() {
     }
   }, [retryTimeout]);
 
-  // Query to generate the story
+  // Query to generate the story with proper error handling
   const { error } = useQuery<StoryResponse>({
     queryKey: ['/api/stories/generate', retryAttempt],
     queryFn: async () => {
-      const response = await apiRequest("/api/stories/generate", {
-        method: "POST",
-        body: JSON.stringify(storyParams)
-      });
-      return response;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
+
+      try {
+        const response = await apiRequest("/api/stories/generate", {
+          method: "POST",
+          body: JSON.stringify(storyParams),
+          signal: controller.signal
+        });
+        return response;
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out. The AI might be experiencing high load.');
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     },
     enabled: Boolean(storyParams) && retryTimeout === null,
     retry: 3,
@@ -97,6 +110,8 @@ export default function StoryGenerationPage() {
     },
     onError(error: any) {
       const isRateLimit = error.message?.includes('rate limit');
+      const isTimeout = error.message?.includes('timed out');
+
       if (isRateLimit && error.retryAfter) {
         setRetryTimeout(error.retryAfter * 1000);
         toast({
@@ -104,6 +119,13 @@ export default function StoryGenerationPage() {
           description: `Rate limit reached. Retrying in ${Math.ceil(error.retryAfter)} seconds...`,
           variant: "default"
         });
+      } else if (isTimeout) {
+        toast({
+          title: "Generation Timeout",
+          description: "The story is taking longer than expected. We'll try again.",
+          variant: "default"
+        });
+        setRetryAttempt(prev => prev + 1);
       } else {
         toast({
           title: "Error",

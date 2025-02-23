@@ -8,6 +8,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 2000; // 2 seconds
 const MAX_RETRY_DELAY = 10000; // 10 seconds
+const REQUEST_TIMEOUT = 60000; // 60 seconds timeout
 
 // Exponential backoff with jitter
 function calculateBackoff(attempt: number, initialDelay: number): number {
@@ -22,7 +23,12 @@ async function withRetry<T>(
   delay = INITIAL_RETRY_DELAY
 ): Promise<T> {
   try {
-    return await operation();
+    // Add timeout to the operation
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('OpenAI request timeout')), REQUEST_TIMEOUT);
+    });
+
+    return await Promise.race([operation(), timeoutPromise]) as T;
   } catch (error) {
     log.apiError('OpenAI API Error:', error);
     const openAIError = OpenAIError.fromError(error);
@@ -59,56 +65,48 @@ interface StoryResponse {
 }
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
-  const prompt = `Create a vibrant and unique story set at Uncle Mark's Farm:
-## World & Setting
-• Uncle Mark's Farm is a special place where Yorkshire terriers play a vital role in protecting the farm's animals
-• The farm is home to chickens and turkeys that need protection
-• Hidden in the nearby woods lives a mysterious sorcerer who covets the farm's magical eggs
-• The farm faces various challenges from woodland creatures under the sorcerer's influence
+  // Simplified prompt to reduce token count
+  const prompt = `Create a children's story about a Yorkshire terrier:
+Protagonist traits:
+- Colors: ${params.colors}
+- Personality: ${params.characteristics}
+- Setting: Uncle Mark's Farm
+- Theme: ${params.theme}
 
-## Your Protagonist
-Create a unique Yorkshire terrier character with:
-• Physical traits: ${params.colors}
-• Key characteristics: ${params.characteristics}
-• Choose a creative, memorable name that reflects their personality
-• They join two established farm defenders: Pawel and Pawleen
+Key elements to include:
+- The farm has magical elements and animals needing protection
+- A mysterious sorcerer lives in the woods
+- Two farm defenders named Pawel and Pawleen help protect the farm
 
-## Story Elements
-• Theme: ${params.theme || 'Protecting the Farm'}
-• Style: Contemporary, with modern language that resonates with young readers
-• Length: 3,000-5,000 words
-• Structure: Multiple chapters that flow naturally
-
-## Creative Guidelines
-• Give your protagonist a distinct voice and personality
-• Create memorable scenes showing the farm's daily life and magical elements
-• Include both action sequences and character development moments
-• Show how the new Yorkie learns from and works with the existing farm protectors
-• Feel free to add creative subplots that enrich the main story
-
-Provide your response in this exact JSON format:
+Respond in this JSON format:
 {
-  "title": "Your creative story title",
-  "content": "The complete story as a single string with chapters separated by \\n\\n### Chapter N: Title\\n\\n",
+  "title": "Story title",
+  "content": "Story with chapters separated by \\n\\n### Chapter N: Title\\n\\n",
   "metadata": {
     "wordCount": number,
     "chapters": number,
-    "tone": "The story's overall tone",
+    "tone": "story tone",
     "protagonist": {
-      "name": "Your unique character name",
-      "personality": "Key personality traits that make them special"
+      "name": "character name",
+      "personality": "key traits"
     }
   }
 }`;
 
   return withRetry(async () => {
-    log.info('Initiating story generation request to OpenAI');
+    log.info('Initiating story generation request to OpenAI', {
+      model: "gpt-4o",
+      characteristics: params.characteristics,
+      colors: params.colors,
+      theme: params.theme
+    });
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are a imaginative children's book author with a talent for creating unique and memorable characters. You specialize in stories that blend magic, adventure, and heart, set in the special world of Uncle Mark's Farm. While the farm setting and its magical nature are fixed elements, you have complete creative freedom in developing distinct personalities, creative names, and engaging subplots that make each story feel fresh and unique."
+          content: "You are a children's book author specializing in magical stories about Yorkshire terriers. Keep responses concise and engaging for young readers."
         },
         {
           role: "user",
@@ -116,8 +114,9 @@ Provide your response in this exact JSON format:
         }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.9,
-      max_tokens: 4000
+      temperature: 0.7,
+      max_tokens: 2000,
+      timeout: REQUEST_TIMEOUT
     });
 
     const content = response.choices[0].message.content;
