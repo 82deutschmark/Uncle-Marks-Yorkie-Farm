@@ -6,11 +6,11 @@ import express from "express";
 import { storage } from "./storage";
 import { log, requestLogger, errorLogger } from "./lib/logger";
 import { generateStory } from "./lib/openai";
-import { 
-  insertStorySchema, 
+import {
+  insertStorySchema,
   storyParamsSchema,
   artStyleSchema,
-  type StoryParams 
+  type StoryParams
 } from "@shared/schema";
 import { OpenAIError } from "./lib/errors";
 import * as fs from 'fs/promises';
@@ -39,47 +39,9 @@ export async function registerRoutes(app: Express) {
       // Log the raw request body for debugging
       log.info('Raw request body:', req.body);
 
-      // Ensure required fields exist
-      if (!req.body.characteristics || !req.body.colors || !req.body.theme) {
-        const error = {
-          error: 'Missing Required Fields',
-          message: 'Please provide characteristics, colors, and theme',
-          details: {
-            characteristics: !req.body.characteristics,
-            colors: !req.body.colors,
-            theme: !req.body.theme
-          }
-        };
-        log.warn('Missing required fields:', error);
-        return res.status(400).json(error);
-      }
-
-      // Prepare parameters exactly matching schema requirements
-      const params = {
-        protagonist: {
-          name: req.body.name || undefined,
-          personality: String(req.body.characteristics).trim(),
-          appearance: String(req.body.colors).trim()
-        },
-        antagonist: {
-          type: "squirrel-gang" as const,
-          personality: "playful and mischievous"
-        },
-        theme: String(req.body.theme).trim(),
-        mood: "Lighthearted",
-        artStyle: {
-          style: "whimsical" as const,
-          description: "A playful and enchanting style perfect for children's stories"
-        },
-        farmElements: ["barn", "tractor", "chickens", "garden"]
-      };
-
-      // Log prepared parameters before validation
-      log.info('Prepared parameters before validation:', params);
-
       try {
         // Validate parameters against schema
-        const storyParams = storyParamsSchema.parse(params);
+        const storyParams = storyParamsSchema.parse(req.body);
         log.info('Parameters validated successfully:', storyParams);
 
         // Generate story
@@ -115,15 +77,14 @@ export async function registerRoutes(app: Express) {
         if (validationError instanceof ZodError) {
           log.error('Validation error details:', {
             errors: validationError.errors,
-            params: params
+            params: req.body
           });
           return res.status(400).json({
             error: 'Invalid Parameters',
             message: 'Story parameters validation failed',
             details: validationError.errors.map(e => ({
               path: e.path.join('.'),
-              message: e.message,
-              received: e.received
+              message: e.message
             }))
           });
         }

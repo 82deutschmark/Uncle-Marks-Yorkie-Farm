@@ -61,26 +61,34 @@ export default function ReviewPage() {
 
     setIsSubmitting(true);
     try {
-      // Save all details for the story generation page
-      localStorage.setItem("storyParams", JSON.stringify({
+      // Format story parameters according to schema
+      const storyParams = {
         protagonist: {
           personality: storyDetails.personality,
-          appearance: `A beautiful Yorkshire Terrier with a magical blend of ${storyDetails.colors.join(", ").toLowerCase()} colors`
+          appearance: `A beautiful Yorkshire Terrier with ${storyDetails.colors.join(" and ").toLowerCase()} colors`
         },
         theme: storyDetails.theme,
         mood: "Lighthearted",
         artStyle: {
-          style: storyDetails.artStyles.join(", "),
-          description: "A unique blend of artistic styles"
+          style: storyDetails.artStyles[0], // Use primary art style
+          description: `A magical blend of ${storyDetails.artStyles.join(", ")}`
         },
         antagonist: {
-          type: storyDetails.antagonist,
+          type: storyDetails.antagonist as any, // Type is validated by schema
+          personality: "playful yet challenging" // Default personality
         },
         farmElements: storyDetails.farmElements
-      }));
+      };
+
+      // Save formatted parameters to localStorage
+      localStorage.setItem("storyParams", JSON.stringify(storyParams));
+
+      // Log parameters for debugging
+      console.log('Story parameters prepared:', storyParams);
 
       setLocation("/story-generation");
     } catch (error) {
+      console.error('Error preparing story parameters:', error);
       toast({
         title: "Error",
         description: "Failed to prepare story generation. Please try again.",

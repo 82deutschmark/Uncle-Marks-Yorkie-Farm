@@ -4,6 +4,7 @@ import { log } from "./logger";
 import type { StoryParams, StoryResponse } from "@shared/schema";
 import { storage } from "../storage";
 
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
@@ -15,7 +16,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
     });
 
     await storage.addDebugLog("openai", "request", {
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4o",
       params
     });
 
@@ -26,7 +27,7 @@ Story Elements:
 - Appearance: ${params.protagonist.appearance}
 - Theme: ${params.theme}
 - Mood: ${params.mood}
-- Antagonist: ${params.antagonist.type}
+- Antagonist: ${params.antagonist.type} with personality: ${params.antagonist.personality}
 - Farm Elements: ${params.farmElements.join(', ')}
 
 Style Guidelines:
@@ -51,7 +52,7 @@ Response Format:
 }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
