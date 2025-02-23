@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Wand2, ChevronRight, ImagePlus } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 enum GenerationStage {
   GENERATING_STORY,
@@ -36,8 +37,8 @@ export default function StoryGenerationPage() {
   const storyParams = JSON.parse(localStorage.getItem("storyParams") || "{}");
 
   // Query to generate the story
-  const { data: story, isLoading } = useQuery({
-    queryKey: ['/api/stories/generate'],
+  const { data: story, isLoading, error } = useQuery({
+    queryKey: ['/api/stories/generate', Date.now()], // Add timestamp to force fresh request
     queryFn: async () => {
       const response = await apiRequest("/api/stories/generate", {
         method: "POST",
@@ -45,9 +46,13 @@ export default function StoryGenerationPage() {
       });
       return response as StoryResponse;
     },
+    enabled: Boolean(storyParams), // Only run if we have parameters
+    staleTime: 0, // Consider data immediately stale
+    cacheTime: 0, // Don't cache the response
     onSuccess: (data) => {
       setStoryData(data);
       setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
+      queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
     },
     onError: (error) => {
       toast({
