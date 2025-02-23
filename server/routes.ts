@@ -48,11 +48,7 @@ export async function registerRoutes(app: Express) {
       const images = await storage.listImages({ analyzed: true });
       const shuffled = images.sort(() => 0.5 - Math.random());
       const selected = shuffled.slice(0, 3);
-      const imagesWithFullPaths = selected.map(img => ({
-        ...img,
-        path: `/uploads/${img.path}`
-      }));
-      res.json({ images: imagesWithFullPaths });
+      res.json({ images: selected });
     } catch (error) {
       log.error('Failed to fetch random images:', error);
       res.status(500).json({ error: 'Failed to fetch random images' });

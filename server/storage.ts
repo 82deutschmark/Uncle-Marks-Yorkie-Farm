@@ -88,7 +88,11 @@ export class DatabaseStorage implements IStorage {
         query = query.where(eq(images.selected, options.selected));
       }
 
-      return await query;
+      const results = await query;
+      return results.map(img => ({
+        ...img,
+        path: `/uploads/${img.path}`
+      }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
       throw new Error(`Failed to list images: ${error instanceof Error ? error.message : String(error)}`);
