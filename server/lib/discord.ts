@@ -6,97 +6,97 @@ import { storage } from "../storage";
 
 // Initialize Discord bot client with minimal required intents
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,          // Required for basic server interaction
-    GatewayIntentBits.GuildMessages,   // Required for sending/receiving messages
-  ]
+ intents: [
+   GatewayIntentBits.Guilds,          // Required for basic server interaction
+   GatewayIntentBits.GuildMessages,   // Required for sending/receiving messages
+ ]
 });
 
 let isConnected = false;
 
 // Handle bot authentication
 client.once('ready', () => {
-  isConnected = true;
-  log.info('Discord bot is ready!', {
-    username: client.user?.tag,
-    guilds: client.guilds.cache.size
-  });
+ isConnected = true;
+ log.info('Discord bot is ready!', {
+   username: client.user?.tag,
+   guilds: client.guilds.cache.size
+ });
 });
 
 client.on('error', (error) => {
-  isConnected = false;
-  log.error('Discord bot error:', error);
+ isConnected = false;
+ log.error('Discord bot error:', error);
 });
 
 // Start bot if token is available
 const botToken = process.env.DISCORD_BOT_TOKEN;
 if (!botToken) {
-  log.error('Discord bot token is missing');
+ log.error('Discord bot token is missing');
 } else {
-  client.login(botToken).catch((error) => {
-    log.error('Failed to login to Discord:', error);
-  });
+ client.login(botToken).catch((error) => {
+   log.error('Failed to login to Discord:', error);
+ });
 }
 
 export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<void> {
-  try {
-    log.info('Starting MidJourney prompt generation', { prompt });
+ try {
+   log.info('Starting MidJourney prompt generation', { prompt });
 
-    // Check bot connection status
-    if (!isConnected || !client.isReady()) {
-      throw new DiscordError(
-        'Discord bot is not connected. Please wait a moment and try again.',
-        503,
-        true
-      );
-    }
+   // Check bot connection status
+   if (!isConnected || !client.isReady()) {
+     throw new DiscordError(
+       'Discord bot is not connected. Please wait a moment and try again.',
+       503,
+       true
+     );
+   }
 
-    // Format the prompt with required elements
-    const basePrompt = `${prompt.protagonist.appearance} Yorkshire Terrier with ${prompt.protagonist.personality} personality "Uncle Mark's Yorkie Farm" --s 550 --p --c 50 --w 1000`;
-    const formattedPrompt = `/imagine ${basePrompt}`;
+   // Format the prompt with required elements
+   const basePrompt = `${prompt.protagonist.appearance} Yorkshire Terrier with ${prompt.protagonist.personality} personality, ${prompt.artStyle.style} art style with ${prompt.artStyle.description} elements, "Uncle Mark's Yorkie Farm" --s 550 --p --c 50 --w 1000`;
+   const formattedPrompt = `/imagine ${basePrompt}`;
 
-    // Find the designated channel
-    const channelId = process.env.DISCORD_CHANNEL_ID;
-    if (!channelId) {
-      throw new DiscordError('Discord channel ID not configured', 500, false);
-    }
+   // Find the designated channel
+   const channelId = process.env.DISCORD_CHANNEL_ID;
+   if (!channelId) {
+     throw new DiscordError('Discord channel ID not configured', 500, false);
+   }
 
-    let channel;
-    try {
-      channel = await client.channels.fetch(channelId);
-    } catch (error) {
-      log.error('Failed to fetch Discord channel:', error);
-      throw new DiscordError(
-        'Failed to access Discord channel. Please verify channel permissions.',
-        500,
-        true
-      );
-    }
+   let channel;
+   try {
+     channel = await client.channels.fetch(channelId);
+   } catch (error) {
+     log.error('Failed to fetch Discord channel:', error);
+     throw new DiscordError(
+       'Failed to access Discord channel. Please verify channel permissions.',
+       500,
+       true
+     );
+   }
 
-    if (!channel || !(channel instanceof TextChannel)) {
-      throw new DiscordError('Invalid Discord channel or not a text channel', 500, false);
-    }
+   if (!channel || !(channel instanceof TextChannel)) {
+     throw new DiscordError('Invalid Discord channel or not a text channel', 500, false);
+   }
 
-    // Send the prompt
-    await channel.send(formattedPrompt);
+   // Send the prompt
+   await channel.send(formattedPrompt);
 
-    log.info('Successfully sent prompt through bot:', {
-      prompt: formattedPrompt,
-      channel: channelId,
-      botUsername: client.user?.tag
-    });
-  } catch (error) {
-    log.error('Failed to send prompt:', error);
+   log.info('Successfully sent prompt through bot:', {
+     prompt: formattedPrompt,
+     channel: channelId,
+     botUsername: client.user?.tag
+   });
+ } catch (error) {
+   log.error('Failed to send prompt:', error);
 
-    if (error instanceof DiscordError) {
-      throw error;
-    }
-    throw new DiscordError(
-      `Failed to send prompt: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      500,
-      true
-    );
-  }
+   if (error instanceof DiscordError) {
+     throw error;
+   }
+   throw new DiscordError(
+     `Failed to send prompt: ${error instanceof Error ? error.message : 'Unknown error'}`,
+     500,
+     true
+   );
+ }
 }
 
 // Handle incoming messages from MidJourney bot
