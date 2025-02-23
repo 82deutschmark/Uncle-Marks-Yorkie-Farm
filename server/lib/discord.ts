@@ -21,7 +21,6 @@ client.once('ready', () => {
     username: client.user?.tag,
     guilds: client.guilds.cache.size
   });
-
 });
 
 client.on('error', (error) => {
@@ -52,12 +51,9 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
       );
     }
 
-    // Format the prompt with art style and description
-    const basePrompt = prompt.description || 
-      `A Yorkshire Terrier ${prompt.protagonist.appearance}. The Yorkie has ${prompt.protagonist.personality} personality.`;
-
-    const artStyle = prompt.artStyle ? ` --style ${prompt.artStyle.style}` : '';
-    const formattedPrompt = `/imagine ${basePrompt}${artStyle} --ar 1:1 --q 2 --v 5.2`;
+    // Format the prompt with required elements
+    const basePrompt = `${prompt.protagonist.appearance} Yorkshire Terrier with ${prompt.protagonist.personality} personality "Uncle Mark's Yorkie Farm" --s 550 --p --c 50 --w 1000`;
+    const formattedPrompt = `/imagine ${basePrompt}`;
 
     // Find the designated channel
     const channelId = process.env.DISCORD_CHANNEL_ID;
