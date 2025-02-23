@@ -194,27 +194,24 @@ client.on('messageCreate', async (message) => {
 
 import { Client, GatewayIntentBits } from 'discord.js';
 
-const client2 = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ]
+// Configure Discord client with required intents
+client.on('ready', () => {
+  log.info('Discord bot is ready!');
 });
 
-client2.login(process.env.DISCORD_BOT_TOKEN).catch(err => {
-  console.error('Failed to login to Discord:', err);
+client.on('error', (error) => {
+  log.error('Discord bot error:', error);
 });
 
 export async function findSimilarYorkieImage(description: string): Promise<{imageUrl: string, prompt: string}> {
   try {
     // First try Discord search
     try {
-      if (!client2.isReady()) {
+      if (!client.isReady()) {
         throw new Error('Discord client not ready');
       }
 
-      const channel = client2.channels.cache.get(process.env.DISCORD_CHANNEL_ID!);
+      const channel = client.channels.cache.get(process.env.DISCORD_CHANNEL_ID!);
       if (!channel || !channel.isTextBased()) {
         throw new DiscordError('Invalid channel configuration', 500, false);
       }
