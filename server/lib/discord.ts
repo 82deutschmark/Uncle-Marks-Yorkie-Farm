@@ -278,12 +278,23 @@ export async function findSimilarYorkieImage(description: string): Promise<{imag
 }
 export async function findSimilarYorkieImage2(description: string) {
   try {
-    // First try Discord search
-    try {
-      const channel = client.channels.cache.get(process.env.DISCORD_CHANNEL_ID!);
-      if (!channel || !channel.isTextBased()) {
-        throw new DiscordError('Invalid channel configuration', 500, false);
-      }
+    // Use database images only
+    const dbImages = await storage.listImages({ analyzed: true });
+    if (dbImages.length === 0) {
+      throw new DiscordError(`No images found in database`, 500, false);
+    }
+    // Randomly select 3 images from the database
+    const shuffled = dbImages.sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 3);
+    return {
+      images: selected.map(img => ({
+        url: img.path,
+        id: img.id.toString(),
+        timestamp: img.createdAt?.getTime() || Date.now()
+      })),
+      count: selected.length,
+      source: 'database'
+    };
 
     const allImages = [];
     let lastMessageId = null;
