@@ -8,6 +8,7 @@ import StoryViewer from "@/pages/story-viewer";
 import UploadPage from "@/pages/upload";
 import { StoryForm } from "@/components/story-form";
 import YorkieSelector from "@/pages/yorkie-selector";
+import StoryGenerationPage from "@/pages/story-generation";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/details" component={StoryForm} />
       <Route path="/story/:id" component={StoryViewer} />
       <Route path="/upload" component={UploadPage} />
+      <Route path="/story-generation" component={StoryGenerationPage} />
       <Route component={NotFound} />
     </Switch>
   );
