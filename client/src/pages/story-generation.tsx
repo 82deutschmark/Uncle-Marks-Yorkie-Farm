@@ -23,6 +23,7 @@ export default function StoryGenerationPage() {
   const [storyData, setStoryData] = useState<StoryResponse | null>(null);
   const [progress, setProgress] = useState(0);
   const [retryAttempt, setRetryAttempt] = useState(0);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
 
   // Get story generation parameters from localStorage
   const storedParams = localStorage.getItem("storyParams");
@@ -44,9 +45,6 @@ export default function StoryGenerationPage() {
           console.error('Parameter validation error:', e);
           throw new Error("Invalid story parameters. Please complete all details.");
         }
-
-        // Log the validated parameters
-        console.log('Starting story generation with validated params:', parsedParams);
 
         const response = await apiRequest("/api/stories/generate", {
           method: "POST",
@@ -111,7 +109,7 @@ export default function StoryGenerationPage() {
         throw new Error("Art style configuration not found");
       }
 
-      const response = await apiRequest("/api/images/generate", {  // Fixed endpoint URL
+      const response = await apiRequest("/api/images/generate", {
         method: "POST",
         body: JSON.stringify({
           protagonist: {
@@ -122,6 +120,16 @@ export default function StoryGenerationPage() {
           description: `A Yorkshire Terrier named ${storyData.metadata.protagonist.name} who is ${storyData.metadata.protagonist.personality}`
         })
       });
+
+      if (!response || response.error) {
+        throw new Error(response?.error || 'Failed to generate image');
+      }
+
+      // Store the generated image URL
+      console.log('Image generation response:', response);
+      if (response.imageUrl) {
+        setGeneratedImageUrl(response.imageUrl);
+      }
 
       return response;
     },
@@ -241,16 +249,13 @@ export default function StoryGenerationPage() {
             <CardContent className="p-6 text-center">
               <h2 className="text-2xl font-serif">Your Story is Ready!</h2>
               <div className="my-6">
-                {storyData?.metadata.image_urls && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {storyData.metadata.image_urls.map((url, index) => (
-                      <img
-                        key={index}
-                        src={url}
-                        alt={`Story illustration ${index + 1}`}
-                        className="rounded-lg shadow-lg"
-                      />
-                    ))}
+                {generatedImageUrl && (
+                  <div className="flex justify-center">
+                    <img
+                      src={generatedImageUrl}
+                      alt={`Illustration of ${storyData?.metadata.protagonist.name}`}
+                      className="rounded-lg shadow-lg max-w-full h-auto"
+                    />
                   </div>
                 )}
               </div>
