@@ -83,7 +83,7 @@ export default function ReviewPage() {
   const handleYorkieSearch = async () => {
     setGenerationState(prev => ({
       ...prev,
-      characters: { ...prev.characters, loading: true }
+      characters: { ...prev.characters, loading: true, error: null }
     }));
 
     try {
@@ -194,26 +194,46 @@ export default function ReviewPage() {
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="space-y-4">
-                <Button 
-                  className="w-full"
-                  onClick={handleYorkieSearch}
-                  disabled={generationState.characters.loading}
-                >
-                  Search for Yorkie Friends
-                </Button>
+                <div className="space-y-4">
+                  <Button 
+                    className="w-full relative"
+                    onClick={handleYorkieSearch}
+                    disabled={generationState.characters.loading}
+                  >
+                    {generationState.characters.loading ? (
+                      <>
+                        <span className="opacity-0">Search for Yorkie Friends</span>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                        </div>
+                      </>
+                    ) : "Search for Yorkie Friends"}
+                  </Button>
 
-                {generationState.characters.imageUrls && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {generationState.characters.imageUrls.map((url, idx) => (
-                      <img 
-                        key={idx} 
-                        src={url} 
-                        alt={`Yorkie preview ${idx + 1}`}
-                        className="w-full h-32 object-cover rounded-md"
-                      />
-                    ))}
-                  </div>
-                )}
+                  {generationState.characters.error && (
+                    <p className="text-red-500 text-sm text-center">{generationState.characters.error}</p>
+                  )}
+
+                  {generationState.characters.imageUrls && generationState.characters.imageUrls.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">Your Yorkie Friends</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        {generationState.characters.imageUrls.slice(0, 3).map((url, idx) => (
+                          <div key={idx} className="relative group">
+                            <img 
+                              src={url} 
+                              alt={`Yorkie ${idx + 1}`}
+                              className="w-full aspect-square object-cover rounded-lg shadow-md transition-transform transform group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-lg">
+                              <p className="text-white font-medium">Yorkie {idx + 1}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <Button 
                   className="w-full"

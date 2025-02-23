@@ -203,7 +203,7 @@ client.on('error', (error) => {
   log.error('Discord bot error:', error);
 });
 
-export async function findSimilarYorkieImage(description: string): Promise<{imageUrl: string, prompt: string}> {
+export async function findSimilarYorkieImage(description: string): Promise<{images: {url: string, id: string, timestamp: number}[], count: number, source?: string}> {
   try {
     // First try Discord search
     try {
@@ -250,7 +250,8 @@ export async function findSimilarYorkieImage(description: string): Promise<{imag
 
     return {
       images: allImages,
-      count: allImages.length
+      count: allImages.length,
+      source: 'discord'
     };
     } catch (discordError) {
       // If Discord search fails, fall back to database
@@ -258,13 +259,17 @@ export async function findSimilarYorkieImage(description: string): Promise<{imag
       if (dbImages.length === 0) {
         throw new DiscordError(`No images found in Discord or database`, 500, false);
       }
+      // Randomly select 3 images from the database
+      const shuffled = dbImages.sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, 3);
       return {
-        images: dbImages.map(img => ({
+        images: selected.map(img => ({
           url: img.path,
           id: img.id.toString(),
           timestamp: img.createdAt?.getTime() || Date.now()
         })),
-        count: dbImages.length
+        count: selected.length,
+        source: 'database'
       };
     }
   } catch (error) {
@@ -314,7 +319,8 @@ export async function findSimilarYorkieImage2(description: string) {
 
     return {
       images: allImages,
-      count: allImages.length
+      count: allImages.length,
+      source: 'discord'
     };
     } catch (discordError) {
       // If Discord search fails, fall back to database
@@ -322,13 +328,17 @@ export async function findSimilarYorkieImage2(description: string) {
       if (dbImages.length === 0) {
         throw new DiscordError(`No images found in Discord or database`, 500, false);
       }
+      // Randomly select 3 images from the database
+      const shuffled = dbImages.sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, 3);
       return {
-        images: dbImages.map(img => ({
+        images: selected.map(img => ({
           url: img.path,
           id: img.id.toString(),
           timestamp: img.createdAt?.getTime() || Date.now()
         })),
-        count: dbImages.length
+        count: selected.length,
+        source: 'database'
       };
     }
   } catch (error) {
