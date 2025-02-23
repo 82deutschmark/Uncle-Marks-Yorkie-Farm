@@ -115,8 +115,7 @@ Respond in this JSON format:
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 2000,
-      timeout: REQUEST_TIMEOUT
+      max_tokens: 2000
     });
 
     const content = response.choices[0].message.content;

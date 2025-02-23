@@ -39,6 +39,14 @@ export async function registerRoutes(app: Express) {
     try {
       const { characteristics, colors, theme, antagonist } = req.body;
 
+      if (!characteristics || !colors || !theme) {
+        log.warn('Missing required story parameters', { characteristics, colors, theme });
+        return res.status(400).json({
+          error: 'Missing Parameters',
+          message: 'Please provide all required story parameters'
+        });
+      }
+
       log.info('Generating story', { characteristics, colors, theme });
 
       // Generate story with proper parameter structure
@@ -71,15 +79,21 @@ export async function registerRoutes(app: Express) {
         }
       };
 
-      const parsedStory = insertStorySchema.parse(story);
-      const savedStory = await storage.createStory(parsedStory);
+      try {
+        const parsedStory = insertStorySchema.parse(story);
+        const savedStory = await storage.createStory(parsedStory);
 
-      log.info('Story generated successfully', { 
-        storyId: savedStory.id,
-        title: savedStory.title
-      });
+        log.info('Story generated successfully', { 
+          storyId: savedStory.id,
+          title: savedStory.title,
+          wordCount: response.metadata.wordCount
+        });
 
-      res.json(savedStory);
+        res.json(savedStory);
+      } catch (error) {
+        log.error('Story validation or storage error:', error);
+        throw error;
+      }
     } catch (error) {
       log.apiError('Story generation error:', error);
 
@@ -87,13 +101,14 @@ export async function registerRoutes(app: Express) {
         return res.status(error.statusCode).json({
           error: 'AI Generation Error',
           message: error.message,
-          retry: error.statusCode === 429
+          retry: error.statusCode === 429,
+          retryAfter: error.retryAfter
         });
       }
 
       res.status(500).json({
-        error: 'Failed to generate story',
-        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: 'Story Generation Failed',
+        message: error instanceof Error ? error.message : 'An unexpected error occurred while generating your story. Please try again.',
         retry: false
       });
     }
