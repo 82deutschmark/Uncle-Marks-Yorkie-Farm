@@ -14,7 +14,6 @@ interface DebugLog {
   content: any;
 }
 
-// Update IStorage interface
 export interface IStorage {
   createImage(image: InsertImage): Promise<Image>;
   getImage(id: number): Promise<Image | undefined>;
@@ -46,7 +45,7 @@ export class DatabaseStorage implements IStorage {
       openai: [],
       midjourney: []
     };
-    fs.mkdir(this.uploadsDir, { recursive: true }).catch(console.error);
+    fs.mkdir(this.uploadsDir, { recursive: true }).catch(err => log.error('Failed to create uploads directory:', err));
   }
 
   async createImage(image: InsertImage): Promise<Image> {
@@ -54,10 +53,10 @@ export class DatabaseStorage implements IStorage {
       const [newImage] = await db.insert(images)
         .values([image])
         .returning();
-      log(`Created new image record: ${newImage.id}`);
+      log.info(`Created new image record: ${newImage.id}`);
       return newImage;
     } catch (error) {
-      log(`Failed to create image record: ${error}`);
+      log.error(`Failed to create image record: ${error}`);
       throw new Error(`Failed to create image: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -67,7 +66,7 @@ export class DatabaseStorage implements IStorage {
       const [image] = await db.select().from(images).where(eq(images.id, id));
       return image;
     } catch (error) {
-      log(`Failed to get image ${id}: ${error}`);
+      log.error(`Failed to get image ${id}: ${error}`);
       throw new Error(`Failed to get image: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -85,7 +84,7 @@ export class DatabaseStorage implements IStorage {
 
       return await query;
     } catch (error) {
-      log(`Failed to list images: ${error}`);
+      log.error(`Failed to list images: ${error}`);
       throw new Error(`Failed to list images: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -97,32 +96,26 @@ export class DatabaseStorage implements IStorage {
   async updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image> {
     try {
       const [updatedImage] = await db.update(images)
-        .set({
-          ...metadata,
-          analysis: metadata.analysis ? {
-            description: metadata.analysis.description,
-            characterProfile: metadata.analysis.characterProfile
-          } : undefined
-        })
+        .set(metadata)
         .where(eq(images.id, id))
         .returning();
       return updatedImage;
     } catch (error) {
-      log(`Failed to update image ${id} metadata: ${error}`);
+      log.error(`Failed to update image ${id} metadata: ${error}`);
       throw new Error(`Failed to update image metadata: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
-    log(`Processing single image: ${filename}`);
+    log.info(`Processing single image: ${filename}`);
     const filePath = path.join(`book-${bookId}`, filename);
     const fullPath = path.join(this.uploadsDir, filePath);
 
     try {
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
-      log(`Created directory: ${path.dirname(fullPath)}`);
+      log.debug(`Created directory: ${path.dirname(fullPath)}`);
       await fs.writeFile(fullPath, file);
-      log(`Saved file to: ${fullPath}`);
+      log.debug(`Saved file to: ${fullPath}`);
 
       const image = await this.createImage({
         bookId,
@@ -133,29 +126,29 @@ export class DatabaseStorage implements IStorage {
         analysis: null
       });
 
-      log(`Created database record for image: ${image.id}`);
+      log.info(`Created database record for image: ${image.id}`);
       return [image];
     } catch (error) {
-      log(`Failed to save single image ${filename}: ${error}`);
+      log.error(`Failed to save single image ${filename}: ${error}`);
       throw error;
     }
   }
 
   private async processZipFile(zipBuffer: Buffer, bookId: number): Promise<Image[]> {
-    log('Starting ZIP file processing');
+    log.info('Starting ZIP file processing');
     const directory = await unzipper.Open.buffer(zipBuffer);
     const imageFiles = directory.files.filter(file =>
       !file.path.startsWith('__MACOSX') &&
       /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(file.path)
     );
 
-    log(`Found ${imageFiles.length} image files in ZIP`);
+    log.info(`Found ${imageFiles.length} image files in ZIP`);
     const savedImages: Image[] = [];
 
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
       const fileName = path.basename(file.path);
-      log(`Processing ZIP image ${i + 1}/${imageFiles.length}: ${fileName}`);
+      log.debug(`Processing ZIP image ${i + 1}/${imageFiles.length}: ${fileName}`);
       const filePath = path.join(`book-${bookId}`, fileName);
       const fullPath = path.join(this.uploadsDir, filePath);
 
@@ -163,7 +156,7 @@ export class DatabaseStorage implements IStorage {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         const content = await file.buffer();
         await fs.writeFile(fullPath, content);
-        log(`Saved extracted file to: ${fullPath}`);
+        log.debug(`Saved extracted file to: ${fullPath}`);
 
         const image = await this.createImage({
           bookId,
@@ -174,23 +167,23 @@ export class DatabaseStorage implements IStorage {
           analysis: null
         });
 
-        log(`Created database record for ZIP image: ${image.id}`);
+        log.info(`Created database record for ZIP image: ${image.id}`);
         savedImages.push(image);
       } catch (error) {
-        log(`Error processing ZIP image ${fileName}: ${error}`);
+        log.error(`Error processing ZIP image ${fileName}: ${error}`);
         continue;
       }
     }
 
-    log(`Completed processing ${savedImages.length} images from ZIP`);
+    log.info(`Completed processing ${savedImages.length} images from ZIP`);
     return savedImages;
   }
 
   async saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     try {
-      log(`Starting file upload process for: ${filename}`);
+      log.info(`Starting file upload process for: ${filename}`);
       const isZip = file[0] === 0x50 && file[1] === 0x4B && file[2] === 0x03 && file[3] === 0x04;
-      log(`File type detected: ${isZip ? 'ZIP archive' : 'Single file'}`);
+      log.debug(`File type detected: ${isZip ? 'ZIP archive' : 'Single file'}`);
 
       if (isZip) {
         return await this.processZipFile(file, bookId);
@@ -198,7 +191,7 @@ export class DatabaseStorage implements IStorage {
         return await this.saveSingleImage(file, filename, bookId);
       }
     } catch (error) {
-      log(`Failed to process uploaded file ${filename}: ${error}`);
+      log.error(`Failed to process uploaded file ${filename}: ${error}`);
       throw new Error(`Failed to process uploaded file: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -214,10 +207,10 @@ export class DatabaseStorage implements IStorage {
           }
         })
         .returning();
-      log(`Created new story record: ${newStory.id}`);
+      log.info(`Created new story record: ${newStory.id}`);
       return newStory;
     } catch (error) {
-      log(`Failed to create story record: ${error}`);
+      log.error(`Failed to create story record: ${error}`);
       throw new Error(`Failed to create story: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -227,7 +220,7 @@ export class DatabaseStorage implements IStorage {
       const [story] = await db.select().from(stories).where(eq(stories.id, id));
       return story;
     } catch (error) {
-      log(`Failed to get story ${id}: ${error}`);
+      log.error(`Failed to get story ${id}: ${error}`);
       throw new Error(`Failed to get story: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -237,10 +230,10 @@ export class DatabaseStorage implements IStorage {
       const [newStyle] = await db.insert(customArtStyles)
         .values(style)
         .returning();
-      log(`Created new custom art style: ${newStyle.id}`);
+      log.info(`Created new custom art style: ${newStyle.id}`);
       return newStyle;
     } catch (error) {
-      log(`Failed to create custom art style: ${error}`);
+      log.error(`Failed to create custom art style: ${error}`);
       throw new Error(`Failed to create custom art style: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -250,7 +243,7 @@ export class DatabaseStorage implements IStorage {
       const [style] = await db.select().from(customArtStyles).where(eq(customArtStyles.id, id));
       return style;
     } catch (error) {
-      log(`Failed to get custom art style ${id}: ${error}`);
+      log.error(`Failed to get custom art style ${id}: ${error}`);
       throw new Error(`Failed to get custom art style: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -259,7 +252,7 @@ export class DatabaseStorage implements IStorage {
     try {
       return await db.select().from(customArtStyles);
     } catch (error) {
-      log(`Failed to list custom art styles: ${error}`);
+      log.error(`Failed to list custom art styles: ${error}`);
       throw new Error(`Failed to list custom art styles: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -272,7 +265,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updatedStyle;
     } catch (error) {
-      log(`Failed to update custom art style ${id}: ${error}`);
+      log.error(`Failed to update custom art style ${id}: ${error}`);
       throw new Error(`Failed to update custom art style: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
