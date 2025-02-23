@@ -98,12 +98,14 @@ async function constructInteractionPayload(prompt: string) {
   };
 }
 
-export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<void> {
-  if (!process.env.DISCORD_BOT_TOKEN || !process.env.DISCORD_CHANNEL_ID) {
-    throw new Error('Discord configuration missing. Please check environment variables.');
+export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<{status: string, imageIds: number[]}> {
+  if (!process.env.DISCORD_BOT_TOKEN || !process.env.DISCORD_CHANNEL_ID || !process.env.DISCORD_GUILD_ID) {
+    throw new DiscordError('Discord configuration missing. Please check environment variables.', 500, false);
   }
+
   try {
-    log.info('Starting MidJourney prompt generation', { prompt });
+    const validatedPrompt = midjourneyPromptSchema.parse(prompt);
+    log.info('Starting MidJourney prompt generation', { prompt: validatedPrompt });
 
     // Check bot connection status
     if (!isConnected || !client.isReady()) {
@@ -115,11 +117,15 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
     }
 
     // Format the prompt with required elements
-    const basePrompt = `${prompt.protagonist.appearance} Yorkshire Terrier with ${prompt.protagonist.personality} personality, ${prompt.artStyle.style} art style with ${prompt.artStyle.description} elements`;
+    const formattedPrompt = {
+      protagonist: prompt.protagonist,
+      artStyle: prompt.artStyle,
+      description: prompt.description || `A Yorkshire Terrier ${prompt.protagonist.appearance} with ${prompt.protagonist.personality} personality`
+    };
 
     try {
       // Use Puppeteer to automate Discord interaction
-      const result = await sendMidJourneyPromptViaPuppeteer(basePrompt);
+      const result = await sendMidJourneyPromptViaPuppeteer(formattedPrompt);
       if (!result) {
         throw new DiscordError('No response from Discord integration', 500, true);
       }
