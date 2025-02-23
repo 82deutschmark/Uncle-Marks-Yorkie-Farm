@@ -8,7 +8,8 @@ import { log, requestLogger, errorLogger } from "./lib/logger";
 import { generateStory } from "./lib/openai";
 import { 
   insertStorySchema, 
-  storyParamsSchema, 
+  storyParamsSchema,
+  artStyleSchema,
   type StoryParams 
 } from "@shared/schema";
 import { OpenAIError } from "./lib/errors";
@@ -42,27 +43,39 @@ export async function registerRoutes(app: Express) {
   // Generate story endpoint
   app.post("/api/stories/generate", async (req, res) => {
     try {
-      // First validate the input parameters against our schema
+      log.info('Received story generation request:', req.body);
+
+      // Extract and validate art style
+      let artStyle = "whimsical"; // Default style
+      if (req.body.artStyle?.style) {
+        const requestedStyle = req.body.artStyle.style.split(',')[0].trim().toLowerCase();
+        // Only accept if it matches one of our valid styles
+        if (artStyleSchema.shape.style.options.includes(requestedStyle)) {
+          artStyle = requestedStyle;
+        }
+      }
+
+      // Validate and parse the request body with properly structured data
       const storyParams = storyParamsSchema.parse({
         protagonist: {
-          name: req.body.name,
-          personality: req.body.characteristics,
-          appearance: req.body.colors
+          name: req.body.name || undefined,
+          personality: req.body.characteristics || "",
+          appearance: req.body.colors || ""
         },
         antagonist: {
           type: req.body.antagonist?.type || "squirrel-gang",
-          personality: "playful and mischievous"
+          personality: "playful and mischievous" // Explicit default for required field
         },
-        theme: req.body.theme,
+        theme: req.body.theme || "",
         mood: "Lighthearted",
         artStyle: {
-          style: "whimsical",
+          style: artStyle,
           description: "A playful and enchanting style perfect for children's stories"
         },
         farmElements: ["barn", "tractor", "chickens", "garden"]
       });
 
-      log.info('Generating story with validated params:', storyParams);
+      log.info('Validated story parameters:', storyParams);
 
       // Generate story with validated parameters
       const response = await generateStory(storyParams);
@@ -96,19 +109,22 @@ export async function registerRoutes(app: Express) {
     } catch (error) {
       log.error('Story generation error:', error);
 
+      if (error instanceof ZodError) {
+        return res.status(400).json({
+          error: 'Invalid Parameters',
+          message: 'Story parameters validation failed',
+          details: error.errors.map(e => ({
+            path: e.path.join('.'),
+            message: e.message
+          }))
+        });
+      }
+
       if (error instanceof OpenAIError) {
         return res.status(error.statusCode).json({
           error: 'AI Generation Error',
           message: error.message,
           retry: error.statusCode === 429
-        });
-      }
-
-      if (error instanceof ZodError) {
-        return res.status(400).json({
-          error: 'Invalid Parameters',
-          message: 'Story parameters validation failed',
-          details: error.errors
         });
       }
 
