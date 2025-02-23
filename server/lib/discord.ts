@@ -4,12 +4,11 @@ import type { MidJourneyPrompt } from "@shared/schema";
 import { Client, GatewayIntentBits, TextChannel } from "discord.js";
 import { storage } from "../storage";
 
-// Initialize Discord bot client
+// Initialize Discord bot client with minimal required intents
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.Guilds,          // Required for basic server interaction
+    GatewayIntentBits.GuildMessages,   // Required for sending/receiving messages
   ]
 });
 
@@ -109,11 +108,7 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
       throw new DiscordError('Invalid Discord channel or not a text channel', 500, false);
     }
 
-    // Verify channel permissions
-    if (!channel.permissionsFor(client.user!)?.has('SendMessages')) {
-      throw new DiscordError('Bot lacks permission to send messages in the channel', 403, false);
-    }
-
+    // Send the prompt
     await channel.send(formattedPrompt);
 
     await storage.addDebugLog("midjourney", "response", {
@@ -151,9 +146,9 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
   }
 }
 
-// Listen for MidJourney responses
+// Listen for MidJourney responses with simplified message handling
 client.on('messageCreate', async (message) => {
-  // Verify message is from MidJourney bot
+  // Only process messages from MidJourney bot
   if (message.author.id !== process.env.MIDJOURNEY_BOT_ID) return;
 
   log.info('Received message from MidJourney bot:', {
@@ -171,8 +166,4 @@ client.on('messageCreate', async (message) => {
     })),
     timestamp: new Date().toISOString()
   });
-
-  // TODO: Implement MidJourney response handling
-  // This will be implemented in the next iteration after confirming
-  // the basic Discord integration works
 });
