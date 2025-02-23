@@ -83,7 +83,7 @@ export async function registerRoutes(app: Express) {
         const parsedStory = insertStorySchema.parse(story);
         const savedStory = await storage.createStory(parsedStory);
 
-        log.info('Story generated successfully', { 
+        log.info('Story generated successfully', {
           storyId: savedStory.id,
           title: savedStory.title,
           wordCount: response.metadata.wordCount
@@ -287,6 +287,20 @@ export async function registerRoutes(app: Express) {
         error: 'Failed to start image generation',
         message: error instanceof Error ? error.message : 'Unknown error occurred',
         retry: false
+      });
+    }
+  });
+
+  // Add debug logs endpoint
+  app.get("/api/debug/logs", async (req, res) => {
+    try {
+      const logs = await storage.getDebugLogs();
+      res.json(logs);
+    } catch (error) {
+      log.error('Error fetching debug logs:', error);
+      res.status(500).json({
+        error: 'Failed to fetch debug logs',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });

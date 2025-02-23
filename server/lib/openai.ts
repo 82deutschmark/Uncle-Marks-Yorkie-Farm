@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { OpenAIError } from "./errors";
 import { log } from "./logger";
 import type { StoryParams, StoryResponse } from "@shared/schema";
+import { storage } from "../storage";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -47,6 +48,11 @@ async function withRetry<T>(
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
   return withRetry(async () => {
     try {
+      await storage.addDebugLog("openai", "request", {
+        model: "gpt-4o",
+        params
+      });
+
       log.info('Initiating story generation request to OpenAI', {
         model: "gpt-4o",
         theme: params.theme,
@@ -106,6 +112,11 @@ Response Format:
         throw new OpenAIError("No content received from OpenAI");
       }
 
+      await storage.addDebugLog("openai", "response", {
+        content,
+        usage: response.usage
+      });
+
       // Parse and validate the response
       const parsedResponse = JSON.parse(content);
       if (!parsedResponse.title || !parsedResponse.content || !parsedResponse.metadata) {
@@ -113,13 +124,17 @@ Response Format:
       }
 
       log.info('Successfully received story from OpenAI');
-      // Add a placeholder ID for now, the actual ID will be set when saved to the database
       return { id: 0, ...parsedResponse } as StoryResponse;
     } catch (error) {
+      await storage.addDebugLog("openai", "error", {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        params
+      });
+
       if (error instanceof OpenAIError) {
         throw error;
       }
-      throw new OpenAIError(`Failed to generate story: ${error.message}`);
+      throw new OpenAIError(`Failed to generate story: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
     }
   });
 }

@@ -7,6 +7,14 @@ import * as unzipper from 'unzipper';
 import { log } from "./lib/logger";
 import { customArtStyles, type CustomArtStyle, type InsertCustomArtStyle } from "@shared/schema";
 
+interface DebugLog {
+  timestamp: string;
+  service: "openai" | "midjourney";
+  type: "request" | "response" | "error";
+  content: any;
+}
+
+// Update IStorage interface
 export interface IStorage {
   createImage(image: InsertImage): Promise<Image>;
   getImage(id: number): Promise<Image | undefined>;
@@ -20,13 +28,24 @@ export interface IStorage {
   getCustomArtStyle(id: number): Promise<CustomArtStyle | undefined>;
   listCustomArtStyles(): Promise<CustomArtStyle[]>;
   updateCustomArtStyle(id: number, style: Partial<InsertCustomArtStyle>): Promise<CustomArtStyle>;
+  // Add new debug methods
+  getDebugLogs(): Promise<{ openai: DebugLog[], midjourney: DebugLog[] }>;
+  addDebugLog(service: DebugLog["service"], type: DebugLog["type"], content: any): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
   private readonly uploadsDir: string;
+  private debugLogs: {
+    openai: DebugLog[];
+    midjourney: DebugLog[];
+  };
 
   constructor() {
     this.uploadsDir = path.resolve(process.cwd(), 'uploads');
+    this.debugLogs = {
+      openai: [],
+      midjourney: []
+    };
     fs.mkdir(this.uploadsDir, { recursive: true }).catch(console.error);
   }
 
@@ -256,6 +275,26 @@ export class DatabaseStorage implements IStorage {
       log(`Failed to update custom art style ${id}: ${error}`);
       throw new Error(`Failed to update custom art style: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  // Add debug methods
+  async getDebugLogs() {
+    return this.debugLogs;
+  }
+
+  async addDebugLog(service: DebugLog["service"], type: DebugLog["type"], content: any) {
+    const newLog: DebugLog = {
+      timestamp: new Date().toISOString(),
+      service,
+      type,
+      content
+    };
+
+    // Keep only the last 100 logs per service
+    this.debugLogs[service] = [
+      ...this.debugLogs[service].slice(-99),
+      newLog
+    ];
   }
 }
 
