@@ -39,8 +39,8 @@ export default function StoryGenerationPage() {
   const [retryAttempt, setRetryAttempt] = useState(0);
 
   // Get story generation parameters from localStorage
-  const storyParams = localStorage.getItem("storyParams");
-  const parsedParams = storyParams ? JSON.parse(storyParams) : null;
+  const storedParams = localStorage.getItem("storyParams");
+  const parsedParams = storedParams ? JSON.parse(storedParams) : null;
 
   // Story generation query
   const { error, isError, isLoading } = useQuery({
@@ -48,7 +48,12 @@ export default function StoryGenerationPage() {
     queryFn: async () => {
       try {
         if (!parsedParams) {
-          throw new Error("No story parameters found");
+          throw new Error("Story parameters not found. Please return to the details page.");
+        }
+
+        // Validate parameters before sending
+        if (!parsedParams.protagonist?.personality || !parsedParams.protagonist?.appearance) {
+          throw new Error("Invalid character details. Please complete all required fields.");
         }
 
         console.log('Starting story generation with params:', parsedParams);

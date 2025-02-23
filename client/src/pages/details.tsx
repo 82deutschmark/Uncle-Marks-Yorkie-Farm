@@ -170,18 +170,19 @@ export default function DetailsPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       protagonist: {
+        name: "",
         personality: "",
         appearance: ""
+      },
+      antagonist: {
+        type: "sorcerer-squirrels",
+        personality: "Evil and mischievous"
       },
       theme: "farm-adventure",
       mood: "Lighthearted",
       artStyle: {
         style: "whimsical",
         description: "A playful and enchanting style perfect for children's stories"
-      },
-      antagonist: {
-        type: "sorcerer-squirrels",
-        description: "Evil wizard commanding an army of mischievous squirrels"
       },
       farmElements: ["chickens", "garden"]
     }
@@ -203,7 +204,6 @@ export default function DetailsPage() {
       return [...prev, colorLabel];
     });
 
-    // Update the form with the combined color description
     const appearance = selectedColors.length > 0
       ? `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`
       : "";
@@ -223,12 +223,13 @@ export default function DetailsPage() {
         });
         return prev;
       }
-      const newStyles = [...prev, style];
 
-      // Update the form's artStyle field
+      const newStyles = [...prev, style];
+      const selectedStyle = artStyles.find(s => s.value === style);
+
       form.setValue("artStyle", {
-        style: newStyles.join(", "),
-        description: "A unique blend of artistic styles"
+        style: style,
+        description: selectedStyle?.description || "A unique artistic style"
       });
 
       return newStyles;
@@ -236,7 +237,7 @@ export default function DetailsPage() {
   };
 
   const randomizeAll = () => {
-    const numColors = Math.floor(Math.random() * 2) + 2; // 2-3 random colors
+    const numColors = Math.floor(Math.random() * 2) + 2;
     const randomColors = [];
     while (randomColors.length < numColors) {
       const color = colors[Math.floor(Math.random() * colors.length)];
@@ -248,7 +249,7 @@ export default function DetailsPage() {
     const randomPersonality = personalities[Math.floor(Math.random() * personalities.length)];
     const randomTheme = themes[Math.floor(Math.random() * themes.length)];
     const randomArtStyles = [];
-    const numStyles = Math.floor(Math.random() * 2) + 1; // 1-2 random styles
+    const numStyles = Math.floor(Math.random() * 2) + 1;
 
     while (randomArtStyles.length < numStyles) {
       const style = artStyles[Math.floor(Math.random() * artStyles.length)];
@@ -283,45 +284,45 @@ export default function DetailsPage() {
   const onSubmit = async (data: StoryParams) => {
     setIsSubmitting(true);
 
-    // Validate required fields
-    if (!data.protagonist.personality || !data.protagonist.appearance || !data.artStyle.style) {
+    if (!data.protagonist.personality || !data.protagonist.appearance) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields before continuing.",
+        description: "Please fill in all character details before continuing.",
         variant: "destructive"
       });
       setIsSubmitting(false);
       return;
     }
 
-    toast({
-      title: "Creating Your Story",
-      description: "Please wait while we craft your tale...",
-    });
-
     try {
-      // Store complete story parameters
-      const storyParams = {
-        ...data,
-        mood: "Lighthearted", // Default mood
+      const storyParams: StoryParams = {
         protagonist: {
-          ...data.protagonist,
-          appearance: data.protagonist.appearance || `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`,
+          name: "Yorkie Hero",
+          personality: data.protagonist.personality,
+          appearance: data.protagonist.appearance || `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`
         },
-        artStyle: {
-          style: data.artStyle.style || selectedArtStyles.join(", "),
-          description: "A unique blend of artistic styles"
-        }
+        antagonist: {
+          type: data.antagonist.type,
+          personality: "Evil and mischievous"
+        },
+        theme: data.theme,
+        mood: "Lighthearted",
+        artStyle: data.artStyle,
+        farmElements: data.farmElements
       };
 
-      localStorage.setItem("storyParams", JSON.stringify(storyParams));
+      const validated = storyParamsSchema.parse(storyParams);
+
+      localStorage.setItem("storyParams", JSON.stringify(validated));
       setLocation("/story-generation");
     } catch (error) {
+      console.error('Validation error:', error);
       toast({
-        title: "Error",
-        description: "Failed to create story. Please try again.",
-        variant: "destructive",
+        title: "Validation Error",
+        description: "Please ensure all required fields are filled correctly.",
+        variant: "destructive"
       });
+      setIsSubmitting(false);
     } finally {
       setIsSubmitting(false);
     }
