@@ -39,7 +39,7 @@ export default function Home() {
                     <li>• Beautiful illustrations in your chosen artistic style</li>
                   </ul>
                 </div>
-                <Link href="/details">
+                <Link href="/create/appearance">
                   <Button 
                     size="lg" 
                     className="text-xl py-6 px-12 font-serif transform hover:scale-105 transition-transform"
