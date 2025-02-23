@@ -122,7 +122,7 @@ export default function ReviewPage() {
 
   const getMidJourneyCommand = () => {
     return {
-      prompt: `/imagine Yorkshire Terrier ${storyDetails.colors.join(" and ")} colors, ${storyDetails.personality.toLowerCase()} expression, magical farm setting, ${storyDetails.artStyles.join(", ")}, children book illustration, detailed, vibrant, whimsical "Uncle Mark's Yorkie Farm" --s 550 --p 44j29we --ar 2:3 --c 50 --w 1255`,
+      prompt: `/imagine Yorkshire Terrier, ${storyDetails.colors.join(" and ")}, ${storyDetails.personality.toLowerCase()}, magical farm setting, ${storyDetails.artStyles.join(", ")}, watercolor, whimsical, children book illustration, detailed, vibrant, whimsical "Uncle Mark's Yorkie Farm" --s 550 --p --ar 3:3 --c 50 --w 1255`,
       channelId: import.meta.env.VITE_DISCORD_CHANNEL_ID,
       botId: import.meta.env.VITE_MIDJOURNEY_BOT_ID
     };
