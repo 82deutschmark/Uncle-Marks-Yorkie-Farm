@@ -96,7 +96,12 @@ const colors = [
   { value: "chocolate", label: "Rich Chocolate", preview: "🟫" },
   { value: "parti-neon", label: "Parti Neon", preview: "💫🌈" },
   { value: "blue-tan", label: "Classic Blue & Tan", preview: "🔵🟫" },
-  { value: "ruby-red", label: "Ruby Red", preview: "❤️" }
+  { value: "ruby-red", label: "Ruby Red", preview: "❤️" },
+  { value: "galaxy-swirl", label: "Galaxy Swirl", preview: "🌌✨" },
+  { value: "cotton-candy", label: "Cotton Candy", preview: "🍬💝" },
+  { value: "emerald-gold", label: "Emerald & Gold", preview: "💚✨" },
+  { value: "unicorn", label: "Unicorn Fantasy", preview: "🦄✨" },
+  { value: "aurora", label: "Aurora Lights", preview: "🌈🌟" }
 ];
 
 const themes = [
@@ -159,6 +164,7 @@ export default function DetailsPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedArtStyles, setSelectedArtStyles] = useState<string[]>([]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
 
   const form = useForm<StoryParams>({
     resolver: zodResolver(formSchema),
@@ -181,6 +187,29 @@ export default function DetailsPage() {
     }
   });
 
+  const handleColorSelect = (colorLabel: string) => {
+    setSelectedColors(prev => {
+      if (prev.includes(colorLabel)) {
+        return prev.filter(c => c !== colorLabel);
+      }
+      if (prev.length >= 3) {
+        toast({
+          title: "Maximum Colors Selected",
+          description: "You can select up to 3 colors for your Yorkie.",
+          variant: "warning"
+        });
+        return prev;
+      }
+      return [...prev, colorLabel];
+    });
+
+    // Update the form with the combined color description
+    const appearance = selectedColors.length > 0
+      ? `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`
+      : "";
+    form.setValue("protagonist.appearance", appearance);
+  };
+
   const handleArtStyleSelect = (style: string) => {
     setSelectedArtStyles(prev => {
       if (prev.includes(style)) {
@@ -199,8 +228,16 @@ export default function DetailsPage() {
   };
 
   const randomizeAll = () => {
+    const numColors = Math.floor(Math.random() * 2) + 2; // 2-3 random colors
+    const randomColors = [];
+    while (randomColors.length < numColors) {
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      if (!randomColors.includes(color.label)) {
+        randomColors.push(color.label);
+      }
+    }
+
     const randomPersonality = personalities[Math.floor(Math.random() * personalities.length)];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
     const randomTheme = themes[Math.floor(Math.random() * themes.length)];
     const randomArtStyles = [];
     const numStyles = Math.floor(Math.random() * 2) + 1; // 1-2 random styles
@@ -218,8 +255,9 @@ export default function DetailsPage() {
       .slice(0, 2)
       .map(e => e.value);
 
+    setSelectedColors(randomColors);
     form.setValue("protagonist.personality", randomPersonality);
-    form.setValue("protagonist.appearance", `A beautiful Yorkshire Terrier with ${randomColor.label.toLowerCase()} coat`);
+    form.setValue("protagonist.appearance", `A beautiful Yorkshire Terrier with a magical blend of ${randomColors.join(", ").toLowerCase()} colors`);
     form.setValue("theme", randomTheme.value);
     setSelectedArtStyles(randomArtStyles);
     form.setValue("antagonist", {
@@ -300,40 +338,51 @@ export default function DetailsPage() {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <TabsContent value="appearance" className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="protagonist.appearance"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Yorkie's Colors</FormLabel>
-                          <FormDescription>
-                            Choose your Yorkie's unique color combination
-                          </FormDescription>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={(value) => field.onChange(`A beautiful Yorkshire Terrier with ${value} coat`)}
-                              defaultValue={field.value}
-                              className="grid grid-cols-3 gap-4"
-                            >
-                              {colors.map((color) => (
-                                <FormItem key={color.value}>
-                                  <FormControl>
-                                    <RadioGroupItem
-                                      value={color.label.toLowerCase()}
-                                      className="peer sr-only"
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-transparent p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                    <span className="text-2xl">{color.preview}</span>
-                                    <span className="mt-2 text-center">{color.label}</span>
-                                  </FormLabel>
-                                </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                        </FormItem>
+                    <FormItem>
+                      <FormLabel>Yorkie's Colors (Select up to 3)</FormLabel>
+                      <FormDescription>
+                        Mix and match up to three magical colors for your Yorkie
+                      </FormDescription>
+                      <div className="grid grid-cols-3 gap-4">
+                        {colors.map((color) => (
+                          <div
+                            key={color.value}
+                            className={`cursor-pointer rounded-md border-2 p-4 hover:bg-accent hover:text-accent-foreground ${
+                              selectedColors.includes(color.label)
+                                ? "border-primary bg-primary/5"
+                                : "border-muted"
+                            }`}
+                            onClick={() => handleColorSelect(color.label)}
+                          >
+                            <div className="flex flex-col items-center gap-2">
+                              <span className="text-2xl">{color.preview}</span>
+                              <span className="text-center">{color.label}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedColors.length > 0 && (
+                        <div className="mt-4 p-4 bg-muted/20 rounded-lg">
+                          <h4 className="font-semibold mb-2">Selected Colors:</h4>
+                          <div className="flex gap-2 flex-wrap">
+                            {selectedColors.map((color) => (
+                              <div
+                                key={color}
+                                className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                              >
+                                {color}
+                                <button
+                                  onClick={() => handleColorSelect(color)}
+                                  className="hover:text-destructive"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
-                    />
+                    </FormItem>
                   </TabsContent>
 
                   <TabsContent value="character" className="space-y-6">
