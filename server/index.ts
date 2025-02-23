@@ -70,9 +70,25 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  const PORT = 5000;
-  server.listen(PORT, "0.0.0.0", () => {
-    log.info(`serving on port ${PORT}`);
+  // Try port 5000 first, fallback to 3000
+  const tryPort = async (port: number): Promise<number> => {
+    try {
+      await new Promise((resolve, reject) => {
+        server.listen(port, "0.0.0.0")
+          .once('listening', () => resolve(port))
+          .once('error', reject);
+      });
+      return port;
+    } catch (err) {
+      if (port === 5000) return tryPort(3000);
+      throw err;
+    }
+  };
+
+  tryPort(5000).then(port => {
+    log.info(`serving on port ${port}`);
+  }).catch(err => {
+    log.error('Failed to start server:', err);
+    process.exit(1);
   });
 })();
