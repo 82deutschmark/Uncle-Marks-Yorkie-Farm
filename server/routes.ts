@@ -38,7 +38,7 @@ export async function registerRoutes(app: Express) {
   // Generate story endpoint
   app.post("/api/stories/generate", async (req, res) => {
     try {
-      const { colors, theme, antagonist, characteristics } = req.body;
+      const { colors, theme, antagonist, characteristics, artStyle } = req.body;
 
       if (!characteristics || !colors || !theme) {
         log.warn('Missing required story parameters', { characteristics, colors, theme });
@@ -48,28 +48,54 @@ export async function registerRoutes(app: Express) {
         });
       }
 
-      log.info('Generating story', { characteristics, colors, theme });
+      log.info('Generating story with params:', { 
+        characteristics, 
+        colors, 
+        theme,
+        antagonist,
+        artStyle 
+      });
 
       // Properly structure story parameters according to schema
       const storyParams: StoryParams = {
         protagonist: {
-          personality: characteristics,
-          appearance: colors
+          personality: characteristics || '',
+          appearance: colors || ''
         },
         antagonist: {
           type: antagonist?.type || "squirrel-gang",
-          personality: antagonist?.personality || "mischievous and playful"  // Add default personality
+          personality: "playful and mischievous" // Default personality
         },
-        theme,
-        mood: "Lighthearted",  // Default mood
+        theme: theme || '',
+        mood: "Lighthearted", // Default mood
         artStyle: {
-          style: "whimsical",  // Use a single valid style
+          style: "whimsical", // Default to whimsical if invalid
           description: "A playful and enchanting style perfect for children's stories"
         },
         farmElements: ["barn", "tractor", "chickens", "garden"]
       };
 
-      // Generate story with proper parameter structure
+      // Try to use provided art style if valid
+      if (artStyle?.style && typeof artStyle.style === 'string') {
+        const validStyles = [
+          'whimsical',
+          'studio-ghibli',
+          'watercolor',
+          'pixel-art',
+          'pop-art',
+          'pencil-sketch',
+          '3d-cartoon',
+          'storybook'
+        ];
+
+        // Use the first valid style or default to whimsical
+        const style = artStyle.style.split(',')[0].trim();
+        if (validStyles.includes(style)) {
+          storyParams.artStyle.style = style;
+        }
+      }
+
+      // Generate story with validated parameters
       const response = await generateStory(storyParams);
 
       const story = {
@@ -84,20 +110,16 @@ export async function registerRoutes(app: Express) {
           slot3: 3
         },
         metadata: response.metadata,
-        artStyle: {
-          style: "whimsical",
-          description: "A playful and enchanting style perfect for children's stories"
-        }
+        artStyle: storyParams.artStyle
       };
 
       try {
         const parsedStory = insertStorySchema.parse(story);
         const savedStory = await storage.createStory(parsedStory);
 
-        log.info('Story generated successfully', {
+        log.info('Story generated and saved successfully', {
           storyId: savedStory.id,
-          title: savedStory.title,
-          wordCount: response.metadata.wordCount
+          title: savedStory.title
         });
 
         res.json(savedStory);
