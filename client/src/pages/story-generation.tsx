@@ -111,11 +111,15 @@ export default function StoryGenerationPage() {
         throw new Error("Art style configuration not found");
       }
 
-      const response = await apiRequest("/api/midjourney/generate", {
+      const response = await apiRequest("/api/images/generate", {  // Fixed endpoint URL
         method: "POST",
         body: JSON.stringify({
-          characterDescription: storyData.metadata.protagonist,
-          artStyle: params.artStyle
+          protagonist: {
+            personality: storyData.metadata.protagonist.personality,
+            appearance: params.protagonist.appearance
+          },
+          artStyle: params.artStyle,
+          description: `A Yorkshire Terrier named ${storyData.metadata.protagonist.name} who is ${storyData.metadata.protagonist.personality}`
         })
       });
 
