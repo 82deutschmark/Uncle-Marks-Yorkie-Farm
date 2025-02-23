@@ -198,6 +198,7 @@ export class DatabaseStorage implements IStorage {
 
   async createStory(story: InsertStory): Promise<Story> {
     try {
+      log.info('Creating new story'); //Corrected logging
       const [newStory] = await db.insert(stories)
         .values({
           ...story,

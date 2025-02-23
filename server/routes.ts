@@ -10,7 +10,7 @@ import {
   insertStorySchema,
   storyParamsSchema,
   artStyleSchema,
-  midjourneyPromptSchema,
+  midJourneyPromptSchema,
   type StoryParams,
   type MidJourneyPrompt
 } from "@shared/schema";
