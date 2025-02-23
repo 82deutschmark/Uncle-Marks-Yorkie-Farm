@@ -192,7 +192,7 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-async function findSimilarYorkieImage(description: string): Promise<{imageUrl: string, prompt: string}> {
+export async function findSimilarYorkieImage(description: string): Promise<{imageUrl: string, prompt: string}> {
   try {
     const messages = await fetchDiscordChannelMessages(200);
     const yorkieMessages = messages.filter(msg => 
