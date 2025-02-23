@@ -3,6 +3,7 @@ import { DiscordError } from "./errors";
 import type { MidJourneyPrompt } from "@shared/schema";
 import { Client, GatewayIntentBits, TextChannel } from "discord.js";
 import { storage } from "../storage";
+import crypto from 'crypto';
 
 // Initialize Discord bot client with minimal required intents
 const client = new Client({
@@ -47,25 +48,39 @@ async function constructInteractionPayload(prompt: string) {
     throw new DiscordError('Missing required Discord configuration', 500, false);
   }
 
-  // Construct the interaction payload as per Discord's API requirements
+  // Generate a random nonce for the interaction
+  const nonce = crypto.randomBytes(16).toString('hex');
+
   return {
     type: 2, // APPLICATION_COMMAND type
     application_id: midjourneyAppId,
     guild_id: guildId,
     channel_id: channelId,
-    session_id: `${Date.now()}`, // Unique session ID
+    session_id: `${Date.now()}`,
+    nonce,
     data: {
-      version: '1118961510123847772', // Midjourney command version
-      id: '938956540159881230', // Midjourney /imagine command ID
+      version: "1118961510123847772",
+      id: "938956540159881230",
       name: "imagine",
-      type: 1, // CHAT_INPUT type
-      options: [
-        {
-          type: 3, // STRING type
+      type: 1,
+      options: [{
+        type: 3,
+        name: "prompt",
+        value: prompt
+      }],
+      application_command: {
+        id: "938956540159881230",
+        application_id: midjourneyAppId,
+        version: "1118961510123847772",
+        name: "imagine",
+        description: "Create images with Midjourney",
+        options: [{
+          type: 3,
           name: "prompt",
-          value: prompt
-        }
-      ]
+          description: "The prompt to imagine",
+          required: true
+        }]
+      }
     }
   };
 }
@@ -86,15 +101,24 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
     // Format the prompt with required elements
     const basePrompt = `${prompt.protagonist.appearance} Yorkshire Terrier with ${prompt.protagonist.personality} personality, ${prompt.artStyle.style} art style with ${prompt.artStyle.description} elements, "Uncle Mark's Yorkie Farm" --s 550 --p --c 50 --w 1000`;
 
+    // Get the bot token
+    const token = client.token;
+    if (!token) {
+      throw new DiscordError('Bot token not available', 500, false);
+    }
+
     // Construct the interaction payload
     const payload = await constructInteractionPayload(basePrompt);
+
+    log.info('Sending interaction payload:', { payload });
 
     // Send the interaction to Discord's API
     const response = await fetch('https://discord.com/api/v10/interactions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bot ${botToken}`,
+        'Authorization': `Bot ${token}`,
         'Content-Type': 'application/json',
+        'User-Agent': 'DiscordBot (https://github.com/discord/discord-api-docs, 10)'
       },
       body: JSON.stringify(payload)
     });
@@ -115,7 +139,7 @@ export async function sendMidJourneyPrompt(prompt: MidJourneyPrompt): Promise<vo
 
     log.info('Successfully sent MidJourney prompt through Discord API', {
       prompt: basePrompt,
-      payload
+      status: response.status
     });
   } catch (error) {
     log.error('Failed to send prompt:', error);
