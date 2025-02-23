@@ -58,12 +58,6 @@ interface StoryResponse {
   };
 }
 
-interface CharacterProfile {
-  name: string;
-  personality: string;
-  description: string;
-}
-
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
   const prompt = `Create a vibrant and unique story set at Uncle Mark's Farm:
 ## World & Setting
@@ -123,7 +117,7 @@ Provide your response in this exact JSON format:
       ],
       response_format: { type: "json_object" },
       temperature: 0.9,
-      max_tokens: 8000
+      max_tokens: 4000 // Reduced from 8000 to help with rate limits
     });
 
     const content = response.choices[0].message.content;
@@ -134,6 +128,12 @@ Provide your response in this exact JSON format:
     log('Successfully received story from OpenAI');
     return JSON.parse(content) as StoryResponse;
   });
+}
+
+interface CharacterProfile {
+  name: string;
+  personality: string;
+  description: string;
 }
 
 export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {

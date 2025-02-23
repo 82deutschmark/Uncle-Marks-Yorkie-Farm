@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Image } from "@shared/schema";
-import { Loader2, Dog, RefreshCcw, Wand2, Sparkles } from "lucide-react";
+import { Dog, RefreshCcw, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -23,7 +23,6 @@ export default function YorkieSelector() {
   const { toast } = useToast();
   const [displayImages, setDisplayImages] = useState<Image[][]>([[], [], []]);
   const [selectedYorkie, setSelectedYorkie] = useState<YorkieSlot | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
 
   const { data: images, isLoading } = useQuery<Image[]>({
@@ -59,25 +58,7 @@ export default function YorkieSelector() {
     ]);
   };
 
-  const handleGenerateStory = () => {
-    // Store story parameters in localStorage
-    localStorage.setItem("storyParams", JSON.stringify({
-      characteristics: "friendly and adventurous",
-      colors: "brown and black",
-      setting: "Uncle Mark's Magical Farm",
-      theme: "Adventure",
-      antagonist: "Mischievous Squirrel",
-      artStyle: {
-        style: "whimsical",
-        description: "A playful and enchanting style perfect for children's stories"
-      }
-    }));
-
-    // Redirect to the story generation page
-    setLocation("/story-generation");
-  };
-
-  const handleAddDetails = () => {
+  const handleStartStory = () => {
     setLocation('/details');
   };
 
@@ -96,51 +77,28 @@ export default function YorkieSelector() {
           <CardHeader>
             <CardTitle className="text-center text-2xl font-serif">Begin Your Yorkie Adventure</CardTitle>
             <CardDescription className="text-center text-lg">
-              Let our AI create a magical story about a Yorkshire Terrier at Uncle Mark's Farm
+              Let's create a magical story about a Yorkshire Terrier at Uncle Mark's Farm
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Primary Action - Quick Story Generation */}
+            {/* Primary Action - Story Creation */}
             <div className="mb-8 text-center space-y-6">
               <div className="space-y-3">
                 <Button
                   size="lg"
-                  onClick={handleGenerateStory}
-                  disabled={isGenerating}
+                  onClick={handleStartStory}
                   className="text-xl py-8 px-16 transform hover:scale-105 transition-transform"
                 >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                      Creating Your Story...
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="mr-3 h-6 w-6" />
-                      Generate Quick Story
-                    </>
-                  )}
+                  <Sparkles className="mr-3 h-6 w-6" />
+                  Create Your Story
                 </Button>
                 <p className="text-muted-foreground">
-                  AI will create a charming tale with custom illustrations
+                  Customize your story's characters and settings
                 </p>
-              </div>
-
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={handleAddDetails}
-                  size="lg"
-                  disabled={isGenerating}
-                  className="text-lg"
-                >
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Customize Story Details
-                </Button>
               </div>
             </div>
 
-            {/* Optional - Character Gallery (Less Prominent) */}
+            {/* Optional - Character Gallery */}
             <div className="mt-12 pt-6 border-t border-border opacity-70 hover:opacity-100 transition-opacity">
               <div className="text-center mb-6">
                 <h3 className="text-sm font-medium text-muted-foreground">
@@ -191,7 +149,7 @@ export default function YorkieSelector() {
                   variant="ghost"
                   onClick={rerollAllSlots}
                   size="sm"
-                  disabled={isGenerating || analyzingId !== null}
+                  disabled={analyzingId !== null}
                   className="text-muted-foreground"
                 >
                   <RefreshCcw className="h-4 w-4 mr-2" />

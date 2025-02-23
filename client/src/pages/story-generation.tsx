@@ -35,6 +35,8 @@ export default function StoryGenerationPage() {
   const [storyData, setStoryData] = useState<StoryResponse | null>(null);
   const [progress, setProgress] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const [retryTimeout, setRetryTimeout] = useState<number | null>(null);
 
   // Get story generation parameters from localStorage
   const storyParams = JSON.parse(localStorage.getItem("storyParams") || "{}");
@@ -60,9 +62,21 @@ export default function StoryGenerationPage() {
     };
   }, [currentStage]);
 
+  // Handle API rate limiting
+  useEffect(() => {
+    if (retryTimeout !== null) {
+      const timer = setTimeout(() => {
+        setRetryTimeout(null);
+        setRetryAttempt(prev => prev + 1);
+      }, retryTimeout);
+
+      return () => clearTimeout(timer);
+    }
+  }, [retryTimeout]);
+
   // Query to generate the story
   const { error } = useQuery({
-    queryKey: ['/api/stories/generate', Date.now()],
+    queryKey: ['/api/stories/generate', retryAttempt],
     queryFn: async () => {
       const response = await apiRequest("/api/stories/generate", {
         method: "POST",
@@ -70,7 +84,7 @@ export default function StoryGenerationPage() {
       });
       return response as StoryResponse;
     },
-    enabled: Boolean(storyParams),
+    enabled: Boolean(storyParams) && retryTimeout === null,
     staleTime: 0,
     gcTime: 0,
     onSuccess: (data) => {
@@ -79,13 +93,23 @@ export default function StoryGenerationPage() {
       setCurrentStage(GenerationStage.CHARACTER_APPROVAL);
       queryClient.invalidateQueries({ queryKey: ['/api/stories'] });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to generate story. Please try again.",
-        variant: "destructive"
-      });
-      setLocation("/");
+    onError: (error: any) => {
+      const isRateLimit = error.message?.includes('rate limit');
+      if (isRateLimit && error.retryAfter) {
+        setRetryTimeout(error.retryAfter * 1000);
+        toast({
+          title: "Generation Paused",
+          description: `Rate limit reached. Retrying in ${Math.ceil(error.retryAfter)} seconds...`,
+          variant: "warning"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to generate story. Please try again.",
+          variant: "destructive"
+        });
+        setLocation("/");
+      }
     }
   });
 
@@ -121,12 +145,22 @@ export default function StoryGenerationPage() {
   };
 
   const getStageMessage = () => {
+    if (retryTimeout !== null) {
+      return {
+        title: "Generation Paused",
+        description: `Waiting to retry... (${Math.ceil(retryTimeout / 1000)}s)`,
+        subtext: "The AI needs a short break. We'll continue automatically."
+      };
+    }
+
     switch (currentStage) {
       case GenerationStage.GENERATING_STORY:
         return {
           title: "Creating Your Magical Story",
           description: `Our AI is crafting a unique tale just for you... (${timeElapsed}s)`,
-          subtext: "This usually takes about 20 seconds"
+          subtext: retryAttempt > 0 
+            ? `Attempt ${retryAttempt + 1} - This usually takes about 20 seconds`
+            : "This usually takes about 20 seconds"
         };
       case GenerationStage.CHARACTER_APPROVAL:
         return {
@@ -158,13 +192,17 @@ export default function StoryGenerationPage() {
           <Card className="w-full max-w-2xl mx-auto">
             <CardContent className="p-6 space-y-6">
               <div className="flex flex-col items-center gap-4">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                {retryTimeout !== null ? (
+                  <AlertCircle className="h-12 w-12 text-warning animate-pulse" />
+                ) : (
+                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                )}
                 <h2 className="text-2xl font-serif text-center">{message.title}</h2>
                 <p className="text-muted-foreground text-center">{message.description}</p>
                 <Progress value={progress} className="w-full" />
                 <p className="text-sm text-muted-foreground">{message.subtext}</p>
               </div>
-              {error && (
+              {error && !retryTimeout && (
                 <div className="mt-4 p-4 bg-destructive/10 rounded-lg flex items-center gap-2 text-destructive">
                   <AlertCircle className="h-5 w-5" />
                   <p>Something went wrong. Please try again.</p>
