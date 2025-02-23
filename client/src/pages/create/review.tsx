@@ -3,12 +3,13 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, Wand2, Loader2, Code2 } from "lucide-react";
+import { ChevronLeft, Wand2, Loader2, Code2, BookOpen, Frame } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 interface StoryDetails {
   colors: string[];
@@ -19,11 +20,35 @@ interface StoryDetails {
   artStyles: string[];
 }
 
+interface GenerationState {
+  characters: {
+    completed: boolean;
+    loading: boolean;
+    error?: string;
+  };
+  story: {
+    completed: boolean;
+    loading: boolean;
+    error?: string;
+    data?: any;
+  };
+}
+
 export default function ReviewPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [developerMode, setDeveloperMode] = useState(false);
+  const [generationState, setGenerationState] = useState<GenerationState>({
+    characters: {
+      completed: false,
+      loading: false
+    },
+    story: {
+      completed: false,
+      loading: false
+    }
+  });
+
   const [storyDetails, setStoryDetails] = useState<StoryDetails>({
     colors: [],
     personality: '',
@@ -46,22 +71,69 @@ export default function ReviewPage() {
     setStoryDetails(details);
   }, []);
 
-  const handleCreate = async () => {
-    // Validate all required fields are present
-    if (!storyDetails.colors.length || !storyDetails.personality || 
-        !storyDetails.theme || !storyDetails.antagonist || 
-        !storyDetails.farmElements.length || !storyDetails.artStyles.length) {
+  const handleGenerateCharacters = async () => {
+    setGenerationState(prev => ({
+      ...prev,
+      characters: { ...prev.characters, loading: true, error: undefined }
+    }));
+
+    try {
+      const storyParams = {
+        protagonist: {
+          personality: storyDetails.personality,
+          appearance: `A beautiful Yorkshire Terrier with ${storyDetails.colors.join(" and ").toLowerCase()} colors`
+        },
+        artStyle: {
+          style: storyDetails.artStyles[0],
+          description: `A magical blend of ${storyDetails.artStyles.join(", ")}`
+        }
+      };
+
+      // Send request to generate character illustrations
+      const response = await apiRequest("/api/images/generate", {
+        method: "POST",
+        body: JSON.stringify(storyParams)
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      setGenerationState(prev => ({
+        ...prev,
+        characters: { loading: false, completed: true }
+      }));
+
       toast({
-        title: "Missing Information",
-        description: "Please complete all previous steps before creating your story.",
+        title: "Success",
+        description: "Character illustrations are being generated!",
+      });
+    } catch (error) {
+      console.error('Character generation error:', error);
+      setGenerationState(prev => ({
+        ...prev,
+        characters: {
+          loading: false,
+          completed: false,
+          error: error instanceof Error ? error.message : 'Failed to generate characters'
+        }
+      }));
+
+      toast({
+        title: "Error",
+        description: "Failed to generate character illustrations. Please try again.",
         variant: "destructive"
       });
-      return;
     }
+  };
 
-    setIsSubmitting(true);
+  const handleGenerateStory = async () => {
+    setGenerationState(prev => ({
+      ...prev,
+      story: { ...prev.story, loading: true, error: undefined }
+    }));
+
     try {
-      // Format story parameters according to schema
       const storyParams = {
         protagonist: {
           personality: storyDetails.personality,
@@ -70,70 +142,66 @@ export default function ReviewPage() {
         theme: storyDetails.theme,
         mood: "Lighthearted",
         artStyle: {
-          style: storyDetails.artStyles[0], // Use primary art style
+          style: storyDetails.artStyles[0],
           description: `A magical blend of ${storyDetails.artStyles.join(", ")}`
         },
         antagonist: {
-          type: storyDetails.antagonist as any, // Type is validated by schema
-          personality: "playful yet challenging" // Default personality
+          type: storyDetails.antagonist as any,
+          personality: "playful yet challenging"
         },
         farmElements: storyDetails.farmElements
       };
 
-      // Save formatted parameters to localStorage
-      localStorage.setItem("storyParams", JSON.stringify(storyParams));
+      // Send request to generate story
+      const response = await apiRequest("/api/stories/generate", {
+        method: "POST",
+        body: JSON.stringify(storyParams)
+      });
 
-      // Log parameters for debugging
-      console.log('Story parameters prepared:', storyParams);
+      if (response.error) {
+        throw new Error(response.error);
+      }
 
-      setLocation("/story-generation");
+      setGenerationState(prev => ({
+        ...prev,
+        story: {
+          loading: false,
+          completed: true,
+          data: response
+        }
+      }));
+
+      // Save story data for the viewer
+      localStorage.setItem("generatedStory", JSON.stringify(response));
+
+      toast({
+        title: "Success",
+        description: "Story generated successfully!",
+      });
     } catch (error) {
-      console.error('Error preparing story parameters:', error);
+      console.error('Story generation error:', error);
+      setGenerationState(prev => ({
+        ...prev,
+        story: {
+          loading: false,
+          completed: false,
+          error: error instanceof Error ? error.message : 'Failed to generate story'
+        }
+      }));
+
       toast({
         title: "Error",
-        description: "Failed to prepare story generation. Please try again.",
+        description: "Failed to generate story. Please try again.",
         variant: "destructive"
       });
-      setIsSubmitting(false);
     }
   };
 
-  const handleBack = () => {
-    setLocation("/create/art-style");
-  };
-
-  // Format the API commands for developer preview
-  const getOpenAICommand = () => {
-    return {
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You are a master storyteller specializing in children's literature. Create an engaging, age-appropriate story that captures the magic and charm of Yorkshire Terriers while weaving in important life lessons. The story should be suitable for reading aloud, with clear narrative flow and engaging dialogue."
-        },
-        {
-          role: "user",
-          content: `Create a children's story with these elements:
-- Main Character: A ${storyDetails.personality.toLowerCase()} Yorkshire Terrier with ${storyDetails.colors.join(" and ")} colors
-- Setting: Uncle Mark's Farm, featuring ${storyDetails.farmElements.join(", ")}
-- Theme: ${storyDetails.theme}
-- Antagonist: ${storyDetails.antagonist}
-- Tone: Magical and lighthearted, suitable for young readers
-- Story Structure: Clear beginning, middle, and end with a positive message
-- Length: Approximately 1000 words, divided into scenes suitable for illustrations`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 2000
-    };
-  };
-
-  const getMidJourneyCommand = () => {
-    return {
-      prompt: `/imagine Yorkshire Terrier, ${storyDetails.colors.join(" and ")}, ${storyDetails.personality.toLowerCase()}, magical farm setting, ${storyDetails.artStyles.join(", ")}, watercolor, whimsical, children book illustration, detailed, vibrant, whimsical "Uncle Mark's Yorkie Farm" --s 550 --p --ar 3:3 --c 50 --w 1255`,
-      channelId: import.meta.env.VITE_DISCORD_CHANNEL_ID,
-      botId: import.meta.env.VITE_MIDJOURNEY_BOT_ID
-    };
+  const handleViewStorybook = () => {
+    const storyData = generationState.story.data;
+    if (storyData?.id) {
+      setLocation(`/story/${storyData.id}`);
+    }
   };
 
   return (
@@ -141,7 +209,7 @@ export default function ReviewPage() {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="w-full">
           <Progress value={100} className="w-full" />
-          <p className="text-sm text-muted-foreground mt-2">Final Step: Review & Create</p>
+          <p className="text-sm text-muted-foreground mt-2">Final Step: Review & Generate</p>
         </div>
 
         <div className="flex items-center justify-between">
@@ -160,7 +228,7 @@ export default function ReviewPage() {
           <CardHeader>
             <CardTitle className="text-2xl font-serif">Story Details</CardTitle>
             <CardDescription>
-              Review all your choices before creating your magical Yorkie tale
+              Review your choices and generate your magical Yorkie tale
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -267,33 +335,80 @@ export default function ReviewPage() {
               </div>
             </ScrollArea>
 
-            <div className="flex justify-between mt-6 pt-6 border-t">
+            <div className="flex flex-col gap-4 mt-6 pt-6 border-t">
+              {/* Character Generation Button */}
               <Button
-                onClick={handleBack}
-                variant="outline"
-                size="lg"
-                className="gap-2"
+                onClick={handleGenerateCharacters}
+                disabled={generationState.characters.loading || generationState.characters.completed}
+                className="w-full"
+                variant={generationState.characters.completed ? "outline" : "default"}
               >
-                <ChevronLeft className="h-4 w-4" />
-                Back
-              </Button>
-              <Button 
-                onClick={handleCreate}
-                size="lg"
-                className="gap-2"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
+                {generationState.characters.loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    Generating Characters...
+                  </>
+                ) : generationState.characters.completed ? (
+                  <>
+                    <Frame className="mr-2 h-4 w-4" />
+                    Characters Generated!
+                  </>
+                ) : (
+                  <>
+                    <Frame className="mr-2 h-4 w-4" />
+                    Generate Characters
+                  </>
+                )}
+              </Button>
+
+              {/* Story Generation Button */}
+              <Button
+                onClick={handleGenerateStory}
+                disabled={
+                  !generationState.characters.completed ||
+                  generationState.story.loading ||
+                  generationState.story.completed
+                }
+                className="w-full"
+                variant={generationState.story.completed ? "outline" : "default"}
+              >
+                {generationState.story.loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Story...
+                  </>
+                ) : generationState.story.completed ? (
+                  <>
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    Story Generated!
                   </>
                 ) : (
                   <>
                     <Wand2 className="mr-2 h-4 w-4" />
-                    Create Story
+                    Generate Story
                   </>
                 )}
+              </Button>
+
+              {/* View Storybook Button */}
+              <Button
+                onClick={handleViewStorybook}
+                disabled={!generationState.characters.completed || !generationState.story.completed}
+                className="w-full"
+                variant="default"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                View Storybook
+              </Button>
+
+              {/* Back Button */}
+              <Button
+                onClick={() => setLocation("/create/art-style")}
+                variant="outline"
+                className="w-full"
+              >
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Back
               </Button>
             </div>
           </CardContent>
@@ -302,3 +417,36 @@ export default function ReviewPage() {
     </div>
   );
 }
+
+const getOpenAICommand = () => {
+  return {
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: "You are a master storyteller specializing in children's literature. Create an engaging, age-appropriate story that captures the magic and charm of Yorkshire Terriers while weaving in important life lessons. The story should be suitable for reading aloud, with clear narrative flow and engaging dialogue."
+      },
+      {
+        role: "user",
+        content: `Create a children's story with these elements:
+- Main Character: A ${storyDetails.personality.toLowerCase()} Yorkshire Terrier with ${storyDetails.colors.join(" and ")} colors
+- Setting: Uncle Mark's Farm, featuring ${storyDetails.farmElements.join(", ")}
+- Theme: ${storyDetails.theme}
+- Antagonist: ${storyDetails.antagonist}
+- Tone: Magical and lighthearted, suitable for young readers
+- Story Structure: Clear beginning, middle, and end with a positive message
+- Length: Approximately 1000 words, divided into scenes suitable for illustrations`
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: 2000
+  };
+};
+
+const getMidJourneyCommand = () => {
+  return {
+    prompt: `/imagine Yorkshire Terrier, ${storyDetails.colors.join(" and ")}, ${storyDetails.personality.toLowerCase()}, magical farm setting, ${storyDetails.artStyles.join(", ")}, watercolor, whimsical, children book illustration, detailed, vibrant, whimsical "Uncle Mark's Yorkie Farm" --s 550 --p --ar 3:3 --c 50 --w 1255`,
+    channelId: import.meta.env.VITE_DISCORD_CHANNEL_ID,
+    botId: import.meta.env.VITE_MIDJOURNEY_BOT_ID
+  };
+};
