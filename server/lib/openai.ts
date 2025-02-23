@@ -44,10 +44,22 @@ async function withRetry<T>(
   }
 }
 
-interface StoryParams {
-  characteristics: string;
-  colors: string;
+interface StoryInput {
+  protagonist: {
+    appearance: string;
+    personality: string;
+  };
   theme: string;
+  mood: string;
+  artStyle: {
+    style: string;
+    description: string;
+  };
+  antagonist: {
+    type: string;
+    personality: string;
+  };
+  farmElements: string[];
 }
 
 interface StoryResponse {
@@ -64,23 +76,26 @@ interface StoryResponse {
   };
 }
 
-export async function generateStory(params: StoryParams): Promise<StoryResponse> {
-  // Simplified prompt to reduce token count
-  const prompt = `Create a children's story about a Yorkshire terrier:
-Protagonist traits:
-- Colors: ${params.colors}
-- Personality: ${params.characteristics}
-- Setting: Uncle Mark's Farm
+export async function generateStory(params: StoryInput): Promise<StoryResponse> {
+  const prompt = `Create a magical children's story about a Yorkshire terrier at Uncle Mark's Farm with these elements:
+
+Story Elements:
+- Protagonist: A Yorkie who is ${params.protagonist.personality}
+- Appearance: ${params.protagonist.appearance}
 - Theme: ${params.theme}
+- Mood: ${params.mood}
+- Antagonist: ${params.antagonist.type} - ${params.antagonist.personality}
+- Farm Elements: ${params.farmElements.join(', ')}
 
-Key elements to include:
-- The farm has magical elements and animals needing protection
-- A mysterious sorcerer lives in the woods
-- Two farm defenders named Pawel and Pawleen help protect the farm
+Style Guidelines:
+- Write in a whimsical, engaging style perfect for children
+- Include magical elements and positive messages
+- Create short, focused chapters
+- Maintain a ${params.mood.toLowerCase()} tone throughout
 
-Respond in this JSON format:
+Response Format:
 {
-  "title": "Story title",
+  "title": "The story's title",
   "content": "Story with chapters separated by \\n\\n### Chapter N: Title\\n\\n",
   "metadata": {
     "wordCount": number,
@@ -96,9 +111,8 @@ Respond in this JSON format:
   return withRetry(async () => {
     log.info('Initiating story generation request to OpenAI', {
       model: "gpt-4o",
-      characteristics: params.characteristics,
-      colors: params.colors,
-      theme: params.theme
+      theme: params.theme,
+      artStyle: params.artStyle.style
     });
 
     const response = await openai.chat.completions.create({
@@ -125,6 +139,48 @@ Respond in this JSON format:
 
     log.info('Successfully received story from OpenAI');
     return JSON.parse(content) as StoryResponse;
+  });
+}
+
+interface CharacterImagePrompt {
+  personality: string;
+  appearance: string;
+  artStyle: {
+    style: string;
+    description: string;
+  };
+}
+
+export async function generateCharacterImagePrompt(params: CharacterImagePrompt): Promise<string> {
+  return withRetry(async () => {
+    log.info('Generating character image prompt');
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert at creating detailed, vivid art prompts for MidJourney. Format prompts to bring Yorkshire Terrier characters to life in various artistic styles."
+        },
+        {
+          role: "user",
+          content: `Create a MidJourney prompt for a Yorkshire Terrier character with:
+Personality: ${params.personality}
+Appearance: ${params.appearance}
+Art Style: ${params.artStyle.style} - ${params.artStyle.description}
+
+The prompt should be detailed and incorporate the art style while maintaining the Yorkie's key characteristics.`
+        }
+      ],
+      max_tokens: 500
+    });
+
+    const prompt = response.choices[0].message.content;
+    if (!prompt) {
+      throw new OpenAIError("No prompt generated from OpenAI");
+    }
+
+    return prompt;
   });
 }
 
