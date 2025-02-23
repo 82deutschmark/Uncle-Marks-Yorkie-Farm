@@ -37,7 +37,7 @@ export async function registerRoutes(app: Express) {
   // Generate story endpoint
   app.post("/api/stories/generate", async (req, res) => {
     try {
-      const { characteristics, colors, theme, antagonist } = req.body;
+      const { colors, theme, antagonist, characteristics } = req.body;
 
       if (!characteristics || !colors || !theme) {
         log.warn('Missing required story parameters', { characteristics, colors, theme });
@@ -51,9 +51,21 @@ export async function registerRoutes(app: Express) {
 
       // Generate story with proper parameter structure
       const response = await generateStory({
-        characteristics,
-        colors,
-        theme
+        protagonist: {
+          personality: characteristics,
+          appearance: colors
+        },
+        antagonist: {
+          type: antagonist?.type || "squirrel-gang",
+          personality: antagonist?.personality || "mischievous"
+        },
+        theme,
+        mood: "whimsical",
+        artStyle: {
+          style: "whimsical",
+          description: "A playful and enchanting style perfect for children's stories"
+        },
+        farmElements: ["barn", "tractor", "chickens", "garden"]
       });
 
       const story = {
@@ -101,8 +113,7 @@ export async function registerRoutes(app: Express) {
         return res.status(error.statusCode).json({
           error: 'AI Generation Error',
           message: error.message,
-          retry: error.statusCode === 429,
-          retryAfter: error.retryAfter
+          retry: error.statusCode === 429
         });
       }
 

@@ -5,7 +5,8 @@ export class APIError extends Error {
     message: string,
     public statusCode: number = 500,
     public cause?: unknown,
-    public retryable: boolean = false
+    public retryable: boolean = false,
+    public retryAfter?: number
   ) {
     super(message);
     this.name = 'APIError';
@@ -28,9 +29,10 @@ export class OpenAIError extends APIError {
     message: string, 
     cause?: unknown,
     statusCode: number = 500,
-    retryable: boolean = false
+    retryable: boolean = false,
+    retryAfter?: number
   ) {
-    super(message, statusCode, cause, retryable);
+    super(message, statusCode, cause, retryable, retryAfter);
     this.name = 'OpenAIError';
   }
 
@@ -38,11 +40,16 @@ export class OpenAIError extends APIError {
     if (error instanceof OpenAI.APIError) {
       // Handle rate limits
       if (error.status === 429) {
+        const retryAfter = error.headers?.['retry-after'] 
+          ? parseInt(error.headers['retry-after'], 10) 
+          : 30; // Default to 30 seconds if no header
+
         return new OpenAIError(
           'Rate limit exceeded. Please try again in a few moments.',
           error,
           429,
-          true // Rate limits are retryable
+          true, // Rate limits are retryable
+          retryAfter
         );
       }
 
