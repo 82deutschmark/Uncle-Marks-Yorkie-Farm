@@ -40,7 +40,7 @@ export class DatabaseStorage implements IStorage {
   };
 
   constructor() {
-    this.uploadsDir = path.resolve(process.cwd(), 'uploads');
+    this.uploadsDir = path.join(process.cwd(), 'uploads');
     this.debugLogs = {
       openai: [],
       midjourney: []
@@ -48,15 +48,14 @@ export class DatabaseStorage implements IStorage {
     fs.mkdir(this.uploadsDir, { recursive: true }).catch(err => log.error('Failed to create uploads directory:', err));
   }
 
-  // Helper method to normalize paths
   private normalizePath(filePath: string): string {
-    // Remove any leading slashes or 'uploads/' prefix
-    const cleanPath = filePath.replace(/^\/?(uploads\/)?/, '');
-    // Ensure forward slashes
-    return cleanPath.replace(/\\/g, '/');
+    return filePath.replace(/^\/+|\/+$/g, '').replace(/\\/g, '/');
   }
 
-  // Helper method to get the full system path
+  private getRelativePath(filePath: string): string {
+    return this.normalizePath(filePath);
+  }
+
   private getFullPath(relativePath: string): string {
     return path.join(this.uploadsDir, this.normalizePath(relativePath));
   }
@@ -64,10 +63,16 @@ export class DatabaseStorage implements IStorage {
   async createImage(image: InsertImage): Promise<Image> {
     try {
       const [newImage] = await db.insert(images)
-        .values([image])
+        .values({
+          ...image,
+          path: this.getRelativePath(image.path)
+        })
         .returning();
       log.info(`Created new image record: ${newImage.id}`);
-      return newImage;
+      return {
+        ...newImage,
+        path: `/uploads/${newImage.path}`
+      };
     } catch (error) {
       log.error(`Failed to create image record: ${error}`);
       throw new Error(`Failed to create image: ${error instanceof Error ? error.message : String(error)}`);
@@ -77,7 +82,13 @@ export class DatabaseStorage implements IStorage {
   async getImage(id: number): Promise<Image | undefined> {
     try {
       const [image] = await db.select().from(images).where(eq(images.id, id));
-      return image;
+      if (image) {
+        return {
+          ...image,
+          path: `/uploads/${this.getRelativePath(image.path)}`
+        };
+      }
+      return undefined;
     } catch (error) {
       log.error(`Failed to get image ${id}: ${error}`);
       throw new Error(`Failed to get image: ${error instanceof Error ? error.message : String(error)}`);
@@ -102,7 +113,7 @@ export class DatabaseStorage implements IStorage {
       const results = await query;
       return results.map(img => ({
         ...img,
-        path: `/uploads/${this.normalizePath(img.path)}`
+        path: `/uploads/${this.getRelativePath(img.path)}`
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
@@ -115,11 +126,11 @@ export class DatabaseStorage implements IStorage {
       const results = await db.select().from(images);
       return results.map(img => ({
         ...img,
-        path: `/uploads/${this.normalizePath(img.path)}`
+        path: `/uploads/${this.getRelativePath(img.path)}`
       }));
     } catch (error) {
-      log.error(`Failed to list images: ${error}`);
-      throw new Error(`Failed to list images: ${error instanceof Error ? error.message : String(error)}`);
+      log.error(`Failed to get all images: ${error}`);
+      throw new Error(`Failed to get all images: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -129,123 +140,20 @@ export class DatabaseStorage implements IStorage {
         .set(metadata)
         .where(eq(images.id, id))
         .returning();
-      return updatedImage;
+      return {
+        ...updatedImage,
+        path: `/uploads/${this.getRelativePath(updatedImage.path)}`
+      };
     } catch (error) {
       log.error(`Failed to update image ${id} metadata: ${error}`);
       throw new Error(`Failed to update image metadata: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
-  private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
-    log.info(`Processing single image: ${filename}`);
-
-    // Create a normalized relative path for the image
-    const relativePath = path.join(`book-${bookId}`, filename);
-    const normalizedPath = this.normalizePath(relativePath);
-    const fullPath = this.getFullPath(normalizedPath);
-
-    try {
-      await fs.mkdir(path.dirname(fullPath), { recursive: true });
-      log.debug(`Created directory: ${path.dirname(fullPath)}`);
-      await fs.writeFile(fullPath, file);
-      log.debug(`Saved file to: ${fullPath}`);
-
-      const image = await this.createImage({
-        bookId,
-        path: normalizedPath,
-        order: 0,
-        selected: false,
-        analyzed: false,
-        midjourney: null,
-        analysis: null
-      });
-
-      log.info(`Created database record for image: ${image.id}`);
-      return [image];
-    } catch (error) {
-      log.error(`Failed to save single image ${filename}: ${error}`);
-      throw error;
-    }
-  }
-
-  private async processZipFile(zipBuffer: Buffer, bookId: number): Promise<Image[]> {
-    log.info('Starting ZIP file processing');
-    // Validate ZIP buffer
-    if (!Buffer.isBuffer(zipBuffer) || zipBuffer.length === 0) {
-      throw new Error('Invalid ZIP buffer');
-    }
-
-    // Open and validate ZIP structure
-    const directory = await unzipper.Open.buffer(zipBuffer);
-    if (!directory || !Array.isArray(directory.files)) {
-      throw new Error('Invalid ZIP file structure');
-    }
-
-    // Filter valid image files
-    const imageFiles = directory.files.filter(file => {
-      if (!file || typeof file.path !== 'string') return false;
-      return !file.path.startsWith('__MACOSX') &&
-             !file.path.startsWith('.') &&
-             /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(file.path);
-    });
-
-    if (!imageFiles || imageFiles.length === 0) {
-      throw new Error('No valid image files found in ZIP');
-    }
-
-    log.info(`Found ${imageFiles.length} image files in ZIP`);
-    const savedImages: Image[] = [];
-
-    for (let i = 0; i < imageFiles.length; i++) {
-      const file = imageFiles[i];
-      if (!file || !file.path) continue;
-
-      const fileName = path.basename(file.path);
-      log.debug(`Processing ZIP image ${i + 1}/${imageFiles.length}: ${fileName}`);
-      const relativePath = path.join(`book-${bookId}`, fileName);
-      const normalizedPath = this.normalizePath(relativePath);
-      const fullPath = this.getFullPath(normalizedPath);
-
-      try {
-        await fs.mkdir(path.dirname(fullPath), { recursive: true });
-        const content = await file.buffer();
-        if (!content) {
-          log.error(`Empty content for file ${fileName}`);
-          continue;
-        }
-        await fs.writeFile(fullPath, content);
-        log.debug(`Saved extracted file to: ${fullPath}`);
-
-        const image = await this.createImage({
-          bookId,
-          path: normalizedPath,
-          order: i,
-          selected: false,
-          analyzed: false,
-          analysis: null
-        });
-
-        log.info(`Created database record for ZIP image: ${image.id}`);
-        savedImages.push(image);
-      } catch (error) {
-        log.error(`Error processing ZIP image ${fileName}: ${error}`);
-        continue;
-      }
-    }
-
-    if (savedImages.length === 0) {
-      throw new Error('Failed to process any images from ZIP');
-    }
-
-    log.info(`Completed processing ${savedImages.length} images from ZIP`);
-    return savedImages;
-  }
-
   async saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     try {
-      log.info(`Starting file upload process for: ${filename}`);
       const isZip = file[0] === 0x50 && file[1] === 0x4B && file[2] === 0x03 && file[3] === 0x04;
-      log.debug(`File type detected: ${isZip ? 'ZIP archive' : 'Single file'}`);
+      log.info(`Processing uploaded file: ${filename} (${isZip ? 'ZIP' : 'single file'})`);
 
       if (isZip) {
         return await this.processZipFile(file, bookId);
@@ -253,27 +161,113 @@ export class DatabaseStorage implements IStorage {
         return await this.saveSingleImage(file, filename, bookId);
       }
     } catch (error) {
-      log.error(`Failed to process uploaded file ${filename}: ${error}`);
-      throw new Error(`Failed to process uploaded file: ${error instanceof Error ? error.message : String(error)}`);
+      log.error(`Failed to save uploaded file: ${error}`);
+      throw new Error(`Failed to save uploaded file: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
+  private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
+    const relativePath = `book-${bookId}/${filename}`;
+    const fullPath = this.getFullPath(relativePath);
+
+    try {
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.writeFile(fullPath, file);
+
+      const image = await this.createImage({
+        bookId,
+        path: this.getRelativePath(relativePath),
+        order: 0,
+        selected: false,
+        analyzed: false,
+        midjourney: null,
+        analysis: null
+      });
+
+      return [image];
+    } catch (error) {
+      log.error(`Failed to save single image: ${error}`);
+      throw error;
+    }
+  }
+
+  private async processZipFile(zipBuffer: Buffer, bookId: number): Promise<Image[]> {
+    const directory = await unzipper.Open.buffer(zipBuffer);
+    const imageFiles = directory.files.filter(file => {
+      if (!file || typeof file.path !== 'string') return false;
+      return !file.path.startsWith('__MACOSX') &&
+             !file.path.startsWith('.') &&
+             /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(file.path);
+    });
+
+    if (!imageFiles.length) {
+      throw new Error('No valid image files found in ZIP');
+    }
+
+    const savedImages: Image[] = [];
+
+    for (const [index, file] of imageFiles.entries()) {
+      const fileName = path.basename(file.path);
+      const relativePath = `book-${bookId}/${fileName}`;
+      const fullPath = this.getFullPath(relativePath);
+
+      try {
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        const content = await file.buffer();
+        await fs.writeFile(fullPath, content);
+
+        const image = await this.createImage({
+          bookId,
+          path: this.getRelativePath(relativePath),
+          order: index,
+          selected: false,
+          analyzed: false,
+          analysis: null,
+          midjourney: null
+        });
+
+        savedImages.push(image);
+      } catch (error) {
+        log.error(`Error processing ZIP image ${fileName}: ${error}`);
+        continue;
+      }
+    }
+
+    if (!savedImages.length) {
+      throw new Error('Failed to process any images from ZIP');
+    }
+
+    return savedImages;
+  }
+
+  async deleteImage(id: number): Promise<void> {
+    try {
+      const image = await this.getImage(id);
+      if (!image) {
+        throw new Error('Image not found');
+      }
+
+      const fullPath = this.getFullPath(image.path.replace('/uploads/', ''));
+      try {
+        await fs.unlink(fullPath);
+      } catch (error) {
+        log.warn(`Failed to delete image file ${fullPath}: ${error}`);
+      }
+
+      await db.delete(images).where(eq(images.id, id));
+    } catch (error) {
+      log.error(`Failed to delete image ${id}: ${error}`);
+      throw new Error(`Failed to delete image: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Story methods
   async createStory(story: InsertStory): Promise<Story> {
     try {
-      log.info('Creating new story', {story}); 
-      const [newStory] = await db.insert(stories)
-        .values({
-          ...story,
-          artStyle: story.artStyle || {
-            style: "whimsical",
-            description: "A playful and enchanting style perfect for children's stories"
-          }
-        })
-        .returning();
-      log.info(`Created new story record: ${newStory.id}`);
+      const [newStory] = await db.insert(stories).values(story).returning();
       return newStory;
     } catch (error) {
-      log.error(`Failed to create story record: ${error}`);
+      log.error(`Failed to create story: ${error}`);
       throw new Error(`Failed to create story: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -288,12 +282,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Custom art style methods
   async createCustomArtStyle(style: InsertCustomArtStyle): Promise<CustomArtStyle> {
     try {
-      const [newStyle] = await db.insert(customArtStyles)
-        .values(style)
-        .returning();
-      log.info(`Created new custom art style: ${newStyle.id}`);
+      const [newStyle] = await db.insert(customArtStyles).values(style).returning();
       return newStyle;
     } catch (error) {
       log.error(`Failed to create custom art style: ${error}`);
@@ -333,7 +325,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Add debug methods
+  // Debug methods
   async getDebugLogs() {
     return this.debugLogs;
   }
@@ -345,24 +337,7 @@ export class DatabaseStorage implements IStorage {
       type,
       content
     };
-
-    // Keep only the last 100 logs per service
-    this.debugLogs[service] = [
-      ...this.debugLogs[service].slice(-99),
-      newLog
-    ];
-  }
-
-  async deleteImage(id: number): Promise<void> {
-    try {
-      log.info('Deleting image from database', { id });
-      await db.delete(images)
-        .where(eq(images.id, id));
-      log.info('Successfully deleted image', { id });
-    } catch (error) {
-      log.error(`Failed to delete image ${id}:`, error);
-      throw new Error(`Failed to delete image: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    this.debugLogs[service] = [...this.debugLogs[service].slice(-99), newLog];
   }
 }
 
