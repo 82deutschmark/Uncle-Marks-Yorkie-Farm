@@ -62,7 +62,7 @@ export async function analyzeImageHandler(req: Request, res: Response) {
       });
     }
 
-    // Remove 'uploads/' prefix if it exists in image.path
+    // Clean up the image path
     const imagePath = image.path.replace(/^(\/?uploads\/)?/, '');
     const fullImagePath = path.join(process.cwd(), 'uploads', imagePath);
 
@@ -70,18 +70,24 @@ export async function analyzeImageHandler(req: Request, res: Response) {
       const imageBuffer = await fs.readFile(fullImagePath);
       const base64Image = imageBuffer.toString('base64');
 
+      log.info('Successfully read image file, sending to OpenAI for analysis');
+
       const analysis = await analyzeImage(base64Image);
 
       const updatedImage = await storage.updateImageMetadata(imageId, {
         analyzed: true,
         analysis: {
-          characterProfile: analysis,
           description: analysis.description,
-          suggestedNames: analysis.suggestedNames
+          characterProfile: {
+            name: analysis.name,
+            personality: analysis.personality,
+            description: analysis.description
+          }
         }
       });
 
-      log.info('Image analysis completed', { imageId });
+      log.info('Image analysis completed successfully', { imageId });
+
       res.json({
         id: imageId,
         ...analysis,
@@ -101,7 +107,7 @@ export async function analyzeImageHandler(req: Request, res: Response) {
     log.error('Image analysis error:', error);
 
     if (error instanceof OpenAIError) {
-      return res.status(error.statusCode).json({
+      return res.status(error.statusCode || 500).json({
         error: 'AI Analysis Error',
         message: error.message,
         retry: error.retryable
