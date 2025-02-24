@@ -109,7 +109,9 @@ export class DatabaseStorage implements IStorage {
       const results = await db.select().from(images);
       return results.map(img => ({
         ...img,
-        path: `/uploads/${img.path}`
+        path: img.path.includes('uploads/') 
+          ? `/${img.path}`
+          : `/uploads/${img.path}`
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
@@ -132,8 +134,8 @@ export class DatabaseStorage implements IStorage {
 
   private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     log.info(`Processing single image: ${filename}`);
-    const filePath = `book-${bookId}/${filename}`;  // Store in book-specific subfolder
-    const fullPath = path.join(process.cwd(), 'uploads', filePath);
+    const filePath = `uploads/${filename}`;  // Changed to store directly in uploads folder
+    const fullPath = path.join(process.cwd(), filePath);
 
     try {
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
@@ -147,7 +149,6 @@ export class DatabaseStorage implements IStorage {
         order: 0,
         selected: false,
         analyzed: false,
-        midjourney: null,
         analysis: null
       });
 
@@ -164,14 +165,21 @@ export class DatabaseStorage implements IStorage {
     const directory = await unzipper.Open.buffer(zipBuffer);
     const imageFiles = directory.files.filter(file =>
       !file.path.startsWith('__MACOSX') &&
+      !file.path.startsWith('.') &&
       /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(file.path)
     );
+
+    if (!imageFiles || imageFiles.length === 0) {
+      throw new Error('No valid image files found in ZIP');
+    }
 
     log.info(`Found ${imageFiles.length} image files in ZIP`);
     const savedImages: Image[] = [];
 
     for (let i = 0; i < imageFiles.length; i++) {
       const file = imageFiles[i];
+      if (!file || !file.path) continue;
+
       const fileName = path.basename(file.path);
       log.debug(`Processing ZIP image ${i + 1}/${imageFiles.length}: ${fileName}`);
       const filePath = path.join(`book-${bookId}`, fileName);
@@ -180,6 +188,10 @@ export class DatabaseStorage implements IStorage {
       try {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
         const content = await file.buffer();
+        if (!content) {
+          log.error(`Empty content for file ${fileName}`);
+          continue;
+        }
         await fs.writeFile(fullPath, content);
         log.debug(`Saved extracted file to: ${fullPath}`);
 
@@ -198,6 +210,10 @@ export class DatabaseStorage implements IStorage {
         log.error(`Error processing ZIP image ${fileName}: ${error}`);
         continue;
       }
+    }
+
+    if (savedImages.length === 0) {
+      throw new Error('Failed to process any images from ZIP');
     }
 
     log.info(`Completed processing ${savedImages.length} images from ZIP`);

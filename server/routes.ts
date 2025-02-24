@@ -10,7 +10,7 @@ import unzipper from 'unzipper';
 const upload = multer({
   dest: path.resolve(process.cwd(), 'uploads'),
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
+    fileSize: 200 * 1024 * 1024 // 200MB limit
   }
 });
 
