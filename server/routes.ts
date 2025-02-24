@@ -44,7 +44,9 @@ export async function registerRoutes(app: Express) {
   // Image routes
   app.get("/api/images", async (req, res) => {
     try {
-      const images = await storage.getAllImages();
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as 'asc' | 'desc' | undefined;
+      const images = await storage.listImages({ sortBy, sortOrder });
       res.json(images);
     } catch (error) {
       log.error('Failed to fetch images:', error);

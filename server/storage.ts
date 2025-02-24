@@ -1,5 +1,5 @@
 import { images, stories, type Image, type InsertImage, type Story, type InsertStory } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { db } from "./db";
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -17,7 +17,7 @@ interface DebugLog {
 export interface IStorage {
   createImage(image: InsertImage): Promise<Image>;
   getImage(id: number): Promise<Image | undefined>;
-  listImages(options?: { analyzed?: boolean; selected?: boolean }): Promise<Image[]>;
+  listImages(options?: { analyzed?: boolean; selected?: boolean; sortBy?: string; sortOrder?: 'asc' | 'desc' }): Promise<Image[]>;
   getAllImages(): Promise<Image[]>;
   updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image>;
   saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]>;
@@ -78,7 +78,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async listImages(options?: { analyzed?: boolean; selected?: boolean }): Promise<Image[]> {
+  async listImages(options?: { analyzed?: boolean; selected?: boolean; sortBy?: string; sortOrder?: 'asc' | 'desc' }): Promise<Image[]> {
     try {
       let query = db.select().from(images);
 
@@ -87,6 +87,10 @@ export class DatabaseStorage implements IStorage {
       }
       if (options?.selected !== undefined) {
         query = query.where(eq(images.selected, options.selected));
+      }
+      if (options?.sortBy) {
+        const order = options.sortOrder === 'desc' ? desc : asc;
+        query = query.orderBy(order(images[options.sortBy as keyof typeof images]));
       }
 
       const results = await query;
