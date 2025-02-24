@@ -5,7 +5,7 @@ import type { StoryParams, StoryResponse } from "@shared/schema";
 import { storage } from "../storage";
 import { AI_PERSONALITY, STORY_UNIVERSE, ANALYSIS_PROMPT, STORY_PROMPT } from "./ai-guidelines";
 
-// Using gpt-3.5-turbo as the default model for story generation
+// IMPORTANT: Always use gpt-3.5-turbo as our standard model
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function analyzeImage(base64Image: string): Promise<{
@@ -19,7 +19,7 @@ export async function analyzeImage(base64Image: string): Promise<{
     log.info('Starting image analysis with OpenAI vision API');
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
+      model: "gpt-3.5-turbo",  // Always use gpt-3.5-turbo
       messages: [
         {
           role: "system",
@@ -30,12 +30,12 @@ export async function analyzeImage(base64Image: string): Promise<{
           content: [
             {
               type: "text",
-              text: "Like, spill the tea on this adorable Yorkie bestie! Give me the full vibe check in JSON format with:\n" +
-                    "- name: Their main character name\n" +
-                    "- personality: What energy they're giving off\n" +
-                    "- description: All the deets about their looks\n" +
-                    "- artStyle: The artistic aesthetic\n" +
-                    "- suggestedNames: A list of 10 alternative names that match their vibe"
+              text: "Analyze this Yorkshire Terrier image and provide details in JSON format with:\n" +
+                    "- name: A creative character name\n" +
+                    "- personality: Their character traits and energy\n" +
+                    "- description: Physical appearance details\n" +
+                    "- artStyle: The artistic style used\n" +
+                    "- suggestedNames: Array of 10 alternative creative names"
             },
             {
               type: "image_url",
@@ -122,7 +122,7 @@ Response Format:
 }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-3.5-turbo",  // Always use gpt-3.5-turbo
       messages: [
         {
           role: "system",
