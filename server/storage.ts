@@ -109,7 +109,7 @@ export class DatabaseStorage implements IStorage {
       const results = await db.select().from(images);
       return results.map(img => ({
         ...img,
-        path: img.path.startsWith('/') ? img.path : `/${img.path}`
+        path: `/uploads/${img.path.replace(/\\/g, '/')}` // Ensure consistent path format with leading /uploads/
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
@@ -132,8 +132,8 @@ export class DatabaseStorage implements IStorage {
 
   private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     log.info(`Processing single image: ${filename}`);
-    const filePath = `/uploads/${filename}`;  // Store with leading slash
-    const fullPath = path.join(process.cwd(), filePath);
+    const filePath = path.join('book-' + bookId, filename);
+    const fullPath = path.join(this.uploadsDir, filePath);
 
     try {
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
@@ -143,10 +143,11 @@ export class DatabaseStorage implements IStorage {
 
       const image = await this.createImage({
         bookId,
-        path: filePath,
+        path: filePath.replace(/\\/g, '/'), // Ensure forward slashes for DB storage
         order: 0,
         selected: false,
         analyzed: false,
+        midjourney: null,
         analysis: null
       });
 
@@ -207,7 +208,7 @@ export class DatabaseStorage implements IStorage {
 
         const image = await this.createImage({
           bookId,
-          path: filePath,
+          path: filePath.replace(/\\/g, '/'),
           order: i,
           selected: false,
           analyzed: false,

@@ -135,9 +135,16 @@ export default function DebugPage() {
                     <TableCell>
                       <div className="h-16 w-16 relative">
                         <img
-                          src={image.path.startsWith('/') ? image.path : `/${image.path}`}
+                          src={image.path}
                           alt={`Image ${image.id}`}
                           className="object-cover rounded-md"
+                          onError={(e) => {
+                            // If the image fails to load, try without the /uploads prefix
+                            const target = e.target as HTMLImageElement;
+                            if (target.src.startsWith('/uploads/')) {
+                              target.src = target.src.replace('/uploads/', '/');
+                            }
+                          }}
                         />
                       </div>
                     </TableCell>
