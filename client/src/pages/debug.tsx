@@ -67,6 +67,12 @@ export default function DebugPage() {
     }
   });
 
+  // Helper function to ensure proper image path
+  const getImagePath = (imagePath: string) => {
+    if (!imagePath) return '';
+    return imagePath.startsWith('/') ? imagePath : `/uploads/${imagePath}`;
+  };
+
   if (isLoadingLogs || isLoadingImages) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -135,14 +141,18 @@ export default function DebugPage() {
                     <TableCell>
                       <div className="h-16 w-16 relative">
                         <img
-                          src={image.path}
+                          src={getImagePath(image.path)}
                           alt={`Image ${image.id}`}
                           className="object-cover rounded-md"
                           onError={(e) => {
-                            // If the image fails to load, try without the /uploads prefix
                             const target = e.target as HTMLImageElement;
                             if (target.src.startsWith('/uploads/')) {
                               target.src = target.src.replace('/uploads/', '/');
+                              // If that fails too, try the original path
+                              target.onerror = () => {
+                                target.src = image.path;
+                                target.onerror = null; // Prevent infinite loop
+                              };
                             }
                           }}
                         />

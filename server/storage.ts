@@ -21,7 +21,6 @@ export interface IStorage {
   getAllImages(): Promise<Image[]>;
   updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image>;
   saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]>;
-  // Add new delete method
   deleteImage(id: number): Promise<void>;
   createStory(story: InsertStory): Promise<Story>;
   getStory(id: number): Promise<Story | undefined>;
@@ -29,7 +28,6 @@ export interface IStorage {
   getCustomArtStyle(id: number): Promise<CustomArtStyle | undefined>;
   listCustomArtStyles(): Promise<CustomArtStyle[]>;
   updateCustomArtStyle(id: number, style: Partial<InsertCustomArtStyle>): Promise<CustomArtStyle>;
-  // Add new debug methods
   getDebugLogs(): Promise<{ openai: DebugLog[], midjourney: DebugLog[] }>;
   addDebugLog(service: DebugLog["service"], type: DebugLog["type"], content: any): Promise<void>;
 }
@@ -48,11 +46,19 @@ export class DatabaseStorage implements IStorage {
       midjourney: []
     };
     fs.mkdir(this.uploadsDir, { recursive: true }).catch(err => log.error('Failed to create uploads directory:', err));
+  }
 
-    // Verify database connection
-    db.select().from(images).limit(1)
-      .then(() => log.info('Successfully connected to database'))
-      .catch(err => log.error('Database connection failed:', err));
+  // Helper method to normalize paths
+  private normalizePath(filePath: string): string {
+    // Remove any leading slashes or 'uploads/' prefix
+    const cleanPath = filePath.replace(/^\/?(uploads\/)?/, '');
+    // Ensure forward slashes
+    return cleanPath.replace(/\\/g, '/');
+  }
+
+  // Helper method to get the full system path
+  private getFullPath(relativePath: string): string {
+    return path.join(this.uploadsDir, this.normalizePath(relativePath));
   }
 
   async createImage(image: InsertImage): Promise<Image> {
@@ -96,7 +102,7 @@ export class DatabaseStorage implements IStorage {
       const results = await query;
       return results.map(img => ({
         ...img,
-        path: `/uploads/${img.path}`
+        path: `/uploads/${this.normalizePath(img.path)}`
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
@@ -109,7 +115,7 @@ export class DatabaseStorage implements IStorage {
       const results = await db.select().from(images);
       return results.map(img => ({
         ...img,
-        path: `/uploads/${img.path.replace(/\\/g, '/')}` // Ensure consistent path format with leading /uploads/
+        path: `/uploads/${this.normalizePath(img.path)}`
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
@@ -132,8 +138,11 @@ export class DatabaseStorage implements IStorage {
 
   private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     log.info(`Processing single image: ${filename}`);
-    const filePath = path.join('book-' + bookId, filename);
-    const fullPath = path.join(this.uploadsDir, filePath);
+
+    // Create a normalized relative path for the image
+    const relativePath = path.join(`book-${bookId}`, filename);
+    const normalizedPath = this.normalizePath(relativePath);
+    const fullPath = this.getFullPath(normalizedPath);
 
     try {
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
@@ -143,7 +152,7 @@ export class DatabaseStorage implements IStorage {
 
       const image = await this.createImage({
         bookId,
-        path: filePath.replace(/\\/g, '/'), // Ensure forward slashes for DB storage
+        path: normalizedPath,
         order: 0,
         selected: false,
         analyzed: false,
@@ -193,8 +202,9 @@ export class DatabaseStorage implements IStorage {
 
       const fileName = path.basename(file.path);
       log.debug(`Processing ZIP image ${i + 1}/${imageFiles.length}: ${fileName}`);
-      const filePath = path.join(`book-${bookId}`, fileName);
-      const fullPath = path.join(this.uploadsDir, filePath);
+      const relativePath = path.join(`book-${bookId}`, fileName);
+      const normalizedPath = this.normalizePath(relativePath);
+      const fullPath = this.getFullPath(normalizedPath);
 
       try {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
@@ -208,7 +218,7 @@ export class DatabaseStorage implements IStorage {
 
         const image = await this.createImage({
           bookId,
-          path: filePath.replace(/\\/g, '/'),
+          path: normalizedPath,
           order: i,
           selected: false,
           analyzed: false,
