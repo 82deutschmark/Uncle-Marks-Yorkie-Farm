@@ -17,15 +17,35 @@ interface YorkieImage {
 const colors = [
   { value: "black-tan", label: "Classic Black & Tan", preview: "⚫🟫" },
   { value: "neon-pink", label: "Neon Pink & Purple", preview: "💖💜" },
-  { value: "pastel-rainbow", label: "Pastel Rainbow", preview: "🌈✨" }
-  // ... other colors
+  { value: "pastel-rainbow", label: "Pastel Rainbow", preview: "🌈✨" },
+  { value: "electric-blue", label: "Electric Blue & Silver", preview: "⚡⚪" },
+  { value: "cosmic-purple", label: "Cosmic Purple & Gold", preview: "🔮✨" },
+  { value: "rose-gold", label: "Rose Gold & Pink", preview: "🌹💗" },
+  { value: "mint-lavender", label: "Mint & Lavender", preview: "🌿💜" },
+  { value: "sunset-orange", label: "Sunset Orange & Pink", preview: "🌅💗" },
+  { value: "steel-blue", label: "Steel Blue & Tan", preview: "🔷🟫" },
+  { value: "golden-shimmer", label: "Golden Shimmer", preview: "🌟✨" },
+  { value: "silver-sparkle", label: "Silver & Sparkles", preview: "⚪✨" },
+  { value: "chocolate", label: "Rich Chocolate", preview: "🟫" },
+  { value: "parti-neon", label: "Parti Neon", preview: "💫🌈" },
+  { value: "blue-tan", label: "Classic Blue & Tan", preview: "🔵🟫" },
+  { value: "ruby-red", label: "Ruby Red", preview: "❤️" },
+  { value: "galaxy-swirl", label: "Galaxy Swirl", preview: "🌌✨" },
+  { value: "cotton-candy", label: "Cotton Candy", preview: "🍬💝" },
+  { value: "emerald-gold", label: "Emerald & Gold", preview: "💚✨" },
+  { value: "unicorn", label: "Unicorn Fantasy", preview: "🦄✨" },
+  { value: "aurora", label: "Aurora Lights", preview: "🌈🌟" }
 ];
 
 const artStyles = [
   { value: "whimsical", label: "Whimsical", description: "Playful and magical style" },
   { value: "studio-ghibli", label: "Studio Ghibli", description: "Inspired by the famous animation studio" },
-  { value: "watercolor", label: "Watercolor", description: "Soft and dreamy watercolor effects" }
-  // ... other styles
+  { value: "watercolor", label: "Watercolor", description: "Soft and dreamy watercolor effects" },
+  { value: "pixel-art", label: "Pixel Art", description: "Charming retro pixel graphics" },
+  { value: "pop-art", label: "Pop Art", description: "Bold and vibrant comic style" },
+  { value: "pencil-sketch", label: "Pencil Sketch", description: "Traditional hand-drawn look" },
+  { value: "3d-cartoon", label: "3D Cartoon", description: "Modern 3D animated style" },
+  { value: "storybook", label: "Classic Storybook", description: "Traditional children's book art" }
 ];
 
 export default function Home() {
@@ -44,6 +64,10 @@ export default function Home() {
       const response = await fetch('/api/images/random');
       const data = await response.json();
       setYorkies(data.images);
+      // Auto-select the first Yorkie
+      if (data.images && data.images.length > 0) {
+        setSelectedYorkie(data.images[0]);
+      }
     } catch (error) {
       console.error('Failed to fetch Yorkies:', error);
       toast({
@@ -56,39 +80,25 @@ export default function Home() {
     }
   };
 
-  const randomizeSelections = () => {
-    const randomColors = colors
-      .sort(() => Math.random() - 0.5)
-      .slice(0, Math.floor(Math.random() * 3) + 1)
-      .map(c => c.label);
-
-    const randomStyle = artStyles[Math.floor(Math.random() * artStyles.length)].value;
-
-    setSelectedColors(randomColors);
-    setSelectedStyle(randomStyle);
-  };
-
   const handleGenerateStory = async () => {
-    if (!selectedYorkie) {
-      toast({
-        title: "Select a Yorkie",
-        description: "Please select a Yorkie first to generate your story.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setGenerating(true);
     try {
+      // If no colors selected, randomly select some
+      const colorsToUse = selectedColors.length > 0 ? selectedColors : 
+        colors.sort(() => Math.random() - 0.5).slice(0, 2).map(c => c.label);
+
+      // If no style selected, randomly select one
+      const styleToUse = selectedStyle || artStyles[Math.floor(Math.random() * artStyles.length)].value;
+
       const response = await fetch('/api/stories/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          yorkieId: selectedYorkie.id,
-          colors: selectedColors,
-          artStyle: selectedStyle,
+          yorkieId: selectedYorkie?.id || yorkies[0]?.id,
+          colors: colorsToUse,
+          artStyle: styleToUse,
         }),
       });
 
@@ -123,23 +133,25 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Contributor Quick Access */}
+          {/* Contributor Quick Access - Made less prominent */}
           <div className="mt-8 flex justify-center gap-4">
             <Button
-              variant="outline"
+              variant="ghost"
+              size="sm"
               onClick={() => setLocation("/upload")}
-              className="gap-2"
+              className="text-muted-foreground hover:text-foreground"
             >
-              <Upload className="h-4 w-4" />
-              Contributor Upload
+              <Upload className="h-4 w-4 mr-2" />
+              Contributor
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
+              size="sm"
               onClick={() => setLocation("/debug")}
-              className="gap-2"
+              className="text-muted-foreground hover:text-foreground"
             >
-              <BookOpen className="h-4 w-4" />
-              Debug Console
+              <BookOpen className="h-4 w-4 mr-2" />
+              Debug
             </Button>
           </div>
 
@@ -148,7 +160,7 @@ export default function Home() {
               <CardHeader>
                 <CardTitle className="text-2xl text-center">Create Your Yorkie Story</CardTitle>
                 <CardDescription className="text-center">
-                  Customize your magical companion or use the randomize button for a quick adventure
+                  Choose your magical companion or let us pick one for you!
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -156,103 +168,94 @@ export default function Home() {
                   {yorkies.map((yorkie) => (
                     <div
                       key={yorkie.id}
-                      className={`relative cursor-pointer ${
-                        selectedYorkie?.id === yorkie.id ? 'ring-2 ring-primary' : ''
+                      className={`relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 ${
+                        selectedYorkie?.id === yorkie.id ? 'ring-2 ring-primary scale-[1.02]' : 'hover:scale-[1.02]'
                       }`}
                       onClick={() => setSelectedYorkie(yorkie)}
                     >
-                      <div className="aspect-square mb-4 relative overflow-hidden rounded-lg">
+                      <div className="aspect-square relative overflow-hidden">
                         <img
                           src={yorkie.url}
                           alt="Yorkshire Terrier"
                           className="object-cover w-full h-full"
                         />
                       </div>
-                      {yorkie.description && (
-                        <p className="text-sm text-muted-foreground">{yorkie.description}</p>
-                      )}
                     </div>
                   ))}
                 </div>
 
                 <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="colors">
-                    <AccordionTrigger>Yorkie's Colors</AccordionTrigger>
+                  <AccordionItem value="customize">
+                    <AccordionTrigger>Customize Your Story (Optional)</AccordionTrigger>
                     <AccordionContent>
-                      <div className="grid grid-cols-3 gap-4">
-                        {colors.map((color) => (
-                          <div
-                            key={color.value}
-                            className={`cursor-pointer rounded-md border-2 p-4 hover:bg-accent hover:text-accent-foreground ${
-                              selectedColors.includes(color.label)
-                                ? "border-primary bg-primary/5"
-                                : "border-muted"
-                            }`}
-                            onClick={() => {
-                              if (selectedColors.includes(color.label)) {
-                                setSelectedColors(selectedColors.filter(c => c !== color.label));
-                              } else if (selectedColors.length < 3) {
-                                setSelectedColors([...selectedColors, color.label]);
-                              }
-                            }}
-                          >
-                            <div className="flex flex-col items-center gap-2">
-                              <span className="text-2xl">{color.preview}</span>
-                              <span className="text-center">{color.label}</span>
-                            </div>
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-sm font-medium mb-2">Yorkie's Colors (Optional)</h3>
+                          <div className="grid grid-cols-4 gap-2">
+                            {colors.slice(0, 8).map((color) => (
+                              <div
+                                key={color.value}
+                                className={`cursor-pointer rounded-md border p-2 hover:bg-accent hover:text-accent-foreground ${
+                                  selectedColors.includes(color.label)
+                                    ? "border-primary bg-primary/5"
+                                    : "border-muted"
+                                }`}
+                                onClick={() => {
+                                  if (selectedColors.includes(color.label)) {
+                                    setSelectedColors(selectedColors.filter(c => c !== color.label));
+                                  } else if (selectedColors.length < 3) {
+                                    setSelectedColors([...selectedColors, color.label]);
+                                  }
+                                }}
+                              >
+                                <div className="flex flex-col items-center">
+                                  <span className="text-lg">{color.preview}</span>
+                                  <span className="text-xs text-center mt-1">{color.label}</span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                        </div>
 
-                  <AccordionItem value="style">
-                    <AccordionTrigger>Art Style</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="grid grid-cols-2 gap-4">
-                        {artStyles.map((style) => (
-                          <div
-                            key={style.value}
-                            className={`cursor-pointer rounded-md border-2 p-4 hover:bg-accent hover:text-accent-foreground ${
-                              selectedStyle === style.value
-                                ? "border-primary bg-primary/5"
-                                : "border-muted"
-                            }`}
-                            onClick={() => setSelectedStyle(style.value)}
-                          >
-                            <h3 className="font-semibold">{style.label}</h3>
-                            <p className="text-sm text-muted-foreground">{style.description}</p>
+                        <div>
+                          <h3 className="text-sm font-medium mb-2">Art Style (Optional)</h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            {artStyles.map((style) => (
+                              <div
+                                key={style.value}
+                                className={`cursor-pointer rounded-md border p-2 hover:bg-accent hover:text-accent-foreground ${
+                                  selectedStyle === style.value
+                                    ? "border-primary bg-primary/5"
+                                    : "border-muted"
+                                }`}
+                                onClick={() => setSelectedStyle(style.value)}
+                              >
+                                <div className="font-medium">{style.label}</div>
+                                <div className="text-xs text-muted-foreground">{style.description}</div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        </div>
                       </div>
                     </AccordionContent>
                   </AccordionItem>
                 </Accordion>
 
-                <div className="flex justify-between items-center pt-6 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={randomizeSelections}
-                    className="gap-2"
-                  >
-                    <RefreshCcw className="h-4 w-4" />
-                    Randomize
-                  </Button>
-
+                <div className="flex justify-center gap-4 pt-6">
                   <Button
                     onClick={handleGenerateStory}
-                    disabled={generating || !selectedYorkie}
+                    disabled={generating}
                     size="lg"
                     className="gap-2"
                   >
                     {generating ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin" />
                         Creating Magic...
                       </>
                     ) : (
                       <>
-                        <Wand2 className="h-4 w-4" />
+                        <Wand2 className="h-5 w-5" />
                         Generate Story
                       </>
                     )}
