@@ -163,7 +163,12 @@ export class DatabaseStorage implements IStorage {
   private async processZipFile(zipBuffer: Buffer, bookId: number): Promise<Image[]> {
     log.info('Starting ZIP file processing');
     const directory = await unzipper.Open.buffer(zipBuffer);
+    if (!directory || !directory.files) {
+      throw new Error('Invalid ZIP file structure');
+    }
+
     const imageFiles = directory.files.filter(file =>
+      file && file.path &&
       !file.path.startsWith('__MACOSX') &&
       !file.path.startsWith('.') &&
       /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(file.path)
