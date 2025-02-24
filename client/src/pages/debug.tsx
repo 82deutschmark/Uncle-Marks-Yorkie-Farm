@@ -34,9 +34,13 @@ export default function DebugPage() {
     refetchInterval: 300000 // Refresh every 5 minutes
   });
 
-  // Query for images with reduced refresh rate
+  const [sortBy, setSortBy] = useState<string>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Query for images with reduced refresh rate and sorting
   const { data: images, isLoading: isLoadingImages } = useQuery<Image[]>({
-    queryKey: ["/api/images"],
+    queryKey: ["/api/images", sortBy, sortOrder],
+    queryFn: () => apiRequest(`/api/images?sortBy=${sortBy}&sortOrder=${sortOrder}`, { method: 'GET'}),
     refetchInterval: 300000 // Refresh every 5 minutes
   });
 
@@ -52,7 +56,7 @@ export default function DebugPage() {
         title: "Success",
         description: "Image deleted successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/images", sortBy, sortOrder] });
     },
     onError: (error) => {
       toast({
@@ -75,6 +79,19 @@ export default function DebugPage() {
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Debug Console</h1>
+        <div>
+          <label htmlFor="sortBy" className="mr-2">Sort By:</label>
+          <select id="sortBy" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="createdAt">Created At</option>
+            <option value="path">Path</option>
+            {/* Add more options as needed */}
+          </select>
+          <label htmlFor="sortOrder" className="mx-2">Order:</label>
+          <select id="sortOrder" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}>
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+        </div>
       </div>
 
       {/* Database Management */}
