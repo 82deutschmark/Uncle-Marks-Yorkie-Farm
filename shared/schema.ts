@@ -121,7 +121,7 @@ export type CustomArtStyle = typeof customArtStyles.$inferSelect;
 export type StoryParams = z.infer<typeof storyParamsSchema>;
 export type StoryResponse = z.infer<typeof storyResponseSchema>;
 export type ArtStyle = z.infer<typeof artStyleSchema>;
-export type MidJourneyPrompt = z.infer<typeof midjourneyPromptSchema>;
+export type MidJourneyPrompt = z.infer<typeof midJourneyPromptSchema>;
 
 
 // Table for storing generated stories

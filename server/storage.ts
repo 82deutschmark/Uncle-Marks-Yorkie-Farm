@@ -43,8 +43,7 @@ export class DatabaseStorage implements IStorage {
     this.uploadsDir = path.resolve(process.cwd(), 'uploads');
     this.debugLogs = {
       openai: [],
-      midjourney: [],
-      discord: []
+      midjourney: []
     };
     fs.mkdir(this.uploadsDir, { recursive: true }).catch(err => log.error('Failed to create uploads directory:', err));
 
