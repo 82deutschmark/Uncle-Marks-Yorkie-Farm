@@ -74,8 +74,6 @@ export async function analyzeImage(base64Image: string): Promise<{
   } catch (error) {
     log.error('Image analysis error:', error);
     throw new OpenAIError(`Failed to analyze image: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
-  } finally {
-    // Cleanup if needed
   }
 }
 
