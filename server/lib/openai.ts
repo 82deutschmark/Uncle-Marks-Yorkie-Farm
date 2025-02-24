@@ -3,9 +3,79 @@ import { OpenAIError } from "./errors";
 import { log } from "./logger";
 import type { StoryParams, StoryResponse } from "@shared/schema";
 import { storage } from "../storage";
+import { AI_PERSONALITY, STORY_UNIVERSE, ANALYSIS_PROMPT, STORY_PROMPT } from "./ai-guidelines";
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+export async function analyzeImage(base64Image: string): Promise<{
+  name: string;
+  personality: string;
+  description: string;
+  artStyle: string;
+  suggestedNames: string[];
+}> {
+  try {
+    log.info('Starting image analysis with OpenAI vision API');
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4-vision-preview",
+      messages: [
+        {
+          role: "system",
+          content: ANALYSIS_PROMPT
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Like, spill the tea on this adorable Yorkie bestie! Give me the full vibe check in JSON format with:\n" +
+                    "- name: Their main character name\n" +
+                    "- personality: What energy they're giving off\n" +
+                    "- description: All the deets about their looks\n" +
+                    "- artStyle: The artistic aesthetic\n" +
+                    "- suggestedNames: A list of 10 alternative names that match their vibe"
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64Image}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 1000,
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    });
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new OpenAIError("No content received from OpenAI");
+    }
+
+    log.info('Successfully received image analysis from OpenAI');
+
+    const analysis = JSON.parse(content);
+
+    if (!analysis.name || !analysis.personality || !analysis.description || !analysis.artStyle || !analysis.suggestedNames) {
+      throw new OpenAIError("Invalid response format from OpenAI vision API");
+    }
+
+    // Ensure we have exactly 10 names
+    while (analysis.suggestedNames.length < 10) {
+      analysis.suggestedNames.push(`Yorkie ${analysis.suggestedNames.length + 1}`);
+    }
+    analysis.suggestedNames = analysis.suggestedNames.slice(0, 10);
+
+    return analysis;
+  } catch (error) {
+    log.error('Image analysis error:', error);
+    throw new OpenAIError(`Failed to analyze image: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
+  }
+}
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
   try {
@@ -104,67 +174,6 @@ Response Format:
       throw error;
     }
     throw new OpenAIError(`Failed to generate story: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
-  }
-}
-
-export async function analyzeImage(base64Image: string): Promise<{
-  name: string;
-  personality: string;
-  description: string;
-  artStyle: string;
-}> {
-  try {
-    log.info('Starting image analysis with OpenAI vision API');
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
-      messages: [
-        {
-          role: "system",
-          content: "You are a creative character designer with expertise in Yorkshire terriers and art styles. Analyze the image and provide detailed insights about the Yorkie's appearance, artistic style, and suggest characteristics that would make for an engaging story character."
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Analyze this Yorkshire terrier image and provide a detailed response in JSON format with these fields:\n" +
-                    "- name: A creative, memorable name that fits the Yorkie's appearance\n" +
-                    "- personality: Key character traits based on their appearance and expression\n" +
-                    "- description: A vivid physical description highlighting unique features\n" +
-                    "- artStyle: A detailed description of the artistic style and visual elements"
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`
-              }
-            }
-          ]
-        }
-      ],
-      max_tokens: 1000,
-      temperature: 0.7,
-      response_format: { type: "json_object" }
-    });
-
-    const content = response.choices[0].message.content;
-    if (!content) {
-      throw new OpenAIError("No content received from OpenAI");
-    }
-
-    log.info('Successfully received image analysis from OpenAI');
-
-    const analysis = JSON.parse(content);
-
-    if (!analysis.name || !analysis.personality || !analysis.description || !analysis.artStyle) {
-      throw new OpenAIError("Invalid response format from OpenAI vision API");
-    }
-
-    return analysis;
-  } catch (error) {
-    log.error('Image analysis error:', error);
-    throw new OpenAIError(`Failed to analyze image: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
   }
 }
 
