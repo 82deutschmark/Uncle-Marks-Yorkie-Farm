@@ -102,7 +102,7 @@ export class DatabaseStorage implements IStorage {
       const results = await query;
       return results.map(img => ({
         ...img,
-        path: `/uploads/${this.normalizePath(img.path)}`
+        path: img.path.startsWith('/') ? img.path : `/${img.path}`
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
@@ -115,7 +115,7 @@ export class DatabaseStorage implements IStorage {
       const results = await db.select().from(images);
       return results.map(img => ({
         ...img,
-        path: `/uploads/${this.normalizePath(img.path)}`
+        path: img.path.startsWith('/') ? img.path : `/${img.path}`
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
