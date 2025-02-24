@@ -151,7 +151,8 @@ export default function UploadPage() {
   // Helper function to ensure proper image path
   const getImagePath = (imagePath: string) => {
     if (!imagePath) return '';
-    return imagePath.startsWith('/') ? imagePath : `/uploads/${imagePath}`;
+    const strippedPath = imagePath.replace(/^\/?(uploads\/)?/, '');
+    return `/uploads/${strippedPath}`;
   };
 
   return (

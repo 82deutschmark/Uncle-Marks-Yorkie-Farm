@@ -38,8 +38,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   private getPublicUrl(filePath: string): string {
-    const normalized = this.normalizePath(filePath);
-    return `/uploads/${normalized}`;
+    // Strip /uploads/ prefix if it exists
+    const strippedPath = filePath.replace(/^\/?(uploads\/)?/, '');
+    // Normalize path separators and remove any double slashes
+    const normalized = strippedPath.replace(/\\/g, '/').replace(/\/+/g, '/');
+    // Ensure path starts with /uploads/
+    return normalized ? `/uploads/${normalized}` : '';
   }
 
   private getStoragePath(filename: string, bookId: number): string {
