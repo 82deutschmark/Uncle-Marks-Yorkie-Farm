@@ -24,6 +24,10 @@ export async function uploadImageHandler(req: Request, res: Response) {
       bookId
     });
 
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    await fs.mkdir(uploadsDir, { recursive: true });
+
     const images = await storage.saveUploadedFile(req.file.buffer, req.file.originalname, bookId);
     log.info(`Successfully processed ${images.length} image(s)`);
 
@@ -31,7 +35,7 @@ export async function uploadImageHandler(req: Request, res: Response) {
       message: 'Upload successful',
       images: images.map(img => ({
         id: img.id,
-        path: `/uploads/${img.path}`,
+        path: img.path,
         order: img.order
       }))
     });

@@ -109,9 +109,7 @@ export class DatabaseStorage implements IStorage {
       const results = await db.select().from(images);
       return results.map(img => ({
         ...img,
-        path: img.path.includes('uploads/') 
-          ? `/${img.path}`
-          : `/uploads/${img.path}`
+        path: `/uploads/${img.path}`
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
@@ -134,8 +132,8 @@ export class DatabaseStorage implements IStorage {
 
   private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     log.info(`Processing single image: ${filename}`);
-    const filePath = `uploads/${filename}`;  // Changed to store directly in uploads folder
-    const fullPath = path.join(process.cwd(), filePath);
+    const filePath = `book-${bookId}/${filename}`;  // Store in book-specific subfolder
+    const fullPath = path.join(process.cwd(), 'uploads', filePath);
 
     try {
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
@@ -149,6 +147,7 @@ export class DatabaseStorage implements IStorage {
         order: 0,
         selected: false,
         analyzed: false,
+        midjourney: null,
         analysis: null
       });
 
