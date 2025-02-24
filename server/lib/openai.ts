@@ -181,6 +181,8 @@ Response Format:
       throw error;
     }
     throw new OpenAIError(`Failed to generate story: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
+  } finally {
+    // Cleanup if needed
   }
 }
 
