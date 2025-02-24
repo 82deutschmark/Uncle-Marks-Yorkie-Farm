@@ -63,43 +63,49 @@ export async function analyzeImageHandler(req: Request, res: Response) {
     }
 
     // Remove 'uploads/' prefix if it exists in image.path
-    const imagePath = image.path.replace(/^uploads\/?/, '');
+    const imagePath = image.path.replace(/^(\/?uploads\/)?/, '');
     const fullImagePath = path.join(process.cwd(), 'uploads', imagePath);
-    const imageBuffer = await fs.readFile(fullImagePath);
-    const base64Image = imageBuffer.toString('base64');
 
-    const analysis = await analyzeImage(base64Image);
+    try {
+      const imageBuffer = await fs.readFile(fullImagePath);
+      const base64Image = imageBuffer.toString('base64');
 
-    // Generate 10 suggested names based on the analysis
-    const suggestedNames = analysis.name.split(',').map(name => name.trim());
-    while (suggestedNames.length < 10) {
-      suggestedNames.push(`Yorkie ${suggestedNames.length + 1}`);
-    }
+      const analysis = await analyzeImage(base64Image);
 
-    const updatedImage = await storage.updateImageMetadata(imageId, {
-      analyzed: true,
-      analysis: {
-        characterProfile: analysis,
-        suggestedNames
+      const updatedImage = await storage.updateImageMetadata(imageId, {
+        analyzed: true,
+        analysis: {
+          characterProfile: analysis,
+          description: analysis.description,
+          suggestedNames: analysis.suggestedNames
+        }
+      });
+
+      log.info('Image analysis completed', { imageId });
+      res.json({
+        id: imageId,
+        ...analysis,
+        path: updatedImage.path
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('ENOENT')) {
+        log.error('Image file not found:', { path: fullImagePath });
+        return res.status(404).json({
+          error: 'File Not Found',
+          message: 'Image file could not be found on the server'
+        });
       }
-    });
-
-    log.info('Image analysis completed', { imageId });
-    res.json({
-      ...analysis,
-      suggestedNames,
-      imageId
-    });
+      throw error;
+    }
   } catch (error) {
     log.error('Image analysis error:', error);
 
     if (error instanceof OpenAIError) {
-      res.status(error.statusCode).json({
+      return res.status(error.statusCode).json({
         error: 'AI Analysis Error',
         message: error.message,
         retry: error.retryable
       });
-      return;
     }
 
     res.status(500).json({

@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, BookOpen, Sparkles, Wand2, RefreshCcw, Loader2 } from "lucide-react";
 
 interface YorkieImage {
-  id: string;
+  id: number;
   url: string;
   description?: string;
 }
@@ -94,17 +94,24 @@ export default function Home() {
     setShowAnalysis(true);
     try {
       const response = await fetch(`/api/images/${yorkie.id}/analyze`, {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
-      if (!response.ok) throw new Error('Failed to analyze image');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to analyze image');
+      }
 
       const analysis = await response.json();
       setYorkieAnalysis(analysis);
     } catch (error) {
+      console.error('Analysis error:', error);
       toast({
         title: "Error",
-        description: "Failed to analyze the Yorkie. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to analyze the Yorkie. Please try again.",
         variant: "destructive"
       });
       setShowAnalysis(false);
