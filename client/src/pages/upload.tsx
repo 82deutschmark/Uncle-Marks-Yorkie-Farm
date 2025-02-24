@@ -123,6 +123,12 @@ export default function UploadPage() {
     }
   });
 
+  // Helper function to ensure proper image path
+  const getImagePath = (imagePath: string) => {
+    if (!imagePath) return '';
+    return imagePath.startsWith('/') ? imagePath : `/uploads/${imagePath}`;
+  };
+
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -230,9 +236,20 @@ export default function UploadPage() {
                       className="relative group aspect-square rounded-lg overflow-hidden border"
                     >
                       <img
-                        src={image.path}
+                        src={getImagePath(image.path)}
                         alt={`Image ${image.id}`}
                         className="object-cover w-full h-full"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (target.src.startsWith('/uploads/')) {
+                            target.src = target.src.replace('/uploads/', '/');
+                            // If that fails too, try the original path
+                            target.onerror = () => {
+                              target.src = image.path;
+                              target.onerror = null; // Prevent infinite loop
+                            };
+                          }
+                        }}
                       />
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
                         <div className="text-white text-sm">

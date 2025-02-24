@@ -48,30 +48,27 @@ export class DatabaseStorage implements IStorage {
     fs.mkdir(this.uploadsDir, { recursive: true }).catch(err => log.error('Failed to create uploads directory:', err));
   }
 
-  private normalizePath(filePath: string): string {
-    return filePath.replace(/^\/+|\/+$/g, '').replace(/\\/g, '/');
+  private getStoragePath(filename: string, bookId: number): string {
+    return `book-${bookId}/${filename}`;
   }
 
-  private getRelativePath(filePath: string): string {
-    return this.normalizePath(filePath);
+  private getFullPath(storagePath: string): string {
+    return path.join(this.uploadsDir, storagePath);
   }
 
-  private getFullPath(relativePath: string): string {
-    return path.join(this.uploadsDir, this.normalizePath(relativePath));
+  private getPublicUrl(storagePath: string): string {
+    return `/uploads/${storagePath}`;
   }
 
   async createImage(image: InsertImage): Promise<Image> {
     try {
       const [newImage] = await db.insert(images)
-        .values({
-          ...image,
-          path: this.getRelativePath(image.path)
-        })
+        .values(image)
         .returning();
-      log.info(`Created new image record: ${newImage.id}`);
+
       return {
         ...newImage,
-        path: `/uploads/${newImage.path}`
+        path: this.getPublicUrl(newImage.path)
       };
     } catch (error) {
       log.error(`Failed to create image record: ${error}`);
@@ -82,13 +79,12 @@ export class DatabaseStorage implements IStorage {
   async getImage(id: number): Promise<Image | undefined> {
     try {
       const [image] = await db.select().from(images).where(eq(images.id, id));
-      if (image) {
-        return {
-          ...image,
-          path: `/uploads/${this.getRelativePath(image.path)}`
-        };
-      }
-      return undefined;
+      if (!image) return undefined;
+
+      return {
+        ...image,
+        path: this.getPublicUrl(image.path)
+      };
     } catch (error) {
       log.error(`Failed to get image ${id}: ${error}`);
       throw new Error(`Failed to get image: ${error instanceof Error ? error.message : String(error)}`);
@@ -113,7 +109,7 @@ export class DatabaseStorage implements IStorage {
       const results = await query;
       return results.map(img => ({
         ...img,
-        path: `/uploads/${this.getRelativePath(img.path)}`
+        path: this.getPublicUrl(img.path)
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
@@ -126,7 +122,7 @@ export class DatabaseStorage implements IStorage {
       const results = await db.select().from(images);
       return results.map(img => ({
         ...img,
-        path: `/uploads/${this.getRelativePath(img.path)}`
+        path: this.getPublicUrl(img.path)
       }));
     } catch (error) {
       log.error(`Failed to get all images: ${error}`);
@@ -140,9 +136,10 @@ export class DatabaseStorage implements IStorage {
         .set(metadata)
         .where(eq(images.id, id))
         .returning();
+
       return {
         ...updatedImage,
-        path: `/uploads/${this.getRelativePath(updatedImage.path)}`
+        path: this.getPublicUrl(updatedImage.path)
       };
     } catch (error) {
       log.error(`Failed to update image ${id} metadata: ${error}`);
@@ -150,25 +147,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
-    try {
-      const isZip = file[0] === 0x50 && file[1] === 0x4B && file[2] === 0x03 && file[3] === 0x04;
-      log.info(`Processing uploaded file: ${filename} (${isZip ? 'ZIP' : 'single file'})`);
-
-      if (isZip) {
-        return await this.processZipFile(file, bookId);
-      } else {
-        return await this.saveSingleImage(file, filename, bookId);
-      }
-    } catch (error) {
-      log.error(`Failed to save uploaded file: ${error}`);
-      throw new Error(`Failed to save uploaded file: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
   private async saveSingleImage(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
-    const relativePath = `book-${bookId}/${filename}`;
-    const fullPath = this.getFullPath(relativePath);
+    const storagePath = this.getStoragePath(filename, bookId);
+    const fullPath = this.getFullPath(storagePath);
 
     try {
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
@@ -176,7 +157,7 @@ export class DatabaseStorage implements IStorage {
 
       const image = await this.createImage({
         bookId,
-        path: this.getRelativePath(relativePath),
+        path: storagePath,
         order: 0,
         selected: false,
         analyzed: false,
@@ -191,11 +172,27 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
+    try {
+      const isZip = file[0] === 0x50 && file[1] === 0x4B && file[2] === 0x03 && file[3] === 0x04;
+
+      if (isZip) {
+        return await this.processZipFile(file, bookId);
+      } else {
+        return await this.saveSingleImage(file, filename, bookId);
+      }
+    } catch (error) {
+      log.error(`Failed to save uploaded file: ${error}`);
+      throw new Error(`Failed to save uploaded file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
   private async processZipFile(zipBuffer: Buffer, bookId: number): Promise<Image[]> {
     const directory = await unzipper.Open.buffer(zipBuffer);
     const imageFiles = directory.files.filter(file => {
-      if (!file || typeof file.path !== 'string') return false;
-      return !file.path.startsWith('__MACOSX') &&
+      return file && 
+             typeof file.path === 'string' && 
+             !file.path.startsWith('__MACOSX') &&
              !file.path.startsWith('.') &&
              /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(file.path);
     });
@@ -206,10 +203,11 @@ export class DatabaseStorage implements IStorage {
 
     const savedImages: Image[] = [];
 
-    for (const [index, file] of imageFiles.entries()) {
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i];
       const fileName = path.basename(file.path);
-      const relativePath = `book-${bookId}/${fileName}`;
-      const fullPath = this.getFullPath(relativePath);
+      const storagePath = this.getStoragePath(fileName, bookId);
+      const fullPath = this.getFullPath(storagePath);
 
       try {
         await fs.mkdir(path.dirname(fullPath), { recursive: true });
@@ -218,12 +216,12 @@ export class DatabaseStorage implements IStorage {
 
         const image = await this.createImage({
           bookId,
-          path: this.getRelativePath(relativePath),
-          order: index,
+          path: storagePath,
+          order: i,
           selected: false,
           analyzed: false,
-          analysis: null,
-          midjourney: null
+          midjourney: null,
+          analysis: null
         });
 
         savedImages.push(image);
@@ -247,7 +245,9 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Image not found');
       }
 
-      const fullPath = this.getFullPath(image.path.replace('/uploads/', ''));
+      const storagePath = image.path.replace('/uploads/', '');
+      const fullPath = this.getFullPath(storagePath);
+
       try {
         await fs.unlink(fullPath);
       } catch (error) {

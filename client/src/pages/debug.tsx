@@ -28,14 +28,14 @@ export default function DebugPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const [sortBy, setSortBy] = useState<string>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
   // Query for debug logs with reduced refresh rate
   const { data: logs, isLoading: isLoadingLogs } = useQuery<DebugLogs>({
     queryKey: ["/api/debug/logs"],
     refetchInterval: 300000 // Refresh every 5 minutes
   });
-
-  const [sortBy, setSortBy] = useState<string>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Query for images with reduced refresh rate and sorting
   const { data: images, isLoading: isLoadingImages } = useQuery<Image[]>({
