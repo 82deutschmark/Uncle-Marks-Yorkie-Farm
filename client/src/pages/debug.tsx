@@ -86,16 +86,16 @@ export default function DebugPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[400px] w-full rounded-md border">
-            <Table>
+          <div className="relative w-full overflow-auto">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Preview</TableHead>
-                  <TableHead>Path</TableHead>
-                  <TableHead>Created At</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="w-[80px]">ID</TableHead>
+                  <TableHead className="w-[100px]">Preview</TableHead>
+                  <TableHead className="min-w-[200px]">Path</TableHead>
+                  <TableHead className="w-[200px]">Created At</TableHead>
+                  <TableHead className="w-[100px]">Status</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -111,7 +111,7 @@ export default function DebugPage() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-sm">{image.path}</TableCell>
+                    <TableCell className="font-mono text-sm truncate max-w-[300px]">{image.path}</TableCell>
                     <TableCell>{new Date(image.createdAt).toLocaleString()}</TableCell>
                     <TableCell>
                       {image.analyzed ? (
@@ -144,7 +144,7 @@ export default function DebugPage() {
                 )}
               </TableBody>
             </Table>
-          </ScrollArea>
+          </div>
         </CardContent>
       </Card>
 
