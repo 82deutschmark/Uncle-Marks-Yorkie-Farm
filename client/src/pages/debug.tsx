@@ -222,12 +222,11 @@ export default function DebugPage() {
       <div className="flex justify-end gap-4">
         <Button
           variant="outline"
-          onClick={() => setLocation("/create/review")}
+          onClick={() => setLocation("/")}
           disabled={isLoadingLogs || isLoadingImages}
         >
-          Back to Review
+          Back to Home
         </Button>
-        {/*This part is not changed*/}
       </div>
     </div>
   );
