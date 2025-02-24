@@ -42,6 +42,16 @@ export async function registerRoutes(app: Express) {
   app.get("/api/stories/:id", getStoryHandler);
 
   // Image routes
+  app.get("/api/images", async (req, res) => {
+    try {
+      const images = await storage.getAllImages();
+      res.json(images);
+    } catch (error) {
+      log.error('Failed to fetch images:', error);
+      res.status(500).json({ error: 'Failed to fetch images' });
+    }
+  });
+
   app.post("/api/upload", upload.single('file'), uploadImageHandler);
   app.post("/api/images/:id/analyze", analyzeImageHandler);
   app.post("/api/images/generate", generateImageHandler);
