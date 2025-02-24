@@ -63,7 +63,7 @@ export async function analyzeImageHandler(req: Request, res: Response) {
     }
 
     // Remove 'uploads/' prefix if it exists in image.path
-    const imagePath = image.path.startsWith('uploads/') ? image.path.substring(8) : image.path;
+    const imagePath = image.path.replace(/^uploads\/?/, '');
     const fullImagePath = path.join(process.cwd(), 'uploads', imagePath);
     const imageBuffer = await fs.readFile(fullImagePath);
     const base64Image = imageBuffer.toString('base64');
