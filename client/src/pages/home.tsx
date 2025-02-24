@@ -6,7 +6,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, Sparkles, Wand2, RefreshCcw, Loader2 } from "lucide-react";
+import { Upload, BookOpen, Sparkles, Wand2, RefreshCcw, Loader2 } from "lucide-react";
 
 interface YorkieImage {
   id: string;
@@ -57,7 +57,6 @@ export default function Home() {
   };
 
   const randomizeSelections = () => {
-    // Randomly select colors and art style
     const randomColors = colors
       .sort(() => Math.random() - 0.5)
       .slice(0, Math.floor(Math.random() * 3) + 1)
@@ -81,7 +80,6 @@ export default function Home() {
 
     setGenerating(true);
     try {
-      // Call the API to generate the story
       const response = await fetch('/api/stories/generate', {
         method: 'POST',
         headers: {
@@ -97,7 +95,6 @@ export default function Home() {
       if (!response.ok) throw new Error('Failed to generate story');
 
       const data = await response.json();
-      // Navigate to the story view page with the generated story
       setLocation(`/story/${data.id}`);
     } catch (error) {
       toast({
@@ -126,6 +123,26 @@ export default function Home() {
             </p>
           </div>
 
+          {/* Contributor Quick Access */}
+          <div className="mt-8 flex justify-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => setLocation("/upload")}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Contributor Upload
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setLocation("/debug")}
+              className="gap-2"
+            >
+              <BookOpen className="h-4 w-4" />
+              Debug Console
+            </Button>
+          </div>
+
           <div className="mt-16">
             <Card className="w-full max-w-4xl mx-auto border-2 border-primary/20">
               <CardHeader>
@@ -135,20 +152,19 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Yorkie Selection */}
                 <div className="grid md:grid-cols-3 gap-6">
                   {yorkies.map((yorkie) => (
-                    <div 
-                      key={yorkie.id} 
+                    <div
+                      key={yorkie.id}
                       className={`relative cursor-pointer ${
                         selectedYorkie?.id === yorkie.id ? 'ring-2 ring-primary' : ''
                       }`}
                       onClick={() => setSelectedYorkie(yorkie)}
                     >
                       <div className="aspect-square mb-4 relative overflow-hidden rounded-lg">
-                        <img 
-                          src={yorkie.url} 
-                          alt="Yorkshire Terrier" 
+                        <img
+                          src={yorkie.url}
+                          alt="Yorkshire Terrier"
                           className="object-cover w-full h-full"
                         />
                       </div>
@@ -159,7 +175,6 @@ export default function Home() {
                   ))}
                 </div>
 
-                {/* Customization Options */}
                 <Accordion type="single" collapsible className="w-full">
                   <AccordionItem value="colors">
                     <AccordionTrigger>Yorkie's Colors</AccordionTrigger>
@@ -214,7 +229,6 @@ export default function Home() {
                   </AccordionItem>
                 </Accordion>
 
-                {/* Action Buttons */}
                 <div className="flex justify-between items-center pt-6 border-t">
                   <Button
                     variant="outline"
