@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, BookOpen, Sparkles, Wand2, RefreshCcw, Loader2 } from "lucide-react";
 
@@ -12,6 +14,14 @@ interface YorkieImage {
   id: string;
   url: string;
   description?: string;
+}
+
+interface YorkieAnalysis {
+  name: string;
+  personality: string;
+  description: string;
+  suggestedNames: string[];
+  artStyle: string;
 }
 
 const colors = [
@@ -57,6 +67,9 @@ export default function Home() {
   const [selectedYorkie, setSelectedYorkie] = useState<YorkieImage | null>(null);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedStyle, setSelectedStyle] = useState("");
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [yorkieAnalysis, setYorkieAnalysis] = useState<YorkieAnalysis | null>(null);
 
   const fetchRandomYorkies = async () => {
     setLoading(true);
@@ -64,10 +77,6 @@ export default function Home() {
       const response = await fetch('/api/images/random');
       const data = await response.json();
       setYorkies(data.images);
-      // Auto-select the first Yorkie
-      if (data.images && data.images.length > 0) {
-        setSelectedYorkie(data.images[0]);
-      }
     } catch (error) {
       console.error('Failed to fetch Yorkies:', error);
       toast({
@@ -80,15 +89,35 @@ export default function Home() {
     }
   };
 
+  const analyzeYorkie = async (yorkie: YorkieImage) => {
+    setAnalyzing(true);
+    setShowAnalysis(true);
+    try {
+      const response = await fetch(`/api/images/${yorkie.id}/analyze`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) throw new Error('Failed to analyze image');
+
+      const analysis = await response.json();
+      setYorkieAnalysis(analysis);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to analyze the Yorkie. Please try again.",
+        variant: "destructive"
+      });
+      setShowAnalysis(false);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const handleGenerateStory = async () => {
     setGenerating(true);
     try {
-      // If no colors selected, randomly select some
-      const colorsToUse = selectedColors.length > 0 ? selectedColors : 
-        colors.sort(() => Math.random() - 0.5).slice(0, 2).map(c => c.label);
-
-      // If no style selected, randomly select one
-      const styleToUse = selectedStyle || artStyles[Math.floor(Math.random() * artStyles.length)].value;
+      // If no Yorkie is selected, use a random one
+      const yorkieToUse = selectedYorkie || yorkies[Math.floor(Math.random() * yorkies.length)];
 
       const response = await fetch('/api/stories/generate', {
         method: 'POST',
@@ -96,9 +125,9 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          yorkieId: selectedYorkie?.id || yorkies[0]?.id,
-          colors: colorsToUse,
-          artStyle: styleToUse,
+          yorkieId: yorkieToUse.id,
+          colors: selectedColors,
+          artStyle: selectedStyle,
         }),
       });
 
@@ -160,7 +189,7 @@ export default function Home() {
               <CardHeader>
                 <CardTitle className="text-2xl text-center">Create Your Yorkie Story</CardTitle>
                 <CardDescription className="text-center">
-                  Choose your magical companion or let us pick one for you!
+                  Click on any Yorkie to learn more about them, or just hit generate for a magical surprise!
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -171,7 +200,10 @@ export default function Home() {
                       className={`relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 ${
                         selectedYorkie?.id === yorkie.id ? 'ring-2 ring-primary scale-[1.02]' : 'hover:scale-[1.02]'
                       }`}
-                      onClick={() => setSelectedYorkie(yorkie)}
+                      onClick={() => {
+                        setSelectedYorkie(yorkie);
+                        analyzeYorkie(yorkie);
+                      }}
                     >
                       <div className="aspect-square relative overflow-hidden">
                         <img
@@ -191,30 +223,32 @@ export default function Home() {
                       <div className="space-y-6">
                         <div>
                           <h3 className="text-sm font-medium mb-2">Yorkie's Colors (Optional)</h3>
-                          <div className="grid grid-cols-4 gap-2">
-                            {colors.slice(0, 8).map((color) => (
-                              <div
-                                key={color.value}
-                                className={`cursor-pointer rounded-md border p-2 hover:bg-accent hover:text-accent-foreground ${
-                                  selectedColors.includes(color.label)
-                                    ? "border-primary bg-primary/5"
-                                    : "border-muted"
-                                }`}
-                                onClick={() => {
-                                  if (selectedColors.includes(color.label)) {
-                                    setSelectedColors(selectedColors.filter(c => c !== color.label));
-                                  } else if (selectedColors.length < 3) {
-                                    setSelectedColors([...selectedColors, color.label]);
-                                  }
-                                }}
-                              >
-                                <div className="flex flex-col items-center">
-                                  <span className="text-lg">{color.preview}</span>
-                                  <span className="text-xs text-center mt-1">{color.label}</span>
+                          <ScrollArea className="h-[200px]">
+                            <div className="grid grid-cols-4 gap-2">
+                              {colors.map((color) => (
+                                <div
+                                  key={color.value}
+                                  className={`cursor-pointer rounded-md border p-2 hover:bg-accent hover:text-accent-foreground ${
+                                    selectedColors.includes(color.label)
+                                      ? "border-primary bg-primary/5"
+                                      : "border-muted"
+                                  }`}
+                                  onClick={() => {
+                                    if (selectedColors.includes(color.label)) {
+                                      setSelectedColors(selectedColors.filter(c => c !== color.label));
+                                    } else {
+                                      setSelectedColors([...selectedColors, color.label]);
+                                    }
+                                  }}
+                                >
+                                  <div className="flex flex-col items-center">
+                                    <span className="text-lg">{color.preview}</span>
+                                    <span className="text-xs text-center mt-1">{color.label}</span>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
                         </div>
 
                         <div>
@@ -228,7 +262,9 @@ export default function Home() {
                                     ? "border-primary bg-primary/5"
                                     : "border-muted"
                                 }`}
-                                onClick={() => setSelectedStyle(style.value)}
+                                onClick={() => setSelectedStyle(
+                                  selectedStyle === style.value ? "" : style.value
+                                )}
                               >
                                 <div className="font-medium">{style.label}</div>
                                 <div className="text-xs text-muted-foreground">{style.description}</div>
@@ -266,6 +302,45 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Yorkie Analysis Dialog */}
+      <Dialog open={showAnalysis} onOpenChange={setShowAnalysis}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Yorkie Analysis</DialogTitle>
+          </DialogHeader>
+          {analyzing ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : yorkieAnalysis ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium">Art Style</h3>
+                <p className="text-muted-foreground">{yorkieAnalysis.artStyle}</p>
+              </div>
+              <div>
+                <h3 className="font-medium">Character Description</h3>
+                <p className="text-muted-foreground">{yorkieAnalysis.description}</p>
+              </div>
+              <div>
+                <h3 className="font-medium">Personality</h3>
+                <p className="text-muted-foreground">{yorkieAnalysis.personality}</p>
+              </div>
+              <div>
+                <h3 className="font-medium">Suggested Names</h3>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {yorkieAnalysis.suggestedNames.map((name, index) => (
+                    <Badge key={index} variant="secondary">{name}</Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Failed to analyze the Yorkie. Please try again.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

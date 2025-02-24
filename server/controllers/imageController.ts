@@ -3,28 +3,10 @@ import { storage } from "../storage";
 import { log } from "../lib/logger";
 import { analyzeImage } from "../lib/openai";
 import { OpenAIError } from "../lib/errors";
-import { midJourneyPromptSchema, type MidJourneyPrompt } from "../../shared/schema";
+import { midJourneyPromptSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import * as fs from 'fs/promises';
 import path from "path";
-
-// Assumed implementation - needs to be properly implemented based on actual data structures
-async function findSimilarYorkieImage(description: string): Promise<any[] | null> {
-  // Replace this with actual search logic.  This example just simulates finding some matches.
-  const matches = [];
-  if (description.includes("Yorkie") || description.includes("Yorkshire")) {
-    matches.push({id:1, path: 'path1'});
-    matches.push({id:2, path: 'path2'});
-    matches.push({id:3, path: 'path3'});
-  } else if (description.includes("cartoon") && (description.includes("Yorkie") || description.includes("Yorkshire"))) {
-      matches.push({id:4, path: 'path4'});
-      matches.push({id:5, path: 'path5'});
-      matches.push({id:6, path: 'path6'});
-  }
-  return matches.length > 0 ? matches.slice(0,3) : null;
-
-}
-
 
 export async function uploadImageHandler(req: Request, res: Response) {
   try {
@@ -68,7 +50,6 @@ export async function analyzeImageHandler(req: Request, res: Response) {
     log.info('Analyzing image', { imageId });
 
     const image = await storage.getImage(imageId);
-
     if (!image) {
       log.warn('Image not found', { imageId });
       return res.status(404).json({
@@ -83,15 +64,26 @@ export async function analyzeImageHandler(req: Request, res: Response) {
 
     const analysis = await analyzeImage(base64Image);
 
+    // Generate 10 suggested names based on the analysis
+    const suggestedNames = analysis.name.split(',').map(name => name.trim());
+    while (suggestedNames.length < 10) {
+      suggestedNames.push(`Yorkie ${suggestedNames.length + 1}`);
+    }
+
     const updatedImage = await storage.updateImageMetadata(imageId, {
       analyzed: true,
       analysis: {
-        characterProfile: analysis
+        characterProfile: analysis,
+        suggestedNames
       }
     });
 
     log.info('Image analysis completed', { imageId });
-    res.json(updatedImage);
+    res.json({
+      ...analysis,
+      suggestedNames,
+      imageId
+    });
   } catch (error) {
     log.error('Image analysis error:', error);
 
@@ -119,8 +111,6 @@ export async function generateImageHandler(req: Request, res: Response) {
 
     const result = await generateImage(prompt);
     res.json(result);
-
-
   } catch (error) {
     log.error('MidJourney prompt error:', error);
 
