@@ -4,7 +4,7 @@ import { log } from "./logger";
 import type { StoryParams, StoryResponse } from "@shared/schema";
 import { storage } from "../storage";
 
-// the newest OpenAI model is "gpt-4" which was released May 13, 2024. do not change this unless explicitly requested by the user
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function generateStory(params: StoryParams): Promise<StoryResponse> {
@@ -16,7 +16,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
     });
 
     await storage.addDebugLog("openai", "request", {
-      model: "gpt-4",
+      model: "gpt-4o",
       params
     });
 
@@ -52,7 +52,7 @@ Response Format:
 }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -81,7 +81,6 @@ Response Format:
       timestamp: new Date().toISOString()
     });
 
-    // Parse and validate the response
     try {
       const parsedResponse = JSON.parse(content);
       if (!parsedResponse.title || !parsedResponse.content || !parsedResponse.metadata) {
@@ -108,90 +107,45 @@ Response Format:
   }
 }
 
-interface CharacterImagePrompt {
-  personality: string;
-  appearance: string;
-  artStyle: {
-    style: string;
-    description: string;
-  };
-}
-
-export async function generateCharacterImagePrompt(params: CharacterImagePrompt): Promise<string> {
-  return withRetry(async () => {
-    log.info('Generating character image prompt');
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert at creating detailed, vivid art prompts for MidJourney. Format prompts to bring Yorkshire Terrier characters to life in various artistic styles."
-        },
-        {
-          role: "user",
-          content: `Create a MidJourney prompt for a Yorkshire Terrier character with:
-Personality: ${params.personality}
-Appearance: ${params.appearance}
-Art Style: ${params.artStyle.style} - ${params.artStyle.description}
-
-The prompt should be detailed and incorporate the art style while maintaining the Yorkie's key characteristics.`
-        }
-      ],
-      max_tokens: 500
-    });
-
-    const prompt = response.choices[0].message.content;
-    if (!prompt) {
-      throw new OpenAIError("No prompt generated from OpenAI");
-    }
-
-    return prompt;
-  });
-}
-
-interface CharacterProfile {
+export async function analyzeImage(base64Image: string): Promise<{
   name: string;
   personality: string;
   description: string;
-}
+  artStyle: string;
+}> {
+  try {
+    log.info('Starting image analysis with OpenAI vision API');
 
-export async function analyzeImage(base64Image: string): Promise<CharacterProfile> {
-  return withRetry(async () => {
-    log.info('Initiating image analysis request to OpenAI');
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-4-vision-preview",
       messages: [
         {
           role: "system",
-          content: "You are a creative character designer with expertise in Yorkshire terriers. Create unique, memorable characters that feel fresh and original while staying true to Yorkie traits like their tiny size, intelligence, and spirited nature. Think beyond standard names and personalities - each character should feel special and distinct."
+          content: "You are a creative character designer with expertise in Yorkshire terriers and art styles. Analyze the image and provide detailed insights about the Yorkie's appearance, artistic style, and suggest characteristics that would make for an engaging story character."
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Study this Yorkshire terrier's image and create a vibrant character profile with:
-1. A memorable, creative name that captures their unique essence
-2. A distinctive personality that makes them stand out
-3. A vivid physical description highlighting what makes them special
-
-Format your response as JSON with:
-- name: Their unique name
-- personality: Their special character traits
-- description: Their distinctive physical features`
+              text: "Analyze this Yorkshire terrier image and provide a detailed response in JSON format with these fields:\n" +
+                    "- name: A creative, memorable name that fits the Yorkie's appearance\n" +
+                    "- personality: Key character traits based on their appearance and expression\n" +
+                    "- description: A vivid physical description highlighting unique features\n" +
+                    "- artStyle: A detailed description of the artistic style and visual elements"
             },
             {
               type: "image_url",
               image_url: {
-                url: `data:image/png;base64,${base64Image}`
+                url: `data:image/jpeg;base64,${base64Image}`
               }
             }
-          ],
-        },
+          ]
+        }
       ],
-      response_format: { type: "json_object" },
-      max_tokens: 1000
+      max_tokens: 1000,
+      temperature: 0.7,
+      response_format: { type: "json_object" }
     });
 
     const content = response.choices[0].message.content;
@@ -199,21 +153,30 @@ Format your response as JSON with:
       throw new OpenAIError("No content received from OpenAI");
     }
 
-    log.info('Successfully received character profile from OpenAI');
-    return JSON.parse(content) as CharacterProfile;
-  });
+    log.info('Successfully received image analysis from OpenAI');
+
+    const analysis = JSON.parse(content);
+
+    if (!analysis.name || !analysis.personality || !analysis.description || !analysis.artStyle) {
+      throw new OpenAIError("Invalid response format from OpenAI vision API");
+    }
+
+    return analysis;
+  } catch (error) {
+    log.error('Image analysis error:', error);
+    throw new OpenAIError(`Failed to analyze image: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
+  }
 }
 
 const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY = 2000; // 2 seconds
-const MAX_RETRY_DELAY = 10000; // 10 seconds
-const REQUEST_TIMEOUT = 60000; // 60 seconds timeout
+const INITIAL_RETRY_DELAY = 2000;
+const MAX_RETRY_DELAY = 10000;
+const REQUEST_TIMEOUT = 60000;
 
-// Exponential backoff with jitter
 function calculateBackoff(attempt: number, initialDelay: number): number {
   const exponentialDelay = initialDelay * Math.pow(2, attempt);
   const maxDelay = Math.min(exponentialDelay, MAX_RETRY_DELAY);
-  return maxDelay * (0.75 + Math.random() * 0.5); // Add jitter
+  return maxDelay * (0.75 + Math.random() * 0.5);
 }
 
 async function withRetry<T>(
