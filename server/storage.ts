@@ -21,6 +21,8 @@ export interface IStorage {
   getAllImages(): Promise<Image[]>;
   updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image>;
   saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]>;
+  // Add new delete method
+  deleteImage(id: number): Promise<void>;
   createStory(story: InsertStory): Promise<Story>;
   getStory(id: number): Promise<Story | undefined>;
   createCustomArtStyle(style: InsertCustomArtStyle): Promise<CustomArtStyle>;
@@ -298,6 +300,18 @@ export class DatabaseStorage implements IStorage {
       ...this.debugLogs[service].slice(-99),
       newLog
     ];
+  }
+
+  async deleteImage(id: number): Promise<void> {
+    try {
+      log.info('Deleting image from database', { id });
+      await db.delete(images)
+        .where(eq(images.id, id));
+      log.info('Successfully deleted image', { id });
+    } catch (error) {
+      log.error(`Failed to delete image ${id}:`, error);
+      throw new Error(`Failed to delete image: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
 

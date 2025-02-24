@@ -1,13 +1,15 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
+import type { Image } from "@shared/schema";
 
 interface DebugLog {
   timestamp: string;
@@ -21,64 +23,47 @@ interface DebugLogs {
   midjourney: DebugLog[];
 }
 
-interface StoryResponse {
-  id: number;
-  title: string;
-  content: string;
-  metadata: {
-    protagonist: {
-      name: string;
-      personality: string;
-    };
-    image_urls?: string[];
-  };
-}
-
 export default function DebugPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [isGenerating, setIsGenerating] = useState(false);
+  const queryClient = useQueryClient();
 
   // Query for debug logs
-  const { data: logs, isLoading } = useQuery<DebugLogs>({
+  const { data: logs, isLoading: isLoadingLogs } = useQuery<DebugLogs>({
     queryKey: ["/api/debug/logs"],
-    refetchInterval: 5000 // Refresh every 5 seconds
+    refetchInterval: 5000
   });
 
-  // Story generation mutation
-  const generateStoryMutation = useMutation({
-    mutationFn: async (storyParams: any) => {
-      return await apiRequest("/api/stories/generate", {
-        method: "POST",
-        body: JSON.stringify(storyParams)
+  // Query for images
+  const { data: images, isLoading: isLoadingImages } = useQuery<Image[]>({
+    queryKey: ["/api/images"],
+    refetchInterval: 5000
+  });
+
+  // Delete image mutation
+  const deleteImageMutation = useMutation({
+    mutationFn: async (imageId: number) => {
+      return await apiRequest(`/api/images/${imageId}`, {
+        method: "DELETE"
       });
     },
-    onSuccess: (data: StoryResponse) => {
-      setIsGenerating(false);
-      // Navigate to the story viewer
-      setLocation(`/story/${data.id}`);
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Image deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/images"] });
     },
     onError: (error) => {
-      setIsGenerating(false);
       toast({
-        title: "Generation Error",
-        description: "Failed to generate story. Please try again.",
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete image',
         variant: "destructive"
       });
-      console.error("Story generation error:", error);
     }
   });
 
-  // Start story generation on mount if params exist
-  useEffect(() => {
-    const storyParams = localStorage.getItem("storyParams");
-    if (storyParams && !isGenerating) {
-      setIsGenerating(true);
-      generateStoryMutation.mutate(JSON.parse(storyParams));
-    }
-  }, []);
-
-  if (isLoading) {
+  if (isLoadingLogs || isLoadingImages) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -90,14 +75,80 @@ export default function DebugPage() {
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Debug Console</h1>
-        {isGenerating && (
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <span>Generating Story...</span>
-          </div>
-        )}
       </div>
 
+      {/* Database Management */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Database Records
+            <Badge variant="outline">Images</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[400px] w-full rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Preview</TableHead>
+                  <TableHead>Path</TableHead>
+                  <TableHead>Created At</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {images?.map((image) => (
+                  <TableRow key={image.id}>
+                    <TableCell>{image.id}</TableCell>
+                    <TableCell>
+                      <div className="h-16 w-16 relative">
+                        <img
+                          src={image.path.startsWith('/') ? image.path : `/${image.path}`}
+                          alt={`Image ${image.id}`}
+                          className="object-cover rounded-md"
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{image.path}</TableCell>
+                    <TableCell>{new Date(image.createdAt).toLocaleString()}</TableCell>
+                    <TableCell>
+                      {image.analyzed ? (
+                        <Badge>Analyzed</Badge>
+                      ) : (
+                        <Badge variant="secondary">Pending</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this image?')) {
+                            deleteImageMutation.mutate(image.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {(!images || images.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">
+                      No images found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      {/* Debug Logs */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* OpenAI Logs */}
         <Card>
@@ -167,41 +218,16 @@ export default function DebugPage() {
           </CardContent>
         </Card>
       </div>
-
       {/* Controls */}
       <div className="flex justify-end gap-4">
         <Button
           variant="outline"
           onClick={() => setLocation("/create/review")}
-          disabled={isGenerating}
+          disabled={isLoadingLogs || isLoadingImages}
         >
           Back to Review
         </Button>
-        <Button
-          onClick={() => {
-            const storyParams = localStorage.getItem("storyParams");
-            if (storyParams) {
-              setIsGenerating(true);
-              generateStoryMutation.mutate(JSON.parse(storyParams));
-            } else {
-              toast({
-                title: "Error",
-                description: "No story parameters found. Please go back and create a story.",
-                variant: "destructive"
-              });
-            }
-          }}
-          disabled={isGenerating}
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            "Retry Generation"
-          )}
-        </Button>
+        {/*This part is not changed*/}
       </div>
     </div>
   );

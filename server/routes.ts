@@ -45,6 +45,38 @@ export async function registerRoutes(app: Express) {
   app.post("/api/upload", upload.single('file'), uploadImageHandler);
   app.post("/api/images/:id/analyze", analyzeImageHandler);
   app.post("/api/images/generate", generateImageHandler);
+  app.delete("/api/images/:id", async (req, res) => {
+    try {
+      const imageId = parseInt(req.params.id, 10);
+      log.info('Deleting image', { imageId });
+
+      const image = await storage.getImage(imageId);
+      if (!image) {
+        return res.status(404).json({ error: 'Image not found' });
+      }
+
+      // Delete from filesystem if exists
+      try {
+        const imagePath = path.join(process.cwd(), 'uploads', image.path);
+        await fs.unlink(imagePath);
+        log.info('Deleted image file', { path: imagePath });
+      } catch (error) {
+        log.warn('Failed to delete image file', { error });
+        // Continue anyway - the file might not exist
+      }
+
+      // Delete from database
+      await storage.deleteImage(imageId);
+
+      res.json({ success: true, message: 'Image deleted successfully' });
+    } catch (error) {
+      log.error('Failed to delete image:', error);
+      res.status(500).json({ 
+        error: "Failed to delete image",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   // New route to process ZIP files
   app.post("/api/process-zip", async (req, res) => {
