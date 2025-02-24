@@ -23,6 +23,44 @@ interface DebugLogs {
   midjourney: DebugLog[];
 }
 
+// Helper function to handle image paths
+const getImagePath = (imagePath: string) => {
+  if (!imagePath) return '';
+  // Try multiple path formats if needed
+  const paths = [
+    imagePath,
+    imagePath.startsWith('/') ? imagePath : `/uploads/${imagePath}`,
+    imagePath.startsWith('/uploads/') ? imagePath.substring(8) : imagePath
+  ];
+  return paths.find(path => path) || ''; // Return the first defined path or empty string
+};
+
+// Image component with error handling
+const ImageWithFallback = ({ src, alt, className }: { src: string, alt: string, className?: string }) => {
+  const [pathIndex, setPathIndex] = useState(0);
+  const paths = [
+    src,
+    src.startsWith('/') ? src : `/uploads/${src}`,
+    src.startsWith('/uploads/') ? src.substring(8) : src
+  ];
+
+  const handleError = () => {
+    if (pathIndex < paths.length - 1) {
+      setPathIndex(pathIndex + 1);
+    }
+  };
+
+  return (
+    <img
+      src={paths[pathIndex]}
+      alt={alt}
+      className={className}
+      onError={handleError}
+    />
+  );
+};
+
+
 export default function DebugPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -67,11 +105,6 @@ export default function DebugPage() {
     }
   });
 
-  // Helper function to ensure proper image path
-  const getImagePath = (imagePath: string) => {
-    if (!imagePath) return '';
-    return imagePath.startsWith('/') ? imagePath : `/uploads/${imagePath}`;
-  };
 
   if (isLoadingLogs || isLoadingImages) {
     return (
@@ -140,21 +173,10 @@ export default function DebugPage() {
                     </TableCell>
                     <TableCell>
                       <div className="h-16 w-16 relative">
-                        <img
+                        <ImageWithFallback
                           src={getImagePath(image.path)}
                           alt={`Image ${image.id}`}
                           className="object-cover rounded-md"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (target.src.startsWith('/uploads/')) {
-                              target.src = target.src.replace('/uploads/', '/');
-                              // If that fails too, try the original path
-                              target.onerror = () => {
-                                target.src = image.path;
-                                target.onerror = null; // Prevent infinite loop
-                              };
-                            }
-                          }}
                         />
                       </div>
                     </TableCell>

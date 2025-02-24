@@ -11,6 +11,31 @@ import { useToast } from "@/hooks/use-toast";
 import type { Image } from "@shared/schema";
 import {Badge} from "@/components/ui/badge";
 
+// Image component with error handling
+const ImageWithFallback = ({ src, alt, className }: { src: string, alt: string, className?: string }) => {
+  const [pathIndex, setPathIndex] = useState(0);
+  const paths = [
+    src,
+    src.startsWith('/') ? src : `/uploads/${src}`,
+    src.startsWith('/uploads/') ? src.substring(8) : src
+  ];
+
+  const handleError = () => {
+    if (pathIndex < paths.length - 1) {
+      setPathIndex(pathIndex + 1);
+    }
+  };
+
+  return (
+    <img
+      src={paths[pathIndex]}
+      alt={alt}
+      className={className}
+      onError={handleError}
+    />
+  );
+};
+
 export default function UploadPage() {
   const { toast } = useToast();
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -235,21 +260,10 @@ export default function UploadPage() {
                       key={image.id}
                       className="relative group aspect-square rounded-lg overflow-hidden border"
                     >
-                      <img
+                      <ImageWithFallback
                         src={getImagePath(image.path)}
                         alt={`Image ${image.id}`}
                         className="object-cover w-full h-full"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          if (target.src.startsWith('/uploads/')) {
-                            target.src = target.src.replace('/uploads/', '/');
-                            // If that fails too, try the original path
-                            target.onerror = () => {
-                              target.src = image.path;
-                              target.onerror = null; // Prevent infinite loop
-                            };
-                          }
-                        }}
                       />
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
                         <div className="text-white text-sm">

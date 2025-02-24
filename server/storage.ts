@@ -14,24 +14,6 @@ interface DebugLog {
   content: any;
 }
 
-export interface IStorage {
-  createImage(image: InsertImage): Promise<Image>;
-  getImage(id: number): Promise<Image | undefined>;
-  listImages(options?: { analyzed?: boolean; selected?: boolean; sortBy?: string; sortOrder?: 'asc' | 'desc' }): Promise<Image[]>;
-  getAllImages(): Promise<Image[]>;
-  updateImageMetadata(id: number, metadata: Partial<InsertImage>): Promise<Image>;
-  saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]>;
-  deleteImage(id: number): Promise<void>;
-  createStory(story: InsertStory): Promise<Story>;
-  getStory(id: number): Promise<Story | undefined>;
-  createCustomArtStyle(style: InsertCustomArtStyle): Promise<CustomArtStyle>;
-  getCustomArtStyle(id: number): Promise<CustomArtStyle | undefined>;
-  listCustomArtStyles(): Promise<CustomArtStyle[]>;
-  updateCustomArtStyle(id: number, style: Partial<InsertCustomArtStyle>): Promise<CustomArtStyle>;
-  getDebugLogs(): Promise<{ openai: DebugLog[], midjourney: DebugLog[] }>;
-  addDebugLog(service: DebugLog["service"], type: DebugLog["type"], content: any): Promise<void>;
-}
-
 export class DatabaseStorage implements IStorage {
   private readonly uploadsDir: string;
   private debugLogs: {
@@ -48,22 +30,34 @@ export class DatabaseStorage implements IStorage {
     fs.mkdir(this.uploadsDir, { recursive: true }).catch(err => log.error('Failed to create uploads directory:', err));
   }
 
+  private normalizePath(filePath: string): string {
+    // Remove any leading/trailing slashes and 'uploads/' prefix
+    const cleaned = filePath.replace(/^\/?(uploads\/)?/, '').replace(/\/+$/, '');
+    // Ensure forward slashes and no double slashes
+    return cleaned.replace(/\\/g, '/').replace(/\/+/g, '/');
+  }
+
+  private getPublicUrl(filePath: string): string {
+    const normalized = this.normalizePath(filePath);
+    return `/uploads/${normalized}`;
+  }
+
   private getStoragePath(filename: string, bookId: number): string {
-    return `book-${bookId}/${filename}`;
+    return this.normalizePath(`book-${bookId}/${filename}`);
   }
 
-  private getFullPath(storagePath: string): string {
-    return path.join(this.uploadsDir, storagePath);
-  }
-
-  private getPublicUrl(storagePath: string): string {
-    return `/uploads/${storagePath}`;
+  private getFullPath(relativePath: string): string {
+    const normalized = this.normalizePath(relativePath);
+    return path.join(this.uploadsDir, normalized);
   }
 
   async createImage(image: InsertImage): Promise<Image> {
     try {
       const [newImage] = await db.insert(images)
-        .values(image)
+        .values({
+          ...image,
+          path: this.normalizePath(image.path)
+        })
         .returning();
 
       return {
@@ -71,7 +65,7 @@ export class DatabaseStorage implements IStorage {
         path: this.getPublicUrl(newImage.path)
       };
     } catch (error) {
-      log.error(`Failed to create image record: ${error}`);
+      log.error(`Failed to create image record:`, error);
       throw new Error(`Failed to create image: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -86,7 +80,7 @@ export class DatabaseStorage implements IStorage {
         path: this.getPublicUrl(image.path)
       };
     } catch (error) {
-      log.error(`Failed to get image ${id}: ${error}`);
+      log.error(`Failed to get image ${id}:`, error);
       throw new Error(`Failed to get image: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -102,8 +96,11 @@ export class DatabaseStorage implements IStorage {
         query = query.where(eq(images.selected, options.selected));
       }
       if (options?.sortBy) {
-        const order = options.sortOrder === 'desc' ? desc : asc;
-        query = query.orderBy(order(images[options.sortBy as keyof typeof images]));
+        const orderFn = options.sortOrder === 'desc' ? desc : asc;
+        const column = images[options.sortBy as keyof typeof images];
+        if (column) {
+          query = query.orderBy(orderFn(column));
+        }
       }
 
       const results = await query;
@@ -112,7 +109,7 @@ export class DatabaseStorage implements IStorage {
         path: this.getPublicUrl(img.path)
       }));
     } catch (error) {
-      log.error(`Failed to list images: ${error}`);
+      log.error(`Failed to list images:`, error);
       throw new Error(`Failed to list images: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -125,7 +122,7 @@ export class DatabaseStorage implements IStorage {
         path: this.getPublicUrl(img.path)
       }));
     } catch (error) {
-      log.error(`Failed to get all images: ${error}`);
+      log.error(`Failed to get all images:`, error);
       throw new Error(`Failed to get all images: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -142,7 +139,7 @@ export class DatabaseStorage implements IStorage {
         path: this.getPublicUrl(updatedImage.path)
       };
     } catch (error) {
-      log.error(`Failed to update image ${id} metadata: ${error}`);
+      log.error(`Failed to update image ${id} metadata:`, error);
       throw new Error(`Failed to update image metadata: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -167,7 +164,7 @@ export class DatabaseStorage implements IStorage {
 
       return [image];
     } catch (error) {
-      log.error(`Failed to save single image: ${error}`);
+      log.error(`Failed to save single image:`, error);
       throw error;
     }
   }
@@ -175,6 +172,7 @@ export class DatabaseStorage implements IStorage {
   async saveUploadedFile(file: Buffer, filename: string, bookId: number): Promise<Image[]> {
     try {
       const isZip = file[0] === 0x50 && file[1] === 0x4B && file[2] === 0x03 && file[3] === 0x04;
+      log.info(`Processing uploaded file: ${filename} (${isZip ? 'ZIP' : 'single file'})`);
 
       if (isZip) {
         return await this.processZipFile(file, bookId);
@@ -182,7 +180,7 @@ export class DatabaseStorage implements IStorage {
         return await this.saveSingleImage(file, filename, bookId);
       }
     } catch (error) {
-      log.error(`Failed to save uploaded file: ${error}`);
+      log.error(`Failed to save uploaded file:`, error);
       throw new Error(`Failed to save uploaded file: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -226,7 +224,7 @@ export class DatabaseStorage implements IStorage {
 
         savedImages.push(image);
       } catch (error) {
-        log.error(`Error processing ZIP image ${fileName}: ${error}`);
+        log.error(`Error processing ZIP image ${fileName}:`, error);
         continue;
       }
     }
@@ -245,18 +243,18 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Image not found');
       }
 
-      const storagePath = image.path.replace('/uploads/', '');
+      const storagePath = this.normalizePath(image.path.replace('/uploads/', ''));
       const fullPath = this.getFullPath(storagePath);
 
       try {
         await fs.unlink(fullPath);
       } catch (error) {
-        log.warn(`Failed to delete image file ${fullPath}: ${error}`);
+        log.warn(`Failed to delete image file ${fullPath}:`, error);
       }
 
       await db.delete(images).where(eq(images.id, id));
     } catch (error) {
-      log.error(`Failed to delete image ${id}: ${error}`);
+      log.error(`Failed to delete image ${id}:`, error);
       throw new Error(`Failed to delete image: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
