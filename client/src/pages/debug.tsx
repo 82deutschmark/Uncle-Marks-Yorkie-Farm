@@ -31,13 +31,13 @@ export default function DebugPage() {
   // Query for debug logs with reduced refresh rate
   const { data: logs, isLoading: isLoadingLogs } = useQuery<DebugLogs>({
     queryKey: ["/api/debug/logs"],
-    refetchInterval: 30000 // Refresh every 30 seconds instead of 5
+    refetchInterval: 300000 // Refresh every 5 minutes
   });
 
   // Query for images with reduced refresh rate
   const { data: images, isLoading: isLoadingImages } = useQuery<Image[]>({
     queryKey: ["/api/images"],
-    refetchInterval: 30000 // Refresh every 30 seconds instead of 5
+    refetchInterval: 300000 // Refresh every 5 minutes
   });
 
   // Delete image mutation
@@ -90,18 +90,31 @@ export default function DebugPage() {
             <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[80px]">ID</TableHead>
+                  <TableHead className="w-[180px]">ID / Actions</TableHead>
                   <TableHead className="w-[100px]">Preview</TableHead>
                   <TableHead className="min-w-[200px]">Path</TableHead>
                   <TableHead className="w-[200px]">Created At</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
-                  <TableHead className="w-[100px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {images?.map((image) => (
                   <TableRow key={image.id}>
-                    <TableCell>{image.id}</TableCell>
+                    <TableCell className="flex items-center gap-2">
+                      <span>{image.id}</span>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this image?')) {
+                            deleteImageMutation.mutate(image.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       <div className="h-16 w-16 relative">
                         <img
@@ -120,24 +133,11 @@ export default function DebugPage() {
                         <Badge variant="secondary">Pending</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this image?')) {
-                            deleteImageMutation.mutate(image.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 ))}
                 {(!images || images.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">
+                    <TableCell colSpan={5} className="text-center">
                       No images found
                     </TableCell>
                   </TableRow>
