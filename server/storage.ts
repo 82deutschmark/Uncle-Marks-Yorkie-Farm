@@ -105,7 +105,11 @@ export class DatabaseStorage implements IStorage {
       const results = await db.select().from(images);
       return results.map(img => ({
         ...img,
-        path: img.path.startsWith('/') ? img.path : `/uploads/${img.path}`
+        path: img.path.startsWith('/uploads/') 
+          ? img.path 
+          : img.path.startsWith('/') 
+            ? `/uploads${img.path}`
+            : `/uploads/${img.path}`
       }));
     } catch (error) {
       log.error(`Failed to list images: ${error}`);
