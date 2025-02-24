@@ -9,6 +9,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import type { Image } from "@shared/schema";
+import {Badge} from "@/components/ui/badge";
 
 export default function UploadPage() {
   const { toast } = useToast();
@@ -147,7 +148,7 @@ export default function UploadPage() {
                     <Upload className="h-8 w-8 text-muted-foreground" />
                   )}
                   <span className="text-sm text-muted-foreground">
-                    {uploadState.isUploading 
+                    {uploadState.isUploading
                       ? uploadState.status
                       : "Click to select a file to upload"}
                   </span>
@@ -228,7 +229,7 @@ export default function UploadPage() {
                       className="relative group aspect-square rounded-lg overflow-hidden border"
                     >
                       <img
-                        src={image.path.startsWith('/') ? image.path : `/${image.path}`}
+                        src={image.path}
                         alt={`Image ${image.id}`}
                         className="object-cover w-full h-full"
                       />
