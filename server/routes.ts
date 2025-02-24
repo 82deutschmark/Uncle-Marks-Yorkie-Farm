@@ -4,13 +4,16 @@ import multer from "multer";
 import path from "path";
 import express from "express";
 import { z } from "zod";
+import fs from 'fs/promises';
+import unzipper from 'unzipper';
 
 const upload = multer({
   dest: path.resolve(process.cwd(), 'uploads'),
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit
   }
 });
+
 import { requestLogger, errorLogger } from "./lib/logger";
 import { generateStoryHandler, getStoryHandler } from "./controllers/storyController";
 import { uploadImageHandler, analyzeImageHandler, generateImageHandler } from "./controllers/imageController";
@@ -18,12 +21,11 @@ import type { Request } from "express";
 import { storage } from "./storage";
 import { log } from "./lib/logger";
 import { generateStory } from "./lib/openai";
-// Discord integration removed
+import { findSimilarYorkieImage } from "./lib/discord";
 import {
   insertStorySchema,
   storyParamsSchema,
   artStyleSchema,
-  //midjourneyPromptSchema,
   type StoryParams,
   type MidJourneyPrompt
 } from "@shared/schema";
@@ -43,6 +45,29 @@ export async function registerRoutes(app: Express) {
   app.post("/api/upload", upload.single('file'), uploadImageHandler);
   app.post("/api/images/:id/analyze", analyzeImageHandler);
   app.post("/api/images/generate", generateImageHandler);
+
+  // New route to process ZIP files
+  app.post("/api/process-zip", async (req, res) => {
+    try {
+      const zipPath = path.join(process.cwd(), 'attached_assets', 'midjourney_session_2025-2-23_[100-115].zip');
+      const zipBuffer = await fs.readFile(zipPath);
+
+      log.info('Processing ZIP file from assets');
+      const processedImages = await storage.saveUploadedFile(zipBuffer, 'midjourney_batch.zip', 1);
+
+      res.json({
+        success: true,
+        message: `Successfully processed ${processedImages.length} images`,
+        images: processedImages
+      });
+    } catch (error) {
+      log.error('Failed to process ZIP file:', error);
+      res.status(500).json({ 
+        error: "Failed to process ZIP file",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   app.get("/api/images/random", async (req, res) => {
     try {
@@ -65,14 +90,14 @@ export async function registerRoutes(app: Express) {
       const { description } = req.body;
       log.info('Starting image search with description:', { description });
 
-      await storage.addDebugLog("discord", "request", {
+      await storage.addDebugLog("midjourney", "request", {
         description,
         timestamp: new Date().toISOString()
       });
 
       const result = await findSimilarYorkieImage(description);
 
-      await storage.addDebugLog("discord", "response", {
+      await storage.addDebugLog("midjourney", "response", {
         result,
         timestamp: new Date().toISOString()
       });
@@ -80,8 +105,7 @@ export async function registerRoutes(app: Express) {
       log.info('Image search completed successfully:', { resultCount: result.images?.length });
       res.json(result);
     } catch (error) {
-      log.error('Image search failed:', { error: error.message, stack: error.stack });
-      console.error('Search error:', error);
+      log.error('Image search failed:', error);
       res.status(500).json({ 
         error: "Failed to search for images",
         details: error instanceof Error ? error.message : String(error)
