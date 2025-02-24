@@ -28,16 +28,16 @@ export default function DebugPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Query for debug logs
+  // Query for debug logs with reduced refresh rate
   const { data: logs, isLoading: isLoadingLogs } = useQuery<DebugLogs>({
     queryKey: ["/api/debug/logs"],
-    refetchInterval: 5000
+    refetchInterval: 30000 // Refresh every 30 seconds instead of 5
   });
 
-  // Query for images
+  // Query for images with reduced refresh rate
   const { data: images, isLoading: isLoadingImages } = useQuery<Image[]>({
     queryKey: ["/api/images"],
-    refetchInterval: 5000
+    refetchInterval: 30000 // Refresh every 30 seconds instead of 5
   });
 
   // Delete image mutation
@@ -95,7 +95,7 @@ export default function DebugPage() {
                   <TableHead className="min-w-[200px]">Path</TableHead>
                   <TableHead className="w-[200px]">Created At</TableHead>
                   <TableHead className="w-[100px]">Status</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead className="w-[100px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -120,10 +120,10 @@ export default function DebugPage() {
                         <Badge variant="secondary">Pending</Badge>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <Button
                         variant="destructive"
-                        size="sm"
+                        size="icon"
                         onClick={() => {
                           if (confirm('Are you sure you want to delete this image?')) {
                             deleteImageMutation.mutate(image.id);
@@ -218,6 +218,7 @@ export default function DebugPage() {
           </CardContent>
         </Card>
       </div>
+
       {/* Controls */}
       <div className="flex justify-end gap-4">
         <Button
