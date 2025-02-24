@@ -40,7 +40,11 @@ export async function generateStoryHandler(req: Request, res: Response) {
 
     res.json(savedStory);
   } catch (error) {
-    log.error('Story generation error:', error);
+    log.error('Story generation error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      params: storyParams
+    });
 
     if (error instanceof ZodError) {
       return res.status(400).json({
