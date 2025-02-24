@@ -86,7 +86,7 @@ export async function generateStory(params: StoryParams): Promise<StoryResponse>
     });
 
     await storage.addDebugLog("openai", "request", {
-      model: "gpt-4o",
+      model: "gpt-3.5-turbo",
       params
     });
 
@@ -122,7 +122,7 @@ Response Format:
 }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
