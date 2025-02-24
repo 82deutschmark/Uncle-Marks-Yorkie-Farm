@@ -136,7 +136,7 @@ export default function UploadPage() {
           <CardContent className="space-y-6">
             {/* Individual File Upload */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Upload Individual Images</h3>
+              <h3 className="text-lg font-semibold mb-4">Upload ZIP Files</h3>
               <label
                 htmlFor="file-upload"
                 className="cursor-pointer block w-full"
@@ -145,17 +145,18 @@ export default function UploadPage() {
                   {uploadState.isUploading ? (
                     <Loader2 className="h-8 w-8 text-primary animate-spin" />
                   ) : (
-                    <Upload className="h-8 w-8 text-muted-foreground" />
+                    <Archive className="h-8 w-8 text-muted-foreground" />
                   )}
                   <span className="text-sm text-muted-foreground">
                     {uploadState.isUploading
                       ? uploadState.status
-                      : "Click to select a file to upload"}
+                      : "Click to select a ZIP file to upload"}
                   </span>
                 </div>
                 <Input
                   id="file-upload"
                   type="file"
+                  accept=".zip"
                   className="hidden"
                   onChange={handleUpload}
                   disabled={uploadState.isUploading}
