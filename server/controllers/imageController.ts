@@ -62,8 +62,8 @@ export async function analyzeImageHandler(req: Request, res: Response) {
       });
     }
 
-    const imagePath = path.join(process.cwd(), 'uploads', image.path);
-    const imageBuffer = await fs.readFile(imagePath);
+    const fullImagePath = path.join(process.cwd(), 'uploads', image.path);
+    const imageBuffer = await fs.readFile(fullImagePath);
     const base64Image = imageBuffer.toString('base64');
 
     const analysis = await analyzeImage(base64Image);
