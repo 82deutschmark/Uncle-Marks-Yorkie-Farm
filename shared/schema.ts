@@ -123,6 +123,14 @@ export type StoryResponse = z.infer<typeof storyResponseSchema>;
 export type ArtStyle = z.infer<typeof artStyleSchema>;
 export type MidJourneyPrompt = z.infer<typeof midJourneyPromptSchema>;
 
+export const dallePromptSchema = z.object({
+  prompt: z.string().min(10).max(1000),
+  artStyle: artStyleSchema.optional(),
+  colors: z.array(z.string()).optional(),
+  bookId: z.number().optional()
+});
+
+export type DallePrompt = z.infer<typeof dallePromptSchema>;
 
 // Table for storing generated stories
 export const stories = pgTable("stories", {

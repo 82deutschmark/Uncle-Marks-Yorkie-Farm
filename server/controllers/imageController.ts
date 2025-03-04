@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
 import { storage } from "../storage";
 import { log } from "../lib/logger";
-import { analyzeImage } from "../lib/openai";
+import { analyzeImage, generateDallEImage } from "../lib/openai";
 import { OpenAIError } from "../lib/errors";
-import { midJourneyPromptSchema } from "@shared/schema";
+import { midJourneyPromptSchema, dallePromptSchema } from "@shared/schema";
 import { ZodError } from "zod";
 import * as fs from 'fs/promises';
 import path from "path";
+import crypto from "crypto";
 
 export async function uploadImageHandler(req: Request, res: Response) {
   try {
@@ -110,6 +111,78 @@ export async function analyzeImageHandler(req: Request, res: Response) {
     if (error instanceof OpenAIError) {
       return res.status(error.statusCode || 500).json({
         error: 'AI Analysis Error',
+
+export async function generateDalleImageHandler(req: Request, res: Response) {
+  try {
+    log.info('Received DALL-E generation request:', { body: req.body });
+    const prompt = dallePromptSchema.parse(req.body);
+    
+    const base64Image = await generateDallEImage(
+      prompt.prompt,
+      prompt.artStyle?.style || "",
+      prompt.colors
+    );
+    
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(process.cwd(), 'uploads', `book-${prompt.bookId || 1}`);
+    await fs.mkdir(uploadsDir, { recursive: true });
+    
+    // Create a unique filename
+    const filename = `dalle_generated_${crypto.randomBytes(8).toString('hex')}.png`;
+    const filePath = path.join(uploadsDir, filename);
+    
+    // Save the image to the filesystem
+    const imageBuffer = Buffer.from(base64Image, 'base64');
+    await fs.writeFile(filePath, imageBuffer);
+    
+    // Save the image information to the database
+    const relativeFilePath = path.join(`book-${prompt.bookId || 1}`, filename);
+    const image = await storage.createImage({
+      bookId: prompt.bookId || 1,
+      path: relativeFilePath,
+      order: 0,
+      selected: false,
+      analyzed: false,
+      dalle: {
+        prompt: prompt.prompt,
+        artStyle: prompt.artStyle?.style || "default"
+      }
+    });
+    
+    log.info('DALL-E image generation completed', { imageId: image.id, path: relativeFilePath });
+    
+    res.json({
+      id: image.id,
+      path: `/uploads/${relativeFilePath}`,
+      message: 'Image generation successful'
+    });
+  } catch (error) {
+    log.error('DALL-E image generation error:', error);
+    
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid Request',
+        message: 'The request payload is invalid',
+        details: error.errors
+      });
+    }
+    
+    if (error instanceof OpenAIError) {
+      return res.status(error.statusCode || 500).json({
+        error: 'AI Image Generation Error',
+        message: error.message,
+        retry: error.retryable
+      });
+    }
+    
+    res.status(500).json({
+      error: 'Failed to generate image',
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      retry: false
+    });
+  }
+}
+
         message: error.message,
         retry: error.retryable
       });

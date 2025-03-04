@@ -42,21 +42,38 @@ export async function registerRoutes(app: Express) {
   app.get("/api/stories/:id", getStoryHandler);
 
   // Image routes
-  app.get("/api/images", async (req, res) => {
+  app.post("/api/images/upload", upload.single("image"), uploadImageHandler);
+  app.get("/api/images/random", async (req, res) => {
     try {
-      const sortBy = req.query.sortBy as string | undefined;
-      const sortOrder = req.query.sortOrder as 'asc' | 'desc' | undefined;
-      const images = await storage.listImages({ sortBy, sortOrder });
-      res.json(images);
+      const images = await storage.listImages({ analyzed: true });
+      const shuffled = images.sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, 3);
+      const imagesFormatted = selected.map(img => ({
+        id: img.id,
+        url: img.path.startsWith('/') ? img.path : `/${img.path}`
+      }));
+      res.json({ images: imagesFormatted });
     } catch (error) {
-      log.error('Failed to fetch images:', error);
-      res.status(500).json({ error: 'Failed to fetch images' });
+      log.error('Failed to fetch random images:', error);
+      res.status(500).json({ error: 'Failed to fetch random images' });
     }
   });
-
-  app.post("/api/upload", upload.single('file'), uploadImageHandler);
+  app.get("/api/images/:id", async (req, res) => {
+    try {
+      const imageId = parseInt(req.params.id, 10);
+      const image = await storage.getImage(imageId);
+      if (!image) {
+        return res.status(404).json({ error: 'Image not found' });
+      }
+      res.json(image);
+    } catch (error) {
+      log.error('Failed to fetch image:', error);
+      res.status(500).json({ error: 'Failed to fetch image' });
+    }
+  });
   app.post("/api/images/:id/analyze", analyzeImageHandler);
   app.post("/api/images/generate", generateImageHandler);
+  app.post("/api/images/generate-dalle", generateDalleImageHandler); // Added DALL-E endpoint
   app.delete("/api/images/:id", async (req, res) => {
     try {
       const imageId = parseInt(req.params.id, 10);
@@ -113,21 +130,6 @@ export async function registerRoutes(app: Express) {
     }
   });
 
-  app.get("/api/images/random", async (req, res) => {
-    try {
-      const images = await storage.listImages({ analyzed: true });
-      const shuffled = images.sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, 3);
-      const imagesFormatted = selected.map(img => ({
-        id: img.id,
-        url: img.path.startsWith('/') ? img.path : `/${img.path}`
-      }));
-      res.json({ images: imagesFormatted });
-    } catch (error) {
-      log.error('Failed to fetch random images:', error);
-      res.status(500).json({ error: 'Failed to fetch random images' });
-    }
-  });
 
   app.post("/api/images/search", async (req, res) => {
     try {

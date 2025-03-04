@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight, Loader2, ImageIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface StoryParams {
   colors: string[];
@@ -23,6 +23,9 @@ export default function ReviewPage() {
   const { toast } = useToast();
   const [storyParams, setStoryParams] = useState<StoryParams | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [showImageDialog, setShowImageDialog] = useState(false);
 
   useEffect(() => {
     // Load all saved parameters from localStorage
@@ -64,6 +67,16 @@ export default function ReviewPage() {
 
     // Navigate to story generation page
     setLocation("/create/story-generation");
+  };
+
+  const handleGenerateImage = async () => {
+    if (!storyParams) return;
+    setIsGeneratingImage(true);
+    //  Add DALL-E API call here.  Placeholder for now.
+    const imageURL = "placeholder_image_url"; // Replace with actual DALL-E response
+    setGeneratedImage(imageURL);
+    setIsGeneratingImage(false);
+    setShowImageDialog(true);
   };
 
   if (!storyParams) {
@@ -138,9 +151,9 @@ export default function ReviewPage() {
                 {storyParams.selectedImage && (
                   <div>
                     <h3 className="font-semibold mb-2">Selected Yorkie</h3>
-                    <img 
-                      src={storyParams.selectedImage} 
-                      alt="Selected Yorkie" 
+                    <img
+                      src={storyParams.selectedImage}
+                      alt="Selected Yorkie"
                       className="w-32 h-32 object-cover rounded-lg border"
                     />
                   </div>
@@ -149,33 +162,50 @@ export default function ReviewPage() {
             </ScrollArea>
 
             <div className="flex justify-between mt-6 pt-6 border-t">
-              <Button
-                variant="outline"
-                onClick={() => setLocation("/create/art-style")}
-              >
+              <Button variant="outline" onClick={() => setLocation("/create/art-style")}>
                 Back
               </Button>
-              <Button
-                onClick={handleGenerateStory}
-                disabled={isLoading}
-                size="lg"
-                className="gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Preparing...
-                  </>
-                ) : (
-                  <>
-                    Generate Story
-                    <ChevronRight className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
+              <div className="flex gap-4">
+                <Button onClick={handleGenerateImage} disabled={isGeneratingImage} size="lg" className="gap-2">
+                  {isGeneratingImage ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating Image...
+                    </>
+                  ) : (
+                    <>Generate Image <ImageIcon className="h-4 w-4" /></>
+                  )}
+                </Button>
+                <Button
+                  onClick={handleGenerateStory}
+                  disabled={isLoading}
+                  size="lg"
+                  className="gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Preparing...
+                    </>
+                  ) : (
+                    <>
+                      Generate Story
+                      <ChevronRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
+        <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
+          <DialogTitle>Generated Image</DialogTitle>
+          <DialogContent>
+            {generatedImage && (
+              <img src={generatedImage} alt="Generated Image" className="max-w-full" />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

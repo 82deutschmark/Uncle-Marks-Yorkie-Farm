@@ -44,6 +44,54 @@ async function withRetry<T>(
   }
 }
 
+export async function generateDallEImage(prompt: string, style: string, colors?: string[]): Promise<string> {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new OpenAIError("OpenAI API key is missing. Please set OPENAI_API_KEY environment variable.", undefined, 500, false);
+    }
+
+    log.info('Starting DALL-E image generation with OpenAI');
+
+    // Enhance the prompt with style and color information
+    let enhancedPrompt = prompt;
+
+    if (style) {
+      enhancedPrompt += `, in ${style} art style`;
+    }
+
+    if (colors && colors.length > 0) {
+      enhancedPrompt += `, using these colors: ${colors.join(', ')}`;
+    }
+
+    enhancedPrompt += ", high quality, children's book illustration";
+
+    log.info('DALL-E prompt:', { prompt: enhancedPrompt });
+
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: enhancedPrompt,
+      n: 1,
+      size: "1024x1024",
+      response_format: "b64_json"
+    });
+
+    await storage.addDebugLog("openai", "dalle_generation", {
+      prompt: enhancedPrompt,
+      timestamp: new Date().toISOString()
+    });
+
+    if (!response.data[0].b64_json) {
+      throw new OpenAIError("No image data received from DALL-E");
+    }
+
+    log.info('Successfully received image from DALL-E');
+    return response.data[0].b64_json;
+  } catch (error) {
+    log.error('DALL-E image generation error:', error);
+    throw new OpenAIError(`Failed to generate image: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
+  }
+}
+
 export async function analyzeImage(base64Image: string): Promise<{
   name: string;
   personality: string;
@@ -56,7 +104,7 @@ export async function analyzeImage(base64Image: string): Promise<{
     if (!process.env.OPENAI_API_KEY) {
       throw new OpenAIError("OpenAI API key is missing. Please set OPENAI_API_KEY environment variable.", undefined, 500, false);
     }
-    
+
     log.info('Starting image analysis with OpenAI vision API');
 
     const response = await openai.chat.completions.create({
