@@ -200,8 +200,8 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-3 gap-6">
-                  {yorkies.map((yorkie) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {yorkies && yorkies.length > 0 ? yorkies.map((yorkie) => (
                     <div
                       key={yorkie.id}
                       className={`relative cursor-pointer rounded-lg overflow-hidden transition-all duration-200 ${
@@ -220,7 +220,11 @@ export default function Home() {
                         />
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="col-span-full text-center py-8">
+                      <p className="text-muted-foreground">No yorkies found. Try uploading an image first.</p>
+                    </div>
+                  )}
                 </div>
 
                 <Accordion type="single" collapsible className="w-full">
