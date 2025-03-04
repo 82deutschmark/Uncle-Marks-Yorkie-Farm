@@ -70,6 +70,9 @@ export default function Home() {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [yorkieAnalysis, setYorkieAnalysis] = useState<YorkieAnalysis | null>(null);
+  const [generatedStory, setGeneratedStory] = useState<any | null>(null); // Added state for generated story
+  const [showStoryDialog, setShowStoryDialog] = useState(false); // Added state for dialog
+
 
   const fetchRandomYorkies = async () => {
     setLoading(true);
@@ -121,33 +124,64 @@ export default function Home() {
   };
 
   const handleGenerateStory = async () => {
+    if (!yorkieAnalysis) return;
+
     setGenerating(true);
     try {
-      // If no Yorkie is selected, use a random one
-      const yorkieToUse = selectedYorkie || yorkies[Math.floor(Math.random() * yorkies.length)];
-
-      const response = await fetch('/api/stories/generate', {
-        method: 'POST',
+      // Generate image first
+      const imageResponse = await fetch("/api/images/generate", {
+        method: "POST",
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          yorkieId: yorkieToUse.id,
-          colors: selectedColors,
           artStyle: selectedStyle,
-        }),
+          colors: selectedColors,
+          yorkieId: yorkieAnalysis.id
+        })
       });
 
-      if (!response.ok) throw new Error('Failed to generate story');
+      if (!imageResponse.ok) {
+        const errorData = await imageResponse.json();
+        toast({
+          title: "Image Generation Failed",
+          description: errorData.message || "Failed to generate your image",
+          variant: "destructive"
+        });
+        return;
+      }
 
-      const data = await response.json();
-      setLocation(`/story/${data.id}`);
+      // Mock story data for now 
+      // In the future, we'll make proper calls to the story API
+      const mockStory = {
+        id: Date.now(),
+        title: `${yorkieAnalysis.name}'s ${selectedStyle} Adventure`,
+        content: `Once upon a time, there was a brave Yorkshire Terrier named ${yorkieAnalysis.name}. 
+        With beautiful ${selectedColors.join(' and ')} fur, this little hero went on many adventures.
+
+        This is a placeholder story. In the future, we'll generate full stories with OpenAI.`,
+        metadata: {
+          protagonist: {
+            name: yorkieAnalysis.name || "Yorkie Hero",
+            personality: yorkieAnalysis.personality || "Brave and curious"
+          },
+          image_urls: ["/placeholder-image.jpg"],
+          wordCount: 50,
+          chapters: 1,
+          tone: "Lighthearted"
+        }
+      };
+
+      setGeneratedStory(mockStory);
+      setShowStoryDialog(true);
     } catch (error) {
+      console.error('Generation error:', error);
       toast({
-        title: "Error",
-        description: "Failed to generate your story. Please try again.",
+        title: "Generation Error",
+        description: "Something went wrong. Please try again.",
         variant: "destructive"
       });
+    } finally {
       setGenerating(false);
     }
   };
@@ -341,12 +375,11 @@ export default function Home() {
               <div>
                 <h3 className="font-medium">Suggested Names</h3>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {yorkieAnalysis.suggestedNames && yorkieAnalysis.suggestedNames.length > 0 
-                    ? yorkieAnalysis.suggestedNames.map((name, index) => (
-                        <Badge key={index} variant="secondary">{name}</Badge>
-                      ))
-                    : <span className="text-muted-foreground">No suggested names available</span>
-                  }
+                  {yorkieAnalysis.suggestedNames?.map((name, index) => (
+                    <Badge key={index} variant="secondary">{name}</Badge>
+                  )) || (
+                    <Badge variant="secondary">Yorkie Hero</Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -355,6 +388,19 @@ export default function Home() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Story Dialog */}
+      <Dialog open={showStoryDialog} onOpenChange={setShowStoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{generatedStory?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="p-4">
+            <p>{generatedStory?.content}</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

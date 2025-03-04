@@ -266,3 +266,76 @@ export async function generateImage(prompt: MidJourneyPrompt) {
     };
   }
 }
+import { Request, Response } from 'express';
+import { dallePromptSchema } from '../../shared/schema';
+import { logger } from '../lib/logger';
+import { storage } from '../storage';
+import { ZodError } from 'zod';
+
+const log = logger.child({ service: 'imageController' });
+
+export async function generateImageHandler(req: Request, res: Response) {
+  try {
+    log.info('Raw request body:', { meta: req.body });
+    
+    // Validate request body against dallePromptSchema
+    const params = dallePromptSchema.parse({
+      prompt: `A cute Yorkshire Terrier with ${req.body.colors?.join(' and ') || 'brown and tan'} fur`,
+      artStyle: {
+        style: req.body.artStyle || 'whimsical',
+        description: 'A cute and whimsical style'
+      },
+      colors: req.body.colors || [],
+      bookId: 1
+    });
+    
+    // Here we would normally call OpenAI's DALL-E API
+    // For now, we'll mock a successful response
+    
+    // If we have a yorkieId, update that image with art style info
+    if (req.body.yorkieId) {
+      try {
+        await storage.updateImage(req.body.yorkieId, {
+          midjourney: {
+            prompt: `A Yorkshire Terrier in ${params.artStyle.style} style with ${params.colors.join(' and ')} colors`,
+            status: 'completed',
+            artStyle: params.artStyle.style
+          }
+        });
+      } catch (error) {
+        log.error('Failed to update image:', error);
+      }
+    }
+    
+    // Return a placeholder response for now
+    res.json({
+      success: true,
+      message: 'Image generation request received',
+      mockImageUrl: '/placeholder-image.jpg',
+      params
+    });
+    
+  } catch (error) {
+    log.error('Image generation error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      params: req.body
+    });
+
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid Parameters',
+        message: 'Image parameters validation failed',
+        details: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message
+        }))
+      });
+    }
+
+    res.status(500).json({
+      error: 'Image Generation Failed',
+      message: error instanceof Error ? error.message : 'An unexpected error occurred'
+    });
+  }
+}
