@@ -16,7 +16,7 @@ const upload = multer({
 
 import { requestLogger, errorLogger } from "./lib/logger";
 import { generateStoryHandler, getStoryHandler } from "./controllers/storyController";
-import { uploadImageHandler, analyzeImageHandler, generateImageHandler } from "./controllers/imageController";
+import { uploadImageHandler, analyzeImageHandler, generateImageHandler, generateDalleImageHandler } from "./controllers/imageController";
 import type { Request } from "express";
 import { storage } from "./storage";
 import { log } from "./lib/logger";
