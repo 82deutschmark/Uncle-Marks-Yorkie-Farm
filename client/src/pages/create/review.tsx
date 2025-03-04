@@ -60,6 +60,14 @@ export default function ReviewPage() {
 
   const handleGenerateStory = () => {
     if (!storyParams) return;
+    
+    // Make sure we have an antagonist
+    if (!storyParams.antagonist) {
+      storyParams.antagonist = {
+        type: "squirrel",
+        personality: "Mischievous and sneaky"
+      };
+    }
 
     // Save complete story parameters
     localStorage.setItem("storyParams", JSON.stringify(storyParams));

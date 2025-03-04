@@ -155,9 +155,18 @@ export async function analyzeImage(base64Image: string): Promise<{
       throw new OpenAIError("Invalid response format from OpenAI vision API");
     }
 
+    // Ensure we have suggested names (can be empty but not null/undefined)
+    if (!analysis.suggestedNames) {
+      analysis.suggestedNames = [];
+    }
+    
     // Ensure we have exactly 10 names
     while (analysis.suggestedNames.length < 10) {
-      analysis.suggestedNames.push(`Yorkie ${analysis.suggestedNames.length + 1}`);
+      // Use a more descriptive name based on personality
+      const baseName = analysis.personality ? 
+        analysis.personality.split(' ')[0] : // Use first word of personality
+        `Yorkie ${analysis.suggestedNames.length + 1}`;
+      analysis.suggestedNames.push(baseName);
     }
     analysis.suggestedNames = analysis.suggestedNames.slice(0, 10);
 

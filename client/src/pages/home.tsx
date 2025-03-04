@@ -151,29 +151,65 @@ export default function Home() {
         return;
       }
 
-      // Mock story data for now 
-      // In the future, we'll make proper calls to the story API
-      const mockStory = {
-        id: Date.now(),
-        title: `${yorkieAnalysis.name}'s ${selectedStyle} Adventure`,
-        content: `Once upon a time, there was a brave Yorkshire Terrier named ${yorkieAnalysis.name}. 
-        With beautiful ${selectedColors.join(' and ')} fur, this little hero went on many adventures.
-
-        This is a placeholder story. In the future, we'll generate full stories with OpenAI.`,
-        metadata: {
+      // Make a real call to our story generation API
+      try {
+        const storyParams = {
           protagonist: {
-            name: yorkieAnalysis.name || "Yorkie Hero",
-            personality: yorkieAnalysis.personality || "Brave and curious"
+            name: yorkieAnalysis.name || "",
+            personality: yorkieAnalysis.personality || "Brave and curious",
+            appearance: `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`
           },
-          image_urls: ["/placeholder-image.jpg"],
-          wordCount: 50,
-          chapters: 1,
-          tone: "Lighthearted"
+          antagonist: {
+            type: "squirrel",  // Default antagonist
+            personality: "Mischievous and sneaky"
+          },
+          theme: "Adventure",
+          mood: "Lighthearted",
+          artStyle: {
+            style: selectedStyle,
+            details: "Colorful and vibrant"
+          }
+        };
+        
+        const storyResponse = await fetch('/api/stories/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(storyParams)
+        });
+        
+        if (!storyResponse.ok) {
+          throw new Error("Failed to generate story");
         }
-      };
+        
+        const realStory = await storyResponse.json();
+        setGeneratedStory(realStory);
+        setShowStoryDialog(true);
+      } catch (error) {
+        console.error('Story generation error:', error);
+        // Fallback to mock story if the API call fails
+        const mockStory = {
+          id: Date.now(),
+          title: `${yorkieAnalysis.name || "Yorkie"}'s ${selectedStyle} Adventure`,
+          content: `Once upon a time, there was a brave Yorkshire Terrier. 
+          With beautiful ${selectedColors.join(' and ')} fur, this little hero went on many adventures.
 
-      setGeneratedStory(mockStory);
-      setShowStoryDialog(true);
+          This is a placeholder story because we couldn't connect to our story service.`,
+          metadata: {
+            protagonist: {
+              name: yorkieAnalysis.name || "",
+              personality: yorkieAnalysis.personality || "Brave and curious"
+            },
+            image_urls: ["/placeholder-image.jpg"],
+            wordCount: 50,
+            chapters: 1,
+            tone: "Lighthearted"
+          }
+        };
+        setGeneratedStory(mockStory);
+        setShowStoryDialog(true);
+      }
     } catch (error) {
       console.error('Generation error:', error);
       toast({

@@ -40,7 +40,23 @@ export default function StoryGenerationPage() {
         // Parse and validate parameters
         let parsedParams: StoryParams;
         try {
-          parsedParams = storyParamsSchema.parse(JSON.parse(storedParams));
+          const params = JSON.parse(storedParams);
+          
+          // Set default protagonist name if missing
+          if (params.protagonist && !params.protagonist.name) {
+            params.protagonist.name = "";
+          }
+          
+          // Set default antagonist if missing
+          if (!params.antagonist) {
+            params.antagonist = {
+              type: "squirrel",
+              personality: "Mischievous and sneaky"
+            };
+          }
+          
+          parsedParams = storyParamsSchema.parse(params);
+          console.log('Valid story parameters:', parsedParams);
         } catch (e) {
           console.error('Parameter validation error:', e);
           throw new Error("Invalid story parameters. Please complete all details.");
