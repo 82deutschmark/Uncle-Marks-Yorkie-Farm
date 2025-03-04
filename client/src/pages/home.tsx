@@ -341,9 +341,12 @@ export default function Home() {
               <div>
                 <h3 className="font-medium">Suggested Names</h3>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {yorkieAnalysis.suggestedNames.map((name, index) => (
-                    <Badge key={index} variant="secondary">{name}</Badge>
-                  ))}
+                  {yorkieAnalysis.suggestedNames && yorkieAnalysis.suggestedNames.length > 0 
+                    ? yorkieAnalysis.suggestedNames.map((name, index) => (
+                        <Badge key={index} variant="secondary">{name}</Badge>
+                      ))
+                    : <span className="text-muted-foreground">No suggested names available</span>
+                  }
                 </div>
               </div>
             </div>
