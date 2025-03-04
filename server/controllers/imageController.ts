@@ -32,19 +32,16 @@ export async function uploadImageHandler(req: Request, res: Response) {
     const images = await storage.saveUploadedFile(req.file.buffer, req.file.originalname, bookId);
     log.info(`Successfully processed ${images.length} image(s)`);
 
-    res.json({
-      message: 'Upload successful',
-      images: images.map(img => ({
-        id: img.id,
-        path: img.path,
-        order: img.order
-      }))
+    res.status(200).json({ 
+      success: true, 
+      message: `Successfully uploaded ${images.length} image(s)`,
+      images
     });
   } catch (error) {
-    log.error('Upload error:', error);
-    res.status(500).json({
-      error: 'Upload failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
+    log.error('Upload failed:', error);
+    res.status(500).json({ 
+      error: 'Upload failed', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
     });
   }
 }
@@ -52,29 +49,39 @@ export async function uploadImageHandler(req: Request, res: Response) {
 export async function analyzeImageHandler(req: Request, res: Response) {
   try {
     const imageId = parseInt(req.params.id, 10);
-    log.info('Analyzing image', { imageId });
+    if (isNaN(imageId)) {
+      return res.status(400).json({ error: 'Invalid image ID' });
+    }
+
+    log.info('Initiating image analysis for image:', { imageId });
 
     const image = await storage.getImage(imageId);
     if (!image) {
-      log.warn('Image not found', { imageId });
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'Image not found'
+      log.warn('Image not found:', { imageId });
+      return res.status(404).json({ error: 'Image not found' });
+    }
+
+    // Check if image is already analyzed
+    if (image.analyzed) {
+      log.info('Image already analyzed:', { imageId });
+      return res.json({
+        id: imageId,
+        description: image.analysis?.description || '',
+        name: image.analysis?.characterProfile?.name || '',
+        personality: image.analysis?.characterProfile?.personality || '',
+        path: image.path
       });
     }
 
-    // Clean up the image path
-    const imagePath = image.path.replace(/^(\/?uploads\/)?/, '');
-    const fullImagePath = path.join(process.cwd(), 'uploads', imagePath);
-
     try {
-      // Use our base64 utility to get the encoded image
-      const { getBase64Image } = await import('../lib/imageUtils');
-      const base64Image = await getBase64Image(fullImagePath);
+      const relativePath = storage.normalizePath(image.path);
+      const fullImagePath = path.join(process.cwd(), 'uploads', relativePath);
 
-      log.info('Successfully read image file, sending to OpenAI for analysis');
+      const imageBuffer = await fs.readFile(fullImagePath);
+      log.info('Read image file, performing analysis:', { imageId, path: fullImagePath });
 
-      const analysis = await analyzeImage(base64Image);
+      const analysis = await analyzeImage(imageBuffer);
+      log.info('Received analysis from OpenAI:', { imageId, analysis });
 
       const updatedImage = await storage.updateImageMetadata(imageId, {
         analyzed: true,
@@ -111,78 +118,6 @@ export async function analyzeImageHandler(req: Request, res: Response) {
     if (error instanceof OpenAIError) {
       return res.status(error.statusCode || 500).json({
         error: 'AI Analysis Error',
-
-export async function generateDalleImageHandler(req: Request, res: Response) {
-  try {
-    log.info('Received DALL-E generation request:', { body: req.body });
-    const prompt = dallePromptSchema.parse(req.body);
-    
-    const base64Image = await generateDallEImage(
-      prompt.prompt,
-      prompt.artStyle?.style || "",
-      prompt.colors
-    );
-    
-    // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), 'uploads', `book-${prompt.bookId || 1}`);
-    await fs.mkdir(uploadsDir, { recursive: true });
-    
-    // Create a unique filename
-    const filename = `dalle_generated_${crypto.randomBytes(8).toString('hex')}.png`;
-    const filePath = path.join(uploadsDir, filename);
-    
-    // Save the image to the filesystem
-    const imageBuffer = Buffer.from(base64Image, 'base64');
-    await fs.writeFile(filePath, imageBuffer);
-    
-    // Save the image information to the database
-    const relativeFilePath = path.join(`book-${prompt.bookId || 1}`, filename);
-    const image = await storage.createImage({
-      bookId: prompt.bookId || 1,
-      path: relativeFilePath,
-      order: 0,
-      selected: false,
-      analyzed: false,
-      dalle: {
-        prompt: prompt.prompt,
-        artStyle: prompt.artStyle?.style || "default"
-      }
-    });
-    
-    log.info('DALL-E image generation completed', { imageId: image.id, path: relativeFilePath });
-    
-    res.json({
-      id: image.id,
-      path: `/uploads/${relativeFilePath}`,
-      message: 'Image generation successful'
-    });
-  } catch (error) {
-    log.error('DALL-E image generation error:', error);
-    
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        error: 'Invalid Request',
-        message: 'The request payload is invalid',
-        details: error.errors
-      });
-    }
-    
-    if (error instanceof OpenAIError) {
-      return res.status(error.statusCode || 500).json({
-        error: 'AI Image Generation Error',
-        message: error.message,
-        retry: error.retryable
-      });
-    }
-    
-    res.status(500).json({
-      error: 'Failed to generate image',
-      message: error instanceof Error ? error.message : 'Unknown error occurred',
-      retry: false
-    });
-  }
-}
-
         message: error.message,
         retry: error.retryable
       });
@@ -190,6 +125,76 @@ export async function generateDalleImageHandler(req: Request, res: Response) {
 
     res.status(500).json({
       error: 'Failed to analyze image',
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      retry: false
+    });
+  }
+}
+
+export async function generateDalleImageHandler(req: Request, res: Response) {
+  try {
+    log.info('Received DALL-E generation request:', { body: req.body });
+    const prompt = dallePromptSchema.parse(req.body);
+
+    const base64Image = await generateDallEImage(
+      prompt.prompt,
+      prompt.artStyle?.style || "",
+      prompt.colors
+    );
+
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(process.cwd(), 'uploads', `book-${prompt.bookId || 1}`);
+    await fs.mkdir(uploadsDir, { recursive: true });
+
+    // Create a unique filename
+    const filename = `dalle_generated_${crypto.randomBytes(8).toString('hex')}.png`;
+    const filePath = path.join(uploadsDir, filename);
+
+    // Save the image to the filesystem
+    const imageBuffer = Buffer.from(base64Image, 'base64');
+    await fs.writeFile(filePath, imageBuffer);
+
+    // Save the image information to the database
+    const relativeFilePath = path.join(`book-${prompt.bookId || 1}`, filename);
+    const image = await storage.createImage({
+      bookId: prompt.bookId || 1,
+      path: relativeFilePath,
+      selected: true,
+      analyzed: false,
+      midjourney: {
+        prompt: prompt.prompt,
+        status: 'completed',
+        artStyle: prompt.artStyle?.style || "default"
+      }
+    });
+
+    log.info('DALL-E image generation completed', { imageId: image.id, path: relativeFilePath });
+
+    res.json({
+      id: image.id,
+      path: `/uploads/${relativeFilePath}`,
+      success: true
+    });
+  } catch (error) {
+    log.error('DALL-E image generation error:', error);
+
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid Request',
+        details: error.errors
+      });
+    }
+
+    if (error instanceof OpenAIError) {
+      return res.status(error.statusCode || 500).json({
+        error: 'AI Image Generation Error',
+        message: error.message,
+        retry: error.retryable
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to generate image',
       message: error instanceof Error ? error.message : 'Unknown error occurred',
       retry: false
     });
