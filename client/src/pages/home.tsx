@@ -428,12 +428,42 @@ export default function Home() {
 
       {/* Story Dialog */}
       <Dialog open={showStoryDialog} onOpenChange={setShowStoryDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>{generatedStory?.title}</DialogTitle>
+            <DialogDescription>Your story has been created!</DialogDescription>
           </DialogHeader>
           <div className="p-4">
-            <p>{generatedStory?.content}</p>
+            {generatedStory && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-center">
+                  {selectedImage && (
+                    <img 
+                      src={selectedImage}
+                      alt="Yorkie"
+                      className="rounded-lg max-h-64 object-contain"
+                    />
+                  )}
+                </div>
+                <div className="max-h-[300px] overflow-y-auto">
+                  <p className="whitespace-pre-line">{generatedStory.content}</p>
+                </div>
+                <div className="flex justify-between">
+                  <Button onClick={() => setShowStoryDialog(false)}>Close</Button>
+                  <Button 
+                    variant="default"
+                    onClick={() => {
+                      setShowStoryDialog(false);
+                      if (generatedStory?.id) {
+                        setLocation(`/story/${generatedStory.id}`);
+                      }
+                    }}
+                  >
+                    View Full Story
+                  </Button>
+                </div>
+              </div>
+            )}eneratedStory?.content}</p>
           </div>
         </DialogContent>
       </Dialog>

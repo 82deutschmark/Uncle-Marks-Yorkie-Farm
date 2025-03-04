@@ -282,19 +282,26 @@ export default function StoryGenerationPage() {
                   <div className="flex justify-center">
                     <img
                       src={generatedImageUrl}
-                      alt={`Illustration of ${storyData?.metadata.protagonist.name}`}
-                      className="rounded-lg shadow-lg max-w-full h-auto"
+                      alt={`Illustration of ${storyData?.metadata.protagonist.name || 'Yorkie Hero'}`}
+                      className="rounded-lg shadow-lg max-w-full h-auto max-h-72"
                     />
                   </div>
                 )}
+                <div className="mt-4 mb-6 text-left max-h-[200px] overflow-y-auto p-4 bg-muted rounded-md">
+                  <p className="text-sm italic">
+                    {storyData?.content.slice(0, 300)}...
+                  </p>
+                </div>
               </div>
-              <Button
-                onClick={() => setLocation(`/story/${storyData?.id}`)}
-                className="mx-auto"
-              >
-                Start Reading
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
+              <div className="flex justify-center space-x-4">
+                <Button
+                  onClick={() => setLocation(`/story/${storyData?.id}`)}
+                  className="mx-auto"
+                >
+                  Start Reading
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         );
