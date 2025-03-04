@@ -46,6 +46,176 @@ export async function uploadImageHandler(req: Request, res: Response) {
   }
 }
 
+export async function generateDalleImageHandler(req: Request, res: Response) {
+  try {
+    log.info('Received DALL-E generation request:', { body: req.body });
+    const prompt = dallePromptSchema.parse(req.body);
+
+    const base64Image = await generateDallEImage(
+      prompt.prompt,
+      prompt.artStyle?.style || "",
+      prompt.colors
+    );
+
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(process.cwd(), 'uploads', `book-${prompt.bookId || 1}`);
+    await fs.mkdir(uploadsDir, { recursive: true });
+
+    // Create a unique filename
+    const filename = `dalle_generated_${crypto.randomBytes(8).toString('hex')}.png`;
+    const filePath = path.join(uploadsDir, filename);
+
+    // Save the image to the filesystem
+    const imageBuffer = Buffer.from(base64Image, 'base64');
+    await fs.writeFile(filePath, imageBuffer);
+
+    // Save the image information to the database
+    const relativeFilePath = path.join(`book-${prompt.bookId || 1}`, filename);
+    const image = await storage.createImage({
+      bookId: prompt.bookId || 1,
+      path: relativeFilePath,
+      selected: true,
+      analyzed: false,
+      midjourney: {
+        prompt: prompt.prompt,
+        status: 'completed',
+        artStyle: prompt.artStyle?.style || "default"
+      }
+    });
+
+    log.info('DALL-E image generation completed', { imageId: image.id, path: relativeFilePath });
+
+    res.json({
+      id: image.id,
+      path: `/uploads/${relativeFilePath}`,
+      success: true
+    });
+  } catch (error) {
+    log.error('DALL-E image generation error:', error);
+
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid Request',
+        details: error.errors
+      });
+    }
+
+    if (error instanceof OpenAIError) {
+      return res.status(error.statusCode || 500).json({
+        error: 'AI Image Generation Error',
+        message: error.message,
+        retry: error.retryable
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to generate image',
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      retry: false
+    });
+  }
+}
+
+export async function generateMidJourneyImageHandler(req: Request, res: Response) {
+  try {
+    log.info('Received MidJourney generation request:', { body: req.body });
+    const prompt = midJourneyPromptSchema.parse(req.body);
+
+    const result = await generateImage(prompt);
+    res.json(result);
+  } catch (error) {
+    log.error('MidJourney prompt error:', error);
+
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid Request',
+        message: 'The request payload is invalid',
+        details: error.errors
+      });
+    }
+
+    res.status(error?.status || 500).json({
+      error: 'Failed to start image generation',
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      retry: false
+    });
+  }
+}
+
+export async function mockGenerateImageHandler(req: Request, res: Response) {
+  try {
+    log.info('Raw request body:', { meta: req.body });
+
+    // Validate request body against dallePromptSchema
+    const params = dallePromptSchema.parse({
+      prompt: `A cute Yorkshire Terrier with ${req.body.colors?.join(' and ') || 'brown and tan'} fur`,
+      artStyle: {
+        style: req.body.artStyle || 'whimsical',
+        description: 'A cute and whimsical style'
+      },
+      colors: req.body.colors || [],
+      bookId: 1
+    });
+
+    // Here we would normally call OpenAI's DALL-E API
+    // For now, we'll mock a successful response
+
+    // If we have a yorkieId, update that image with art style info
+    if (req.body.yorkieId) {
+      try {
+        await storage.updateImage(req.body.yorkieId, {
+          midjourney: {
+            prompt: `A Yorkshire Terrier in ${params.artStyle.style} style with ${params.colors.join(' and ')} colors`,
+            status: 'completed',
+            artStyle: params.artStyle.style
+          }
+        });
+      } catch (error) {
+        log.error('Failed to update image:', error);
+      }
+    }
+
+    // Return a placeholder response for now
+    res.json({
+      success: true,
+      message: 'Image generation request received',
+      mockImageUrl: '/placeholder-image.jpg',
+      params
+    });
+
+  } catch (error) {
+    log.error('Image generation error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        error: 'Invalid Parameters',
+        message: 'Image parameters validation failed',
+        details: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message
+        }))
+      });
+    }
+
+    res.status(500).json({
+      error: 'Image Generation Failed',
+      message: error instanceof Error ? error.message : 'An unexpected error occurred'
+    });
+  }
+}
+
+// Helper function for generateMidJourneyImageHandler
+async function generateImage(prompt: any) {
+  // Mock implementation - replace with actual implementation
+  return {
+    success: true,
+    message: 'Image generation started',
+    imageId: 'mock-id-' + Date.now()
+  };
+}
+
 export async function analyzeImageHandler(req: Request, res: Response) {
   try {
     const imageId = parseInt(req.params.id, 10);
@@ -127,215 +297,6 @@ export async function analyzeImageHandler(req: Request, res: Response) {
       error: 'Failed to analyze image',
       message: error instanceof Error ? error.message : 'Unknown error occurred',
       retry: false
-    });
-  }
-}
-
-export async function generateDalleImageHandler(req: Request, res: Response) {
-  try {
-    log.info('Received DALL-E generation request:', { body: req.body });
-    const prompt = dallePromptSchema.parse(req.body);
-
-    const base64Image = await generateDallEImage(
-      prompt.prompt,
-      prompt.artStyle?.style || "",
-      prompt.colors
-    );
-
-    // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), 'uploads', `book-${prompt.bookId || 1}`);
-    await fs.mkdir(uploadsDir, { recursive: true });
-
-    // Create a unique filename
-    const filename = `dalle_generated_${crypto.randomBytes(8).toString('hex')}.png`;
-    const filePath = path.join(uploadsDir, filename);
-
-    // Save the image to the filesystem
-    const imageBuffer = Buffer.from(base64Image, 'base64');
-    await fs.writeFile(filePath, imageBuffer);
-
-    // Save the image information to the database
-    const relativeFilePath = path.join(`book-${prompt.bookId || 1}`, filename);
-    const image = await storage.createImage({
-      bookId: prompt.bookId || 1,
-      path: relativeFilePath,
-      selected: true,
-      analyzed: false,
-      midjourney: {
-        prompt: prompt.prompt,
-        status: 'completed',
-        artStyle: prompt.artStyle?.style || "default"
-      }
-    });
-
-    log.info('DALL-E image generation completed', { imageId: image.id, path: relativeFilePath });
-
-    res.json({
-      id: image.id,
-      path: `/uploads/${relativeFilePath}`,
-      success: true
-    });
-  } catch (error) {
-    log.error('DALL-E image generation error:', error);
-
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        error: 'Invalid Request',
-        details: error.errors
-      });
-    }
-
-    if (error instanceof OpenAIError) {
-      return res.status(error.statusCode || 500).json({
-        error: 'AI Image Generation Error',
-        message: error.message,
-        retry: error.retryable
-      });
-    }
-
-    res.status(500).json({
-      error: 'Failed to generate image',
-      message: error instanceof Error ? error.message : 'Unknown error occurred',
-      retry: false
-    });
-  }
-}
-
-export async function generateImageHandler(req: Request, res: Response) {
-  try {
-    log.info('Received MidJourney generation request:', { body: req.body });
-    const prompt = midJourneyPromptSchema.parse(req.body);
-
-    const result = await generateImage(prompt);
-    res.json(result);
-  } catch (error) {
-    log.error('MidJourney prompt error:', error);
-
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        error: 'Invalid Request',
-        message: 'The request payload is invalid',
-        details: error.errors
-      });
-    }
-
-    res.status(error?.status || 500).json({
-      error: 'Failed to start image generation',
-      message: error instanceof Error ? error.message : 'Unknown error occurred',
-      retry: false
-    });
-  }
-}
-
-export async function generateImage(prompt: MidJourneyPrompt) {
-  try {
-    const newImage = await storage.createImage({
-      bookId: 1,
-      path: '',
-      order: 0,
-      selected: false,
-      analyzed: false,
-      midjourney: {
-        prompt: prompt.description || `A Yorkshire Terrier ${prompt.protagonist.appearance} with ${prompt.protagonist.personality} personality`,
-        status: 'completed',
-        artStyle: prompt.artStyle.style
-      }
-    });
-
-    log.info('Image generation started', { imageId: newImage.id });
-    return {
-      message: 'Image generation started',
-      imageId: newImage.id,
-      status: 'completed',
-      imageIds: [newImage.id]
-    };
-  } catch (error) {
-    log.error('Image generation error:', error);
-
-    if (error instanceof ZodError) {
-      throw {
-        status: 400,
-        message: 'The request payload is invalid',
-        details: error.errors
-      };
-    }
-
-    throw {
-      status: 500,
-      message: error instanceof Error ? error.message : 'Unknown error occurred'
-    };
-  }
-}
-import { Request, Response } from 'express';
-import { dallePromptSchema } from '../../shared/schema';
-import { logger } from '../lib/logger';
-import { storage } from '../storage';
-import { ZodError } from 'zod';
-
-const log = logger.child({ service: 'imageController' });
-
-export async function generateImageHandler(req: Request, res: Response) {
-  try {
-    log.info('Raw request body:', { meta: req.body });
-    
-    // Validate request body against dallePromptSchema
-    const params = dallePromptSchema.parse({
-      prompt: `A cute Yorkshire Terrier with ${req.body.colors?.join(' and ') || 'brown and tan'} fur`,
-      artStyle: {
-        style: req.body.artStyle || 'whimsical',
-        description: 'A cute and whimsical style'
-      },
-      colors: req.body.colors || [],
-      bookId: 1
-    });
-    
-    // Here we would normally call OpenAI's DALL-E API
-    // For now, we'll mock a successful response
-    
-    // If we have a yorkieId, update that image with art style info
-    if (req.body.yorkieId) {
-      try {
-        await storage.updateImage(req.body.yorkieId, {
-          midjourney: {
-            prompt: `A Yorkshire Terrier in ${params.artStyle.style} style with ${params.colors.join(' and ')} colors`,
-            status: 'completed',
-            artStyle: params.artStyle.style
-          }
-        });
-      } catch (error) {
-        log.error('Failed to update image:', error);
-      }
-    }
-    
-    // Return a placeholder response for now
-    res.json({
-      success: true,
-      message: 'Image generation request received',
-      mockImageUrl: '/placeholder-image.jpg',
-      params
-    });
-    
-  } catch (error) {
-    log.error('Image generation error:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      params: req.body
-    });
-
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        error: 'Invalid Parameters',
-        message: 'Image parameters validation failed',
-        details: error.errors.map(e => ({
-          path: e.path.join('.'),
-          message: e.message
-        }))
-      });
-    }
-
-    res.status(500).json({
-      error: 'Image Generation Failed',
-      message: error instanceof Error ? error.message : 'An unexpected error occurred'
     });
   }
 }
