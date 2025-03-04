@@ -5,7 +5,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, BookOpen, Sparkles, Wand2, RefreshCcw, Loader2 } from "lucide-react";
@@ -72,6 +72,7 @@ export default function Home() {
   const [yorkieAnalysis, setYorkieAnalysis] = useState<YorkieAnalysis | null>(null);
   const [generatedStory, setGeneratedStory] = useState<any | null>(null); // Added state for generated story
   const [showStoryDialog, setShowStoryDialog] = useState(false); // Added state for dialog
+  const [selectedImage, setSelectedImage] = useState<string | null>(null); // Added state for selected image
 
 
   const fetchRandomYorkies = async () => {
@@ -150,6 +151,10 @@ export default function Home() {
         });
         return;
       }
+
+      const imageURL = await imageResponse.json();
+      setSelectedImage(imageURL.url);
+
 
       // Make a real call to our story generation API
       try {
@@ -438,7 +443,7 @@ export default function Home() {
               <div className="space-y-6">
                 <div className="flex items-center justify-center">
                   {selectedImage && (
-                    <img 
+                    <img
                       src={selectedImage}
                       alt="Yorkie"
                       className="rounded-lg max-h-64 object-contain"
@@ -450,7 +455,7 @@ export default function Home() {
                 </div>
                 <div className="flex justify-between">
                   <Button onClick={() => setShowStoryDialog(false)}>Close</Button>
-                  <Button 
+                  <Button
                     variant="default"
                     onClick={() => {
                       setShowStoryDialog(false);
@@ -463,7 +468,7 @@ export default function Home() {
                   </Button>
                 </div>
               </div>
-            )}eneratedStory?.content}</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
