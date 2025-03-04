@@ -160,17 +160,18 @@ export default function Home() {
             appearance: `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`
           },
           antagonist: {
-            type: "squirrel",  // Default antagonist
+            type: "squirrel-gang",  // Changed antagonist type
             personality: "Mischievous and sneaky"
           },
           theme: "Adventure",
           mood: "Lighthearted",
           artStyle: {
             style: selectedStyle,
-            details: "Colorful and vibrant"
-          }
+            description: "Colorful and vibrant" // Added description
+          },
+          farmElements: ["barn", "tractor", "fields"] // Added farmElements
         };
-        
+
         const storyResponse = await fetch('/api/stories/generate', {
           method: 'POST',
           headers: {
@@ -178,11 +179,11 @@ export default function Home() {
           },
           body: JSON.stringify(storyParams)
         });
-        
+
         if (!storyResponse.ok) {
           throw new Error("Failed to generate story");
         }
-        
+
         const realStory = await storyResponse.json();
         setGeneratedStory(realStory);
         setShowStoryDialog(true);

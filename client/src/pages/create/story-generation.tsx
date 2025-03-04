@@ -50,9 +50,22 @@ export default function StoryGenerationPage() {
           // Set default antagonist if missing
           if (!params.antagonist) {
             params.antagonist = {
-              type: "squirrel",
+              type: "squirrel-gang", // Use a valid enum value
               personality: "Mischievous and sneaky"
             };
+          } else if (params.antagonist.type === "squirrel") {
+            // Fix invalid antagonist type
+            params.antagonist.type = "squirrel-gang";
+          }
+          
+          // Ensure artStyle has description field
+          if (params.artStyle && !params.artStyle.description) {
+            params.artStyle.description = params.artStyle.details || "Colorful and expressive";
+          }
+          
+          // Add required farmElements if missing
+          if (!params.farmElements) {
+            params.farmElements = ["barn", "tractor", "fields"];
           }
           
           parsedParams = storyParamsSchema.parse(params);

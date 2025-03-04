@@ -61,12 +61,25 @@ export default function ReviewPage() {
   const handleGenerateStory = () => {
     if (!storyParams) return;
     
-    // Make sure we have an antagonist
+    // Make sure we have an antagonist with valid type
     if (!storyParams.antagonist) {
       storyParams.antagonist = {
-        type: "squirrel",
+        type: "squirrel-gang", // Using a valid enum value from the schema
         personality: "Mischievous and sneaky"
       };
+    } else if (storyParams.antagonist.type === "squirrel") {
+      // Fix invalid antagonist type
+      storyParams.antagonist.type = "squirrel-gang";
+    }
+    
+    // Ensure artStyle has description field
+    if (storyParams.artStyle && !storyParams.artStyle.description) {
+      storyParams.artStyle.description = storyParams.artStyle.details || "Colorful and expressive";
+    }
+    
+    // Add required farmElements if missing
+    if (!storyParams.farmElements) {
+      storyParams.farmElements = ["barn", "tractor", "fields"];
     }
 
     // Save complete story parameters
