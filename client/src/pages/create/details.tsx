@@ -301,13 +301,13 @@ export default function DetailsPage() {
 
       const storyParams: StoryParams = {
         protagonist: {
-          name: "Yorkie Hero",
+          name: data.protagonist.name || "Yorkie Hero",
           personality: data.protagonist.personality,
           appearance: `A beautiful Yorkshire Terrier with a magical blend of ${selectedColors.join(", ").toLowerCase()} colors`
         },
         antagonist: {
           type: data.antagonist.type,
-          personality: "Evil and mischievous" // Required by schema
+          personality: antagonists.find(a => a.value === data.antagonist.type)?.description || "Evil and mischievous" // Use the antagonist description
         },
         theme: data.theme,
         mood: "Lighthearted",
@@ -475,7 +475,7 @@ export default function DetailsPage() {
                                 const antagonist = antagonists.find(a => a.value === value);
                                 form.setValue("antagonist", {
                                   type: value,
-                                  description: antagonist?.description || ""
+                                  personality: antagonist?.description || "Evil and mischievous"
                                 });
                               }}
                               defaultValue={field.value}
