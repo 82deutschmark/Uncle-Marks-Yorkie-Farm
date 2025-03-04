@@ -52,10 +52,15 @@ export async function analyzeImage(base64Image: string): Promise<{
   suggestedNames: string[];
 }> {
   try {
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      throw new OpenAIError("OpenAI API key is missing. Please set OPENAI_API_KEY environment variable.", undefined, 500, false);
+    }
+    
     log.info('Starting image analysis with OpenAI vision API');
 
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
