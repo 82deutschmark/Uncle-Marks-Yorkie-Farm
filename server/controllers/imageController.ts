@@ -67,8 +67,9 @@ export async function analyzeImageHandler(req: Request, res: Response) {
     const fullImagePath = path.join(process.cwd(), 'uploads', imagePath);
 
     try {
-      const imageBuffer = await fs.readFile(fullImagePath);
-      const base64Image = imageBuffer.toString('base64');
+      // Use our base64 utility to get the encoded image
+      const { getBase64Image } = await import('../lib/imageUtils');
+      const base64Image = await getBase64Image(fullImagePath);
 
       log.info('Successfully read image file, sending to OpenAI for analysis');
 
